@@ -2,9 +2,9 @@
 
 FullStack Ops Lab is a learning project built around a small task application called Sandbox Tasks. The long-term goal is to learn full-stack development and operations step by step. The main technical plan is in [PROJECT_SPEC.md](PROJECT_SPEC.md), and current progress is in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-## Current scope: Phase 0B
+## Current scope: Phase 0C
 
-The repository contains a .NET 10 Web API and a React + TypeScript + Vite frontend. They run directly on the host. The API has an in-memory Task CRUD API, `GET /health`, and a development OpenAPI document. The frontend is still a starter page and does not call the Task API yet.
+The repository contains a .NET 10 Web API and a React + TypeScript + Vite frontend. They run directly on the host. The frontend lists, creates, completes or reopens, and deletes tasks through the in-memory Task API. It shows loading, empty, and error states and checks the title before sending a new task.
 
 ```text
 FullStackOpsLab.slnx                 .NET solution
@@ -20,7 +20,7 @@ tests/Phase0B.Tasks.Smoke.ps1     Task CRUD smoke check
 - Node.js 24 and npm 11
 - PowerShell for the smoke check
 
-Docker is not needed for Phase 0A.
+Docker is not needed for Phase 0.
 
 ## Run locally
 
@@ -41,6 +41,12 @@ npm run dev
 
 Vite prints the frontend URL, normally `http://localhost:5173`.
 
+### How the applications connect during development
+
+The browser requests `/api/tasks` relative to the frontend URL. Vite's development proxy forwards `/api` requests to the backend at `127.0.0.1:5162`. The frontend code does not contain a backend host or port. Start the API before using the task page. If the API is unavailable, the page shows a connection error and a **Listeyi yenile** button.
+
+The Vite proxy works only with the development server. The planned Nginx routing in `PROJECT_SPEC.md` will later forward the same `/api/*` browser paths to the API when the built frontend is served through Nginx. Nginx is not configured in Phase 0.
+
 ## Verify
 
 While the API is running in Development mode:
@@ -51,6 +57,8 @@ While the API is running in Development mode:
 ```
 
 The first check requests `GET /health` and `GET /openapi/v1.json`. The second sends real CRUD requests and checks success and error responses. You can also run individual requests in [Tasks.http](src/backend/FullStackOpsLab.Api/Tasks.http). This project uses ASP.NET Core's built-in OpenAPI endpoint; it does not include a Swagger UI page.
+
+To check the full frontend flow, open the Vite URL with both servers running. Add a task, mark it complete, reopen it, and delete it. Stop the API and reload the page to see the connection error; restart the API and use **Listeyi yenile**.
 
 ## Task API
 

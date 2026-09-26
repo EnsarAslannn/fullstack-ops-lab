@@ -10,7 +10,7 @@ Phase 0 — Baseline Application
 
 ## Current Step
 
-Phase 0B — In-memory Task API (completed)
+Phase 0C — Connect React Frontend to Task API (completed)
 
 ## Completed
 
@@ -35,9 +35,15 @@ Phase 0B — In-memory Task API (completed)
 
 - Task API HTTP examples and smoke check added
 
+- React frontend connected to the Task API through the Vite development proxy
+
+- Task list, create, complete/reopen, and delete flows verified in a browser
+
+- Loading, empty, validation, error, and disabled-button states verified
+
 ## Next Goal
 
-When requested, continue Phase 0 by connecting the frontend to the Task API.
+Wait for an explicit request before starting Module 1 — Docker Fundamentals.
 
 ## Blockers
 
