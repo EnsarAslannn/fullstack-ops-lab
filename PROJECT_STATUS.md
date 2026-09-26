@@ -10,7 +10,7 @@ Phase 0 — Baseline Application
 
 ## Current Step
 
-Phase 0A — Repository and application skeleton (completed)
+Phase 0B — In-memory Task API (completed)
 
 ## Completed
 
@@ -29,9 +29,15 @@ Phase 0A — Repository and application skeleton (completed)
 
 - Root README, Git ignore rules, and API smoke check added
 
+- In-memory Task CRUD endpoints implemented and verified with real HTTP requests
+
+- Title validation, 404 responses, and process-restart data loss verified
+
+- Task API HTTP examples and smoke check added
+
 ## Next Goal
 
-Continue Phase 0 only when requested: add the in-memory task API and connect the frontend to it.
+When requested, continue Phase 0 by connecting the frontend to the Task API.
 
 ## Blockers
 
