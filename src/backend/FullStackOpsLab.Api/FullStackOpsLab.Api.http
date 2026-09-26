@@ -1,0 +1,9 @@
+@FullStackOpsLab.Api_HostAddress = http://localhost:5162
+
+GET {{FullStackOpsLab.Api_HostAddress}}/health
+
+###
+
+GET {{FullStackOpsLab.Api_HostAddress}}/openapi/v1.json
+
+###

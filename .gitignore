@@ -1,0 +1,22 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# .NET build and IDE files
+**/bin/
+**/obj/
+**/TestResults/
+.vs/
+.idea/
+*.user
+*.suo
+
+# Node and Vite output
+**/node_modules/
+**/dist/
+**/coverage/
+.npm-cache/
+
+# Local tool state
+.dotnet-cli/
