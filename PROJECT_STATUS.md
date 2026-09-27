@@ -2,15 +2,15 @@
 
 ## Status
 
-In progress
+Phase 0 — Completed
 
 ## Current Phase
 
-Phase 0 — Baseline Application
+Module 1 — Docker Fundamentals
 
 ## Current Step
 
-Phase 0C — Connect React Frontend to Task API (completed)
+Not started
 
 ## Completed
 
@@ -41,9 +41,11 @@ Phase 0C — Connect React Frontend to Task API (completed)
 
 - Loading, empty, validation, error, and disabled-button states verified
 
+- Phase 0 final acceptance verified: clean baseline, builds, API smoke checks, browser flows, health, and OpenAPI
+
 ## Next Goal
 
-Wait for an explicit request before starting Module 1 — Docker Fundamentals.
+Verify Docker installation with `docker --version` and `docker info`.
 
 ## Blockers
 
