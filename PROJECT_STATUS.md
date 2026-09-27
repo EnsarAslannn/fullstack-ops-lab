@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 1 — In progress
+Module 2 — In progress
 
 ## Current Phase
 
-Module 1 — Docker Fundamentals
+Module 2 — Dockerfiles and Image Optimization
 
 ## Current Step
 
-Module 1A — Docker Fundamentals and Nginx Container Lifecycle (completed)
+Module 2A — Backend Dockerfile Baseline (completed)
 
 ## Completed
 
@@ -47,9 +47,15 @@ Module 1A — Docker Fundamentals and Nginx Container Lifecycle (completed)
 
 - `fullstack-ops-nginx-lab` removed after the lab; `nginx:stable-alpine` retained locally
 
+- Module 2A single-stage .NET 10 SDK Dockerfile and context-specific `.dockerignore` created
+
+- `fullstack-ops-api:baseline` built twice and measured; cache, image history, health, and Development OpenAPI verified
+
+- `fullstack-ops-api-baseline` container removed after verification; baseline image retained for comparison
+
 ## Next Goal
 
-Wait for an explicit request before planning the next Module 1 step.
+On explicit request: Module 2B — compare this baseline with a multi-stage backend image.
 
 ## Blockers
 
