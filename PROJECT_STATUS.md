@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 0 — Completed
+Module 1 — In progress
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 1 — Docker Fundamentals
 
 ## Current Step
 
-Not started
+Module 1A — Docker Fundamentals and Nginx Container Lifecycle (completed)
 
 ## Completed
 
@@ -43,9 +43,13 @@ Not started
 
 - Phase 0 final acceptance verified: clean baseline, builds, API smoke checks, browser flows, health, and OpenAPI
 
+- Module 1A verified with the official Nginx image: pull, run, HTTP, logs, inspect, exec, stop, start, restart, and remove
+
+- `fullstack-ops-nginx-lab` removed after the lab; `nginx:stable-alpine` retained locally
+
 ## Next Goal
 
-Verify Docker installation with `docker --version` and `docker info`.
+Wait for an explicit request before planning the next Module 1 step.
 
 ## Blockers
 
