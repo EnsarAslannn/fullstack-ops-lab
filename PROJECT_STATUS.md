@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 3 — Completed
+Module 4 — In progress
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 4 — Docker Networking
 
 ## Current Step
 
-Not started
+Module 4A — User-Defined Bridge Network and Container DNS: Completed
 
 ## Completed
 
@@ -105,9 +105,15 @@ Not started
 
 - Module 3F test tasks and acceptance container removed; Module 3B lab row, migration history, named volume, and PostgreSQL image retained
 
+- Module 4A user-defined bridge and container DNS verified with a freshly built backend image and existing PostgreSQL named volume
+
+- Backend health, OpenAPI, Task CRUD, validation, and missing-ID responses passed through container-name PostgreSQL access; host PostgreSQL port stayed closed
+
+- Module 4A test tasks, containers, network, and temporary external env file removed; named volume, PostgreSQL image, and networking backend image retained
+
 ## Next Goal
 
-On explicit request: Module 4 — Docker Networking, starting with the custom bridge network in `PROJECT_SPEC.md`.
+On explicit request: Module 4 critical error scenario — observe the wrong `Host=localhost` target inside the API container, then correct it to the container name.
 
 ## Blockers
 
