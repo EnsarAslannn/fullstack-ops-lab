@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 3C — Planning completed
+Module 3D — Completed
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 3 — PostgreSQL & Persistence
 
 ## Current Step
 
-Module 3C — Backend PostgreSQL Integration Planning completed; implementation not started
+Module 3D — PostgreSQL Credential Preparation and EF Core Foundation completed
 
 ## Completed
 
@@ -85,9 +85,17 @@ Module 3C — Backend PostgreSQL Integration Planning completed; implementation 
 
 - Module 3C backend contract, schema, credentials, migrations, verification, and phased integration plan documented without changing application code or PostgreSQL data
 
+- Module 3D development PostgreSQL credential renewed and verified with SCRAM TCP authentication; real connection string stored only in local user-secrets
+
+- EF Core 10 design-time support, Npgsql provider, local dotnet-ef tool, TaskEntity, and AppDbContext added without migrations or persistent CRUD
+
+- Release build, EF model SQL generation, health/OpenAPI, and existing in-memory Task smoke tests passed; `tasks` table remains absent
+
+- Module 3D PostgreSQL container removed; named volume and image retained locally
+
 ## Next Goal
 
-On explicit request: Module 3D — PostgreSQL credential preparation and EF Core foundation, preserving the existing named volume.
+On explicit request: Module 3E — Initial Migration and Persistent Task CRUD.
 
 ## Blockers
 

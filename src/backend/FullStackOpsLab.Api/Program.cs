@@ -1,7 +1,19 @@
+using FullStackOpsLab.Api.Data;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
+
+var postgresConnectionString = builder.Configuration.GetConnectionString("Postgres");
+if (string.IsNullOrWhiteSpace(postgresConnectionString))
+{
+    throw new InvalidOperationException(
+        "Missing ConnectionStrings:Postgres configuration. Set it through user-secrets or an environment variable.");
+}
+
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(postgresConnectionString));
 
 var app = builder.Build();
 

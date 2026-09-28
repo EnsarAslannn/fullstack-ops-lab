@@ -277,3 +277,62 @@ Migration'ı yerel laboratuvarda geliştirici açıkça uygular; API başlangıc
 Özellikle korunacak riskler: API contract değişikliği; secret'ın Git'e girmesi; yanlış volume'un silinmesi; host/container adreslerinin karıştırılması; `lab_tasks` ile migration şema çakışması; PostgreSQL hazır olmadan API bağlantısı. Her uygulama alt adımında önce Git diff, volume adı, konfigürasyon ve beklenen HTTP sonuçları yeniden kontrol edilir.
 
 Resmî başvuru kaynakları: [Npgsql EF Core provider](https://www.npgsql.org/efcore/), [EF CLI ve design paketi](https://learn.microsoft.com/en-us/ef/core/cli/dotnet), [migration uygulama seçenekleri](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying), [EnsureCreated sınırları](https://learn.microsoft.com/en-us/ef/core/managing-schemas/ensure-created), [ASP.NET Core user secrets](https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets), [.NET environment key eşlemesi](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/).
+
+---
+
+# Module 3D — PostgreSQL Credential Preparation and EF Core Foundation
+
+## Yapılan iş ve güvenli parola akışı
+
+`fullstack-ops-postgres-data` named volume'u mevcut haliyle `postgres:18-alpine` image'ına, yalnızca bu deneyin `fullstack-ops-postgres-dev` container'ında `/var/lib/postgresql` yoluna bağlandı. Port `127.0.0.1:15432:5432` idi. `pg_isready` bağlantı kabul edildiğini gösterdi. Başlangıçta `lab_tasks` ve test kaydı vardı; uygulama `tasks` tablosu yoktu.
+
+Volume önceden initialized olduğundan yeni bir `POSTGRES_PASSWORD` environment değeri PostgreSQL rol parolasını **değiştirmez**. Image'ın ilk kurulum adımı yalnızca boş veri dizininde çalışır. Bu nedenle rastgele development parolası PowerShell belleğinde üretildi; `dotnet user-secrets set` komutunun standart girdisi üzerinden yerel secret store'a kaydedildi. Yetkili local socket oturumuna `docker exec -i ... psql` ile standart girdiden `ALTER ROLE` verildi. Parola komut argümanına, terminal çıktısına veya repository dosyasına yazılmadı. Geçici parola/SQL dosyası oluşturulmadı.
+
+Bu deneyin mevcut, initialized volume ile kullandığı güvenli container komutu ve hazır olma kontrolü:
+
+```powershell
+docker run -d --name fullstack-ops-postgres-dev -p 127.0.0.1:15432:5432 --mount type=volume,source=fullstack-ops-postgres-data,target=/var/lib/postgresql postgres:18-alpine
+docker exec fullstack-ops-postgres-dev pg_isready -U fullstackops -d fullstackops
+```
+
+Bu `docker run` komutu boş bir volume'u ilk kez kurmak için örnek değildir: burada mevcut veri dizini kullanıldı. Parola güncelleme komutu, gerçek değerin konsola yazılmasını önlemek için bu belgeye eklenmedi.
+
+Local socket ve container içi `127.0.0.1` bağlantıları bu volume'un `pg_hba.conf` dosyasında `trust` kullanıyor; bunlar parola testi sayılamaz. İlk gerçek doğrulama, container'ın **loopback olmayan IP'sine** TCP üzerinden yapıldı. Bu adres `scram-sha-256` kuralıyla eşleşti. Yeni parola user-secrets'tan belleğe okunup yalnızca test sürecinin `PGPASSWORD` environment değerine aktarıldı; doğru parola ile sorgu `tcp_authenticated` döndürdü. Yanlış parola denemesi reddedildi. Ayrıca geçici bir Npgsql istemcisi, user-secrets'taki değeri yalnızca kendi process environment'ından okuyarak **host `localhost:15432`** üzerinden bağlandı ve `SELECT 1` sorgusunu tamamladı (`HOST_TCP_AUTHENTICATED=True`). Geçici istemci kaynak dosyası silindi. Parola ve tam connection string bu belgeye yazılmadı.
+
+`UserSecretsId` yalnızca yerel secret store kaydının kimliğidir; gerçek secret'ı içermez. ASP.NET Core user-secrets geliştirme sırasında değeri repository dışında tutar, ancak şifreli bir production vault değildir. Dosya sistemine erişebilen aynı kullanıcı değeri okuyabilir. İleride container konfigürasyonunda `ConnectionStrings__Postgres` anahtarı kullanılır; `.env.example` yalnızca placeholder taşır ve gerçek `.env` Git tarafından yok sayılır.
+
+Host'taki API için bağlantı hedefi `localhost:15432` idi. Gelecekte API ve PostgreSQL ayrı container'larda aynı servis ağına alındığında hedef PostgreSQL servis adı ve `5432` olacaktır. API container'ındaki `localhost` PostgreSQL'i değil, API container'ını ifade eder. Bu aşamada Compose veya özel network oluşturulmadı.
+
+## Sürümler ve kod yapısı
+
+| Bileşen | Sabitlenen sürüm | Görevi |
+| --- | --- | --- |
+| `Npgsql.EntityFrameworkCore.PostgreSQL` | `10.0.3` | EF Core sorgularını PostgreSQL'e bağlayan provider |
+| `Microsoft.EntityFrameworkCore.Design` | `10.0.12` | Design-time DbContext keşfi ve ileride migration üretimi; `PrivateAssets=all` ile uygulama tüketicilerine taşınmaz |
+| Repository local `dotnet-ef` | `10.0.12` | EF CLI aracı; global kurulum yapılmadı |
+
+Sürümler resmî [Npgsql NuGet](https://www.nuget.org/packages/Npgsql.EntityFrameworkCore.PostgreSQL/10.0.3), [EF Design NuGet](https://www.nuget.org/packages/Microsoft.EntityFrameworkCore.Design/10.0.12) ve [dotnet-ef NuGet](https://www.nuget.org/packages/dotnet-ef/10.0.12) kayıtlarından seçildi. Proje `net10.0` hedefliyor. Design paketinin proje dosyasında `PrivateAssets=all` ve uygun `IncludeAssets` ayarı doğrulandı.
+
+Kurulumda kullanılan, secret içermeyen komutlar:
+
+```powershell
+dotnet user-secrets init --project src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj
+dotnet new tool-manifest
+dotnet add src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj package Npgsql.EntityFrameworkCore.PostgreSQL --version 10.0.3
+dotnet add src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj package Microsoft.EntityFrameworkCore.Design --version 10.0.12
+dotnet tool install dotnet-ef --local --version 10.0.12
+```
+
+Local tool manifest'i repository kökündeki `dotnet-tools.json` dosyasına yazıldı. `UserSecretsId` proje dosyasında, gerçek değer ise yalnızca kullanıcı profilindeki yerel secret store'dadır.
+
+`Data/TaskEntity.cs` ileride saklanacak Task alanlarını taşır. `Id` generated integer, `Title` zorunlu `text`, `Description` nullable `text`, `IsCompleted` boolean, `CreatedAt` UTC ve `UpdatedAt` nullable UTC değeridir. Yeni başlık maksimum uzunluğu eklenmedi. `Data/AppDbContext.cs` bu entity'yi açıkça `tasks` tablosuna ve snake_case sütunlarına eşler; Module 3B'nin `lab_tasks` tablosuna mapping yapmaz. `Program.cs` context'i `AddDbContext`/`UseNpgsql` ile kaydeder ve `ConnectionStrings:Postgres` eksikse değeri göstermeden açık konfigürasyon hatası verir.
+
+API request/response kayıtları ve mevcut in-memory liste, ID sayacı ve lock **yerinde duruyor**. Bu adım yalnızca EF temeli oluşturdu. Endpoint'leri şimdi veritabanına geçirmek, migration henüz yokken `tasks` tablosunu gerektirirdi ve Module 3E sınırını aşardı. API başlangıcında `EnsureCreated`, `EnsureDeleted` veya otomatik migration yok; seed data da eklenmedi.
+
+## Gerçek doğrulama ve cleanup
+
+Repository kökünde `dotnet restore FullStackOpsLab.slnx`, `dotnet build FullStackOpsLab.slnx -c Release --no-restore`, `dotnet tool restore`, `dotnet ef --version` ve `./tests/Module3D.EfFoundation.Smoke.ps1` çalıştırıldı. EF testi önce `AppDbContext` bulunamadığı için başarısız oldu; temel eklendikten sonra design-time keşfi ve model SQL üretimi geçti. `dotnet ef dbcontext script` yalnızca SQL **üretti**, veritabanında tablo veya migration oluşturmadı. Model SQL, `tasks` tablosunu ve beklenen sütunları içerdi; `lab_tasks` oluşturma talimatı içermedi. Release build sonucu **0 uyarı, 0 hata**; local tool sürümü `10.0.12`.
+
+API Development profilinde local user-secrets ile açıldı. `Phase0A.Smoke.ps1` `/health` ve OpenAPI için geçti. `Phase0B.Tasks.Smoke.ps1` GET/POST/PUT/DELETE ile `400` ve `404` senaryolarında geçti. Eksik connection string ile ayrı başlatma denemesi beklenen konfigürasyon hatasıyla durdu. Host `localhost:15432` üzerinden Npgsql authentication ve `SELECT 1` başarılı oldu. PostgreSQL'de gerçek SELECT, `tasks_absent|lab_tasks_present` ve `1|Module 3B persistent task` döndürdü: API işlemleri bu aşamada hâlâ bellek içi.
+
+API süreci ve yalnızca `fullstack-ops-postgres-dev` test container'ı kapatılıp kaldırıldı. `fullstack-ops-postgres-data` named volume'u ve `postgres:18-alpine` image'ı local sistemde kaldı. Parolanın tek kalıcı development kopyası repository dışındaki user-secrets alanındadır; secret değerleri Git diff veya dokümana yazılmadı.
