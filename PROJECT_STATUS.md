@@ -10,7 +10,7 @@ Module 4 — Docker Networking
 
 ## Current Step
 
-Module 4A — User-Defined Bridge Network and Container DNS: Completed
+Module 4 — Kritik Hata Senaryosu (container içindeki localhost): Completed
 
 ## Completed
 
@@ -111,9 +111,13 @@ Module 4A — User-Defined Bridge Network and Container DNS: Completed
 
 - Module 4A test tasks, containers, network, and temporary external env file removed; named volume, PostgreSQL image, and networking backend image retained
 
+- Module 4 critical localhost error observed with the same backend image: health 200, Task GET 500, connection refused at backend loopback while PostgreSQL was ready
+
+- Correct container DNS host restored Task CRUD, OpenAPI, validation, and 404 responses; test task, containers, network, and temporary env files removed
+
 ## Next Goal
 
-On explicit request: Module 4 critical error scenario — observe the wrong `Host=localhost` target inside the API container, then correct it to the container name.
+On explicit request: Module 4 DNS — examine container-name resolution and the diagnostic tools listed next in `PROJECT_SPEC.md`.
 
 ## Blockers
 

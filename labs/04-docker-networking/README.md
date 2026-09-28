@@ -92,3 +92,74 @@ docker network rm fullstack-ops-network-lab
 Resmî PostgreSQL image'ının `VOLUME` tanımı, DNS tanısı için `sleep` ile çalıştırılan container'a da anonim volume ekledi. Son kaynak sayımındaki farkla bu fark edildi. Docker volume olayları, `3ec6ce4e267ab56f188a6a7dc6e3b15fcd7512daad40b1a3d5c6604e853285b2` volume'unun yalnızca `fullstack-ops-dns-diagnostic` container'ına mount edildiğini gösterdi; bağlı container kalmadığı doğrulandıktan sonra yalnızca bu volume açık adıyla `docker volume rm` kullanılarak kaldırıldı.
 
 Repository dışındaki geçici env dosyası da silindi. `fullstack-ops-postgres-data` named volume'u, `postgres:18-alpine` ve `fullstack-ops-api:networking` image'ları yerel sistemde bırakıldı. Başka Docker kaynağına dokunulmadı. Ağı kaldırmadan önce ona bağlı deney container'ları kaldırıldı; `docker network prune` veya `docker system prune` kullanılmadı.
+
+---
+
+# Module 4 — Kritik Hata Senaryosu: Container İçindeki `localhost`
+
+`PROJECT_SPEC.md` bu alt adımı **Kritik Hata Senaryosu** olarak adlandırır; şartnamede `Module 4B` etiketi yoktur. Amaç, API'nin aynı Docker ağındaki PostgreSQL'e neden `localhost` ile erişemediğini gerçek hata ve düzeltme sonuçlarıyla görmektir. Uygulama kodu, Dockerfile, image, migration ve şema değişmedi.
+
+## Kurulum ve güvenli bağlantı bilgisi
+
+Deney için `fullstack-ops-network-localhost-lab` adlı user-defined `bridge` ağı oluşturuldu. `fullstack-ops-postgres-localhost-lab`, mevcut `fullstack-ops-postgres-data` named volume'u `/var/lib/postgresql` hedefine bağlayarak ve **host portu yayınlamadan** başlatıldı. `pg_isready` hazır olduğunu gösterdi. Başlangıçta `tasks` sayısı `0`, `lab_tasks` satırı `1:Module 3B persistent task`, migration kaydı `20260928113912_InitialCreate` idi.
+
+Parola mevcut local user-secrets kaynağından alındı. Yanlış ve doğru bağlantı için iki ayrı, repository dışı geçici env dosyası sırayla oluşturuldu. İki dosyada da `Database=fullstackops`, `Username=fullstackops`, `Port=5432` ve parola aynıydı; **yalnızca Host değişti**. Değer `ConnectionStrings__Postgres` anahtarıyla container'a verildi. Dosyalar ve gerçek bağlantı dizesi repository'ye, image build argümanına veya image layer'ına yazılmadı. Yanlış env dosyası doğru deneye geçmeden, doğru env dosyası da deney sonunda silindi. Bu yöntem yalnızca local laboratuvar içindir; production secret yönetimi değildir. `docker inspect` içindeki `Config.Env` alanı gerçek secret içerebilir, bu nedenle tam çıktısı paylaşılmamalıdır.
+
+Önemli komutlar (env dosyası değişkenleri repository dışındaki geçici yolları temsil eder):
+
+```powershell
+docker network create --driver bridge fullstack-ops-network-localhost-lab
+docker run -d --name fullstack-ops-postgres-localhost-lab `
+  --network fullstack-ops-network-localhost-lab `
+  --mount type=volume,source=fullstack-ops-postgres-data,target=/var/lib/postgresql `
+  postgres:18-alpine
+docker exec fullstack-ops-postgres-localhost-lab pg_isready -U fullstackops -d fullstackops
+
+docker run -d --name fullstack-ops-api-localhost-lab `
+  --network fullstack-ops-network-localhost-lab `
+  -p 127.0.0.1:18080:8080 `
+  --env-file $wrongEnvPath `
+  -e ASPNETCORE_ENVIRONMENT=Development `
+  fullstack-ops-api:networking
+
+curl.exe --silent --show-error --output NUL --write-out '%{http_code}' http://127.0.0.1:18080/health
+curl.exe --silent --show-error --output NUL --write-out '%{http_code}' http://127.0.0.1:18080/api/tasks
+docker exec fullstack-ops-postgres-localhost-lab pg_isready -U fullstackops -d fullstackops
+docker stop fullstack-ops-api-localhost-lab
+docker rm fullstack-ops-api-localhost-lab
+
+# $wrongEnvPath silinip yalnızca Host düzeltilmiş $correctEnvPath hazırlanır.
+docker run -d --name fullstack-ops-api-localhost-lab `
+  --network fullstack-ops-network-localhost-lab `
+  -p 127.0.0.1:18080:8080 `
+  --env-file $correctEnvPath `
+  -e ASPNETCORE_ENVIRONMENT=Development `
+  fullstack-ops-api:networking
+docker network inspect fullstack-ops-network-localhost-lab
+docker exec fullstack-ops-api-localhost-lab getent hosts fullstack-ops-postgres-localhost-lab
+```
+
+## Yanlış hedef ve düzeltme
+
+| Yapılandırma | Backend'in bağlanmaya çalıştığı yer | Gerçek sonuç |
+| --- | --- | --- |
+| `Host=localhost;Port=5432` | Backend container'ının kendi loopback adresi | API çalıştı; `/health` **200**, `GET /api/tasks` **500**. Loglarda `localhost:5432`, `127.0.0.1:5432` ve `Connection refused` görüldü. PostgreSQL aynı anda `pg_isready` ile hazırdı. |
+| `Host=fullstack-ops-postgres-localhost-lab;Port=5432` | Aynı user-defined ağdaki PostgreSQL container'ı | DNS adı `172.22.0.2` adresine çözüldü; `GET /api/tasks` **200** ve veri işlemleri başarılı. |
+
+Yanlış deneyde backend container'ı `running` durumundaydı ve `8080` portunu dinliyordu. `/health` mevcut temel health check'i çalıştırır; veritabanı readiness kontrolü içermez. Bu yüzden yanlış veritabanı hedefiyle bile `200 Healthy` döndü. Veri endpoint'i EF Core üzerinden gerçek sorgu denediğinde bağlantı reddedildi. PostgreSQL'in aynı anda hazır olması, problemin veritabanının kapalı olması değil yanlış hedef olduğunu gösterdi.
+
+Doğru deneyde `docker network inspect`, PostgreSQL (`172.22.0.2`) ve API (`172.22.0.3`) container'larının aynı ağda olduğunu gösterdi. `getent hosts fullstack-ops-postgres-localhost-lab` backend içinden başarıyla çalıştı. Bu IP'ler dinamik olabilir; bağlantı ayarında IP yerine Docker DNS adı kullanılır.
+
+Host makinedeki `localhost` host'un kendisini; backend container'ındaki `localhost` backend'i; PostgreSQL container'ındaki `localhost` PostgreSQL'i gösterir. Container'lar birbirinin loopback adresini paylaşmaz. Host `127.0.0.1:18080`, API container'ının `8080` portuna yönlendirildi. PostgreSQL container içindeki `5432` portundan aynı ağdaki API'ye erişilebildi; `docker inspect` port bindings `{}`, `docker ps` yalnızca `5432/tcp` gösterdi ve host `127.0.0.1:15432` kapalı kaldı. Ortak ağ, container DNS adının çözülmesini ve container'lar arası doğrudan erişimi sağladı.
+
+## Gerçek HTTP ve veri sonuçları
+
+- Yanlış hedef: `/health` **200**, `GET /api/tasks` **500**; loglarda `Connection refused` ve backend loopback adresindeki `5432` hedefi.
+- Doğru hedef: `/health` **200 Healthy**, `/openapi/v1.json` **200** (OpenAPI `3.1.1`), görev listesi **200** ve `[]`.
+- Benzersiz test görevi POST ile **201** oluşturuldu; `Location: /api/tasks/19`. Tekil GET **200**, `isCompleted=true` yapan PUT **200**, DELETE **204**, silme sonrası GET **404** döndü.
+- Boş başlık POST **400**, bulunmayan ID GET **404** döndü. Son liste yine `[]`, PostgreSQL `tasks` sayısı `0` idi.
+- `lab_tasks` satırı ve `InitialCreate` migration kaydı değişmedi. Yanlış ve doğru container'ların image ID'si aynıydı: `sha256:9b7e1e6257436f0465245b00d78f5614fc15f9af71058e51fdaca9a547991b26`. Düzeltme kod veya image değişikliğiyle değil, yalnızca bağlantı hedefiyle sağlandı.
+
+## Temizlik
+
+Test görevi API üzerinden silindi. Backend ve PostgreSQL test container'ları durdurulup kaldırıldı; ardından yalnızca `fullstack-ops-network-localhost-lab` ağı kaldırıldı. İki geçici env dosyası silindi. Deney öncesi ve sonrası container, network ve volume sayıları karşılaştırıldı. `fullstack-ops-postgres-data` named volume'u, `postgres:18-alpine` ve `fullstack-ops-api:networking` image'ları korundu. Başka Docker kaynağına dokunulmadı; prune kullanılmadı.
