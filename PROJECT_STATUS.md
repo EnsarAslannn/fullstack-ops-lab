@@ -10,7 +10,7 @@ Module 2 — Dockerfiles and Image Optimization
 
 ## Current Step
 
-Module 2A — Backend Dockerfile Baseline (completed)
+Module 2B — Backend Multi-Stage Build Optimization (completed)
 
 ## Completed
 
@@ -53,9 +53,17 @@ Module 2A — Backend Dockerfile Baseline (completed)
 
 - `fullstack-ops-api-baseline` container removed after verification; baseline image retained for comparison
 
+- Module 2B backend Dockerfile split into SDK build and ASP.NET runtime stages
+
+- Baseline and multi-stage images measured; multi-stage content size fell by 236,911 MB (71,11%)
+
+- Health, OpenAPI, and Task CRUD smoke checks passed on both images; SDK and source absent from final runtime image
+
+- Both test containers removed; both comparison images retained locally
+
 ## Next Goal
 
-On explicit request: Module 2B — compare this baseline with a multi-stage backend image.
+On explicit request: plan the next Module 2 step for the frontend Dockerfile.
 
 ## Blockers
 
