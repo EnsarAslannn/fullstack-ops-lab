@@ -24,32 +24,24 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthChecks("/health");
 
-var tasks = new List<TaskItem>();
-var tasksLock = new object();
-var nextTaskId = 1;
-
 var taskRoutes = app.MapGroup("/api/tasks");
 
-taskRoutes.MapGet("", () =>
+taskRoutes.MapGet("", async (AppDbContext db, CancellationToken cancellationToken) =>
 {
-    lock (tasksLock)
-    {
-        return Results.Ok(tasks.ToArray());
-    }
+    var tasks = await db.Tasks.AsNoTracking().OrderBy(task => task.Id).ToListAsync(cancellationToken);
+    return Results.Ok(tasks.Select(ToTaskItem));
 });
 
-taskRoutes.MapGet("/{id:int}", (int id) =>
+taskRoutes.MapGet("/{id:int}", async (int id, AppDbContext db, CancellationToken cancellationToken) =>
 {
-    TaskItem? task;
-    lock (tasksLock)
-    {
-        task = tasks.Find(item => item.Id == id);
-    }
+    var task = await db.Tasks.AsNoTracking()
+        .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
 
-    return task is null ? (IResult)Results.NotFound() : Results.Ok(task);
+    return task is null ? (IResult)Results.NotFound() : Results.Ok(ToTaskItem(task));
 });
 
-taskRoutes.MapPost("", IResult (CreateTaskRequest request) =>
+taskRoutes.MapPost("", async Task<IResult> (CreateTaskRequest request, AppDbContext db,
+    CancellationToken cancellationToken) =>
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
@@ -59,19 +51,23 @@ taskRoutes.MapPost("", IResult (CreateTaskRequest request) =>
         });
     }
 
-    TaskItem task;
-    lock (tasksLock)
+    var now = UtcNowForPostgres();
+    var task = new TaskEntity
     {
-        var now = DateTimeOffset.UtcNow;
-        task = new TaskItem(nextTaskId++, request.Title.Trim(), request.Description,
-            false, now, now);
-        tasks.Add(task);
-    }
+        Title = request.Title.Trim(),
+        Description = request.Description,
+        IsCompleted = false,
+        CreatedAt = now,
+        UpdatedAt = now
+    };
+    await db.Tasks.AddAsync(task, cancellationToken);
+    await db.SaveChangesAsync(cancellationToken);
 
-    return Results.Created($"/api/tasks/{task.Id}", task);
+    return Results.Created($"/api/tasks/{task.Id}", ToTaskItem(task));
 });
 
-taskRoutes.MapPut("/{id:int}", IResult (int id, UpdateTaskRequest request) =>
+taskRoutes.MapPut("/{id:int}", async Task<IResult> (int id, UpdateTaskRequest request,
+    AppDbContext db, CancellationToken cancellationToken) =>
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
@@ -81,45 +77,45 @@ taskRoutes.MapPut("/{id:int}", IResult (int id, UpdateTaskRequest request) =>
         });
     }
 
-    TaskItem updatedTask;
-    lock (tasksLock)
+    var task = await db.Tasks.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+    if (task is null)
     {
-        var index = tasks.FindIndex(item => item.Id == id);
-        if (index < 0)
-        {
-            return Results.NotFound();
-        }
-
-        updatedTask = tasks[index] with
-        {
-            Title = request.Title.Trim(),
-            Description = request.Description,
-            IsCompleted = request.IsCompleted,
-            UpdatedAt = DateTimeOffset.UtcNow
-        };
-        tasks[index] = updatedTask;
+        return Results.NotFound();
     }
 
-    return Results.Ok(updatedTask);
+    task.Title = request.Title.Trim();
+    task.Description = request.Description;
+    task.IsCompleted = request.IsCompleted;
+    task.UpdatedAt = UtcNowForPostgres();
+    await db.SaveChangesAsync(cancellationToken);
+
+    return Results.Ok(ToTaskItem(task));
 });
 
-taskRoutes.MapDelete("/{id:int}", IResult (int id) =>
+taskRoutes.MapDelete("/{id:int}", async Task<IResult> (int id, AppDbContext db,
+    CancellationToken cancellationToken) =>
 {
-    lock (tasksLock)
+    var task = await db.Tasks.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+    if (task is null)
     {
-        var index = tasks.FindIndex(item => item.Id == id);
-        if (index < 0)
-        {
-            return Results.NotFound();
-        }
-
-        tasks.RemoveAt(index);
+        return Results.NotFound();
     }
 
+    db.Tasks.Remove(task);
+    await db.SaveChangesAsync(cancellationToken);
     return Results.NoContent();
 });
 
 app.Run();
+
+static DateTimeOffset UtcNowForPostgres()
+{
+    var now = DateTimeOffset.UtcNow;
+    return now.AddTicks(-(now.Ticks % 10));
+}
+
+static TaskItem ToTaskItem(TaskEntity task) => new(task.Id, task.Title, task.Description,
+    task.IsCompleted, task.CreatedAt, task.UpdatedAt ?? task.CreatedAt);
 
 record TaskItem(int Id, string Title, string? Description, bool IsCompleted,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);

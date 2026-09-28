@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 3D — Completed
+Module 3E — Completed
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 3 — PostgreSQL & Persistence
 
 ## Current Step
 
-Module 3D — PostgreSQL Credential Preparation and EF Core Foundation completed
+Module 3E — Initial Migration and Persistent Task CRUD completed
 
 ## Completed
 
@@ -93,9 +93,17 @@ Module 3D — PostgreSQL Credential Preparation and EF Core Foundation completed
 
 - Module 3D PostgreSQL container removed; named volume and image retained locally
 
+- Module 3E `InitialCreate` migration reviewed and explicitly applied; `tasks` and `__EFMigrationsHistory` created while `lab_tasks` was preserved
+
+- All five Task endpoints use async EF Core and preserve the existing HTTP contract; in-memory task list, counter, and lock removed
+
+- Persistence test failed with 404 before conversion, then passed after API restart; PostgreSQL stop/start also preserved the task
+
+- Release build and existing smoke tests passed; test tasks and PostgreSQL test container removed, named volume and image retained
+
 ## Next Goal
 
-On explicit request: Module 3E — Initial Migration and Persistent Task CRUD.
+On explicit request: Module 3F — PostgreSQL Persistence Final Acceptance.
 
 ## Blockers
 
