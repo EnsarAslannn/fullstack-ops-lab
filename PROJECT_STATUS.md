@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 3B — Completed
+Module 3C — Planning completed
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 3 — PostgreSQL & Persistence
 
 ## Current Step
 
-Module 3B — PostgreSQL Named Volume Persistence completed
+Module 3C — Backend PostgreSQL Integration Planning completed; implementation not started
 
 ## Completed
 
@@ -83,9 +83,11 @@ Module 3B — PostgreSQL Named Volume Persistence completed
 
 - Module 3B test container removed; named volume and PostgreSQL image retained locally
 
+- Module 3C backend contract, schema, credentials, migrations, verification, and phased integration plan documented without changing application code or PostgreSQL data
+
 ## Next Goal
 
-On explicit request: Module 3C — Backend PostgreSQL Integration Planning.
+On explicit request: Module 3D — PostgreSQL credential preparation and EF Core foundation, preserving the existing named volume.
 
 ## Blockers
 

@@ -202,3 +202,78 @@ Remove-Item -LiteralPath $labEnvPath
 ```
 
 Test container'ı ve geçici env dosyası kaldırıldı. `fullstack-ops-postgres-data` **silinmedi**; sonraki backend persistence çalışması için local sistemde kaldı. `postgres:18-alpine` image'ı da kaldı. İlişkisiz Docker kaynaklarına dokunulmadı; `docker volume prune` ve `docker system prune` kullanılmadı.
+
+---
+
+# Module 3C — Backend Integration Plan
+
+Bu bölüm **uygulama değil, teknik plandır**. `Program.cs`, `Tasks.http`, mevcut smoke testleri, `.gitignore`, `.env.example` ve Module 3 şartnamesi incelendi. Git çalışma alanı temizdi ve `fullstack-ops-postgres-data` volume'u `docker volume inspect` ile bulundu. Bu adımda volume içeriği okunmadı veya değiştirilmedi; PostgreSQL container'ı başlatılmadı.
+
+## Mevcut HTTP sözleşmesi
+
+Minimal API, `Program.cs` içinde `/api/tasks` route grubunu kullanıyor. JSON yanıtları `id`, `title`, `description`, `isCompleted`, `createdAt`, `updatedAt` alanlarını taşır. `id` .NET `int` değeridir; `createdAt` ve `updatedAt` UTC `DateTimeOffset` olarak üretilir. `description` nullable'dır. POST gövdesi `title` ve isteğe bağlı `description`; PUT gövdesi `title`, `description` ve `isCompleted` içerir. PUT'ta `isCompleted` gönderilmezse mevcut `bool` binding davranışı `false` değerini kullanır; `description` gönderilmezse `null` olur.
+
+| İstek | Mevcut davranış |
+| --- | --- |
+| `GET /api/tasks` | `200`, JSON dizi; başlangıçta `[]` olabilir |
+| `GET /api/tasks/{id}` | `200`, tek kayıt; yoksa `404` |
+| `POST /api/tasks` | `201`, oluşturulan kayıt ve `/api/tasks/{id}` konumlu `Location` başlığı |
+| `PUT /api/tasks/{id}` | `200`, güncellenen kayıt; yoksa `404` |
+| `DELETE /api/tasks/{id}` | `204`, boş gövde; yoksa `404` |
+
+POST ve PUT, `title` için `null`, boş veya yalnızca whitespace değerini `400` validation problem olarak reddeder; hata anahtarı `title`, mesajı `Title is required.` olur. Geçerli başlık iki işlemde de `Trim()` ile kaydedilir. Başlık/description için mevcut kodda maksimum uzunluk yoktur; description trim edilmez. POST `isCompleted=false` ve her iki zamanı UTC şimdi olarak atar. PUT `createdAt` değerini korur, `updatedAt` değerini UTC şimdiye taşır. PUT önce başlığı doğruladığı için geçersiz başlıkla birlikte bilinmeyen ID verilirse `400` döner. `{id:int}` route kısıtı da korunmalıdır.
+
+## Mevcut bellek içi davranış ve hedef yapı
+
+`Program.cs` içindeki `List<TaskItem>` ve `nextTaskId` yalnızca API sürecinin belleğinde durur. `tasksLock`, paralel isteklerin listeyi ve ID sayacını aynı anda değiştirerek yarış oluşturmasını önler; liste yanıtında `ToArray()` ile kopya alınır. Süreç yeniden başlayınca liste ve sayaç yeniden oluşturulur; veri kaybolur. PostgreSQL'e geçince ID'yi veritabanı üretir, istek başına scoped `DbContext` kullanılır; bu bellek listesi, sayaç ve lock kalkar. Sırf bu geçiş için repository katmanı eklenmez.
+
+Önerilen küçük dosya yapısı:
+
+- `src/backend/FullStackOpsLab.Api/Data/AppDbContext.cs`: `DbSet<TaskEntity>`, `OnModelCreating` içinde açık tablo/sütun eşlemeleri. Tek entity için ayrı configuration sınıfı gerekmez.
+- `src/backend/FullStackOpsLab.Api/Data/TaskEntity.cs`: yalnızca saklanan alanlar. Mevcut API request/response kayıtlarından ayrı tutulur.
+- `src/backend/FullStackOpsLab.Api/Program.cs`: `AddDbContext` ve Npgsql kaydı; mevcut route'larda `AppDbContext` ve `CancellationToken` kullanımı. Okumalar `AsNoTracking` ile, işlemler EF Core async metotları ve `SaveChangesAsync` ile yapılır.
+- `src/backend/FullStackOpsLab.Api/Migrations/`: initial migration ve model snapshot; migration üretildikten sonra source control'de tutulur.
+
+API modelleriyle veritabanı entity'si aynı tip olmak zorunda değildir. Mevcut `CreateTaskRequest`, `UpdateTaskRequest` ve `TaskItem` JSON biçimi korunur; entity ile `TaskItem` arasında açık mapping yapılır. Böylece EF navigation/tracking ayrıntıları HTTP yanıtına sızmaz. Liste `id` sırasıyla okunarak mevcut ekleme sırasına yakın davranış korunur. POST `Location`, validasyon, 404 ve 204 davranışları aynı kalır. PostgreSQL identity ID'si yeniden başlatmada sıfırlanmaz; bu kalıcılığın beklenen sonucudur.
+
+| `tasks` tablosu | PostgreSQL tipi ve kural | Kaynak |
+| --- | --- | --- |
+| `id` | `integer`, identity primary key | Mevcut `int Id` |
+| `title` | `text NOT NULL` | Başlık zorunlu; mevcut maksimum uzunluk **yok** |
+| `description` | `text NULL` | Mevcut nullable description |
+| `is_completed` | `boolean NOT NULL`, başlangıç `false` | Mevcut tamamlanma alanı |
+| `created_at` | `timestamp with time zone NOT NULL` | UTC oluşturma zamanı |
+| `updated_at` | `timestamp with time zone NOT NULL` | UTC güncelleme zamanı |
+
+Şimdilik `title` için `HasMaxLength` eklenmez: örneğin 200 karakter sınırı, mevcut HTTP sözleşmesini değiştirirdi. İstenirse sonraki ayrı kararda hem API validasyonu hem şema birlikte değişmelidir. PostgreSQL şemasının adı `tasks` seçildi; Module 3B'den kalan iki sütunlu `lab_tasks` deney tablosu ayrı kalır. Initial migration `lab_tasks` tablosunu silmemeli, üzerine yazmamalı veya mevcut kaydı uygulama verisi saymamalıdır. Migration uygulanmadan önce `tasks` ve `__EFMigrationsHistory` tablolarının önceden bulunup bulunmadığı kontrol edilmelidir.
+
+## Paketler, bağlantı ve secret planı
+
+Proje `net10.0` hedefliyor. Uygulama adımında uyumlu **10.x** sürümleri birlikte sabitlenerek `Npgsql.EntityFrameworkCore.PostgreSQL` provider'ı ve design-time için `Microsoft.EntityFrameworkCore.Design` eklenir. `dotnet ef` CLI aracı da aynı ana sürümde kurulur; bu bir NuGet proje paketi değil, ayrı .NET aracıdır. Provider EF Core temel bağımlılıklarını getirir; sırf CLI için `Microsoft.EntityFrameworkCore.Tools` veya ayrı ADO.NET `Npgsql` paketi eklenmez. Kesin patch sürümleri yükleme adımında resmî paket uyumluluğuna göre seçilir. Bu planda hiçbir paket kurulmadı.
+
+`Program.cs`, konfigürasyondan `ConnectionStrings:Postgres` anahtarını okuyup `UseNpgsql` ile scoped context kaydeder. Local host geliştirmesinde bağlantı hedefi `Host=localhost`, `Port=15432` olur. Gelecekte iki container aynı Compose ağına alındığında hedef, PostgreSQL servis adı ve `Port=5432` olur. API container'ındaki `localhost` API container'ının kendisidir; PostgreSQL container'ını göstermez. Bu görevde Compose veya network oluşturulmadı.
+
+Gerçek parola ve tam connection string `appsettings.json` veya `appsettings.Development.json` içine girmez. Local geliştirme için projenin `UserSecretsId` değeri hazırlanıp `dotnet user-secrets` kullanılması önerilir; değer repository dışında tutulur. Container ortamında `ConnectionStrings__Postgres` environment anahtarı kullanılabilir: çift alt çizgi .NET konfigürasyonunda `:` ile aynı hiyerarşiyi belirtir. Environment değeri de Docker erişimi olanlara görünebilir; production ortamında ayrıca uygun secret yönetimi gerekir. `.gitignore` mevcut `.env` ve `.env.*` dosyalarını dışlıyor; `.env.example` ileride yalnızca placeholder ve açıklama içermelidir.
+
+## Silinmiş lab parolası için karar
+
+Module 3B'nin sahte parolası geçici env dosyasıyla birlikte silindi. Initialized volume'a farklı `POSTGRES_PASSWORD` vermek mevcut PostgreSQL rolünün parolasını değiştirmez; bu değişken ilk veri dizini oluşturulurken kullanılır.
+
+| Seçenek | Kazanç | Risk / maliyet |
+| --- | --- | --- |
+| Volume'u koruyup yetkili yerel PostgreSQL oturumunda `ALTER ROLE` ile yeni development parolası belirlemek | Module 3B kaydı ve kalıcılık deneyi korunur | Rol erişimi doğrulanmalı; yeni değer terminal geçmişine, loglara veya Git'e sızdırılmamalı |
+| Yalnızca lab verisi olduğu için volume'u kontrollü yeniden oluşturmak | Temiz bir başlangıç ve yeni ilk kurulum parolası | Var olan test verisi kesin olarak silinir; yanlış volume hedefi ciddi veri kaybı yaratır |
+
+**Tercih:** mevcut named volume'u korumak. Module 3D'de, yalnızca bu volume'a bağlı kontrollü geçici PostgreSQL container'ında yerel yetkili oturum açılabildiği doğrulandıktan sonra interaktif `psql` parola değiştirme akışıyla rol parolası yenilenir; bu, PostgreSQL tarafında `ALTER ROLE` uygular. Değer komut satırına veya belgeye yazılmaz, local API için user-secrets'a aktarılır ve yeni TCP bağlantısıyla sınanır. Yetkili erişim sağlanamazsa volume'u otomatik silmek yerine durup seçenekler yeniden değerlendirilir. **Bu görevde parola ve volume değiştirilmedi.**
+
+## Migration ve doğrulama sırası
+
+1. **Module 3D — Credential ve EF Core temeli:** named volume'u ve mevcut `lab_tasks` şemasını koruma kontrolü; yukarıdaki credential hazırlığı; uyumlu paketler ve araç; `AppDbContext`/entity/eşleme ve konfigürasyon kaydı. Bu alt adımın sonunda Release build ve bağlantı doğrulanır; HTTP CRUD kalıcı depoya henüz geçirilmez.
+2. **Module 3E — Migration ve CRUD:** `InitialCreate` migration'ı `Migrations/` içine oluşturulur, üretilen SQL/şema ve `lab_tasks` ile olası çakışmalar incelenir, sonra yerel ortamda geliştirici `dotnet ef database update` çalıştırır. `EnsureCreated` kullanılmaz; migration geçmişini atlayıp sonraki migration'larla uyumsuzluk yaratır. Ardından endpoint'ler async EF işlemlerine ve açık API mapping'ine geçirilir.
+3. **Module 3F — Persistence kabul testi:** `dotnet build -c Release`; mevcut health/OpenAPI ve Task CRUD smoke testleri; `200`, `201`, `204`, `400`, `404`, `Location`, trim ve timestamp kontrolleri; API restart sonrasında kayıt; PostgreSQL stop/start sonrasında kayıt; tablo ve migration geçmişi; güvenli test verisi temizliği. Gerekirse mevcut `Phase0B.Tasks.Smoke.ps1` için kalıcı veritabanı varsayımları düzeltilir. Bu script oluşturduğu kaydı zaten siler, ancak hata durumunda kalıntı kontrolü gerekir.
+
+Migration'ı yerel laboratuvarda geliştirici açıkça uygular; API başlangıcında otomatik migration **planlanmaz**. Startup migration kolaylık sağlar, fakat veritabanı hazır değilse API açılışını engelleyebilir, uygulamaya şema değiştirme yetkisi gerektirir ve deployment sırasında SQL incelemesini zorlaştırır. Daha sonraki production aşamasında gözden geçirilmiş SQL script veya migration bundle ayrı bir deployment adımı olabilir. Mevcut `/health` endpoint'i yalnızca mevcut health check kaydını gösterir; PostgreSQL readiness kontrolü yaptığı varsayılmamalıdır.
+
+Özellikle korunacak riskler: API contract değişikliği; secret'ın Git'e girmesi; yanlış volume'un silinmesi; host/container adreslerinin karıştırılması; `lab_tasks` ile migration şema çakışması; PostgreSQL hazır olmadan API bağlantısı. Her uygulama alt adımında önce Git diff, volume adı, konfigürasyon ve beklenen HTTP sonuçları yeniden kontrol edilir.
+
+Resmî başvuru kaynakları: [Npgsql EF Core provider](https://www.npgsql.org/efcore/), [EF CLI ve design paketi](https://learn.microsoft.com/en-us/ef/core/cli/dotnet), [migration uygulama seçenekleri](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying), [EnsureCreated sınırları](https://learn.microsoft.com/en-us/ef/core/managing-schemas/ensure-created), [ASP.NET Core user secrets](https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets), [.NET environment key eşlemesi](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/).
