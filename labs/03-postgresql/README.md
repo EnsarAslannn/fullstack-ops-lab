@@ -105,3 +105,100 @@ Bu deneyin sonunda `docker ps -a` içinde lab container'ı yoktu; her iki lab vo
 ## Öğrenilecek nokta
 
 `docker run` komutunda `-v` olmaması tek başına “veri container writable layer'ında” demek değildir. Önce image'ın `VOLUME` tanımı ve container'ın `Mounts` alanı kontrol edilir. Stop/start aynı mount'u korur. Remove/recreate yeni bir anonim volume üretebilir; eski veri görünmez olur. Eski volume açıkça silinmediği sürece Docker'da kalabilir.
+
+---
+
+# Module 3B — PostgreSQL Named Volume Persistence
+
+## Amaç ve kaynaklar
+
+Module 3A'da yeni container farklı bir anonim volume almıştı. Bu deneyde PostgreSQL veri dizinini kullanıcı tarafından adlandırılmış **aynı volume'a** bağlayıp container kaldırıldıktan sonra kaydın korunmasını doğruladık. Backend ve frontend değiştirilmedi.
+
+| Kaynak | Değer |
+| --- | --- |
+| Image | `postgres:18-alpine` |
+| Local image digest | `postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873` |
+| Container | `fullstack-ops-postgres-named-volume` |
+| Named volume | `fullstack-ops-postgres-data` |
+| Mount hedefi | `/var/lib/postgresql` |
+| Port | `127.0.0.1:15432:5432` |
+| İlk kurulum | `POSTGRES_USER=fullstackops`, `POSTGRES_DB=fullstackops`, sahte `POSTGRES_PASSWORD` |
+
+Parolanın değeri repository'ye veya bu belgeye yazılmadı. Aynı sahte değer, iki container için repository dışındaki geçici env dosyasından okundu; dosya deney sonunda silindi. Docker erişimi olan kişiler container environment değerlerini görebilir. Bu yöntem production secret yönetimi değildir.
+
+## Volume oluşturma ve ilk container
+
+Başlangıçta Git temizdi, Docker Engine erişilebilirdi, hedef container yoktu, `15432` portu boştu. `docker volume inspect fullstack-ops-postgres-data` beklenen `no such volume` sonucunu verdi. Aynı isimde mevcut bir volume olsaydı deney durdurulacak, içeriğine dokunulmayacaktı.
+
+```powershell
+docker volume create fullstack-ops-postgres-data
+docker volume inspect fullstack-ops-postgres-data
+
+$labEnvPath = Join-Path $env:TEMP ('fullstack-ops-postgres-3b-' + [guid]::NewGuid().ToString('N') + '.env')
+$labPassword = 'lab-only-' + [guid]::NewGuid().ToString('N')
+@('POSTGRES_USER=fullstackops', 'POSTGRES_DB=fullstackops', ('POSTGRES_PASSWORD=' + $labPassword)) |
+  Set-Content -LiteralPath $labEnvPath -Encoding ascii
+
+docker run -d --name fullstack-ops-postgres-named-volume -p 127.0.0.1:15432:5432 --env-file $labEnvPath --mount type=volume,source=fullstack-ops-postgres-data,target=/var/lib/postgresql postgres:18-alpine
+docker exec fullstack-ops-postgres-named-volume pg_isready -U fullstackops -d fullstackops
+(docker inspect fullstack-ops-postgres-named-volume | ConvertFrom-Json).Mounts |
+  Select-Object Type, Name, Destination, RW
+```
+
+`docker volume create` önceden seçilmiş adı oluşturur. `--mount type=volume,source=...,target=...` bu volume'u PostgreSQL veri yoluna bağlar. Image'ın `PGDATA=/var/lib/postgresql/18/docker` değeri mount hedefinin altındadır. Port eşlemesi host üzerinde yalnızca localhost'u yayınlar. `pg_isready` hazır değilse kısa aralıklarla tekrarlanır; deneyde `accepting connections` döndü. Tam `docker inspect` çıktısı parolayı gösterebileceğinden yalnızca `Mounts` alanı paylaşılır.
+
+## Test verisi ve remove/recreate
+
+```powershell
+docker exec fullstack-ops-postgres-named-volume psql -U fullstackops -d fullstackops -v ON_ERROR_STOP=1 -c 'CREATE TABLE lab_tasks (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, title text NOT NULL);'
+docker exec fullstack-ops-postgres-named-volume psql -U fullstackops -d fullstackops -v ON_ERROR_STOP=1 -c "INSERT INTO lab_tasks (title) VALUES ('Module 3B persistent task');"
+docker exec fullstack-ops-postgres-named-volume psql -U fullstackops -d fullstackops -v ON_ERROR_STOP=1 -t -A -c 'SELECT id, title FROM lab_tasks ORDER BY id;'
+
+docker stop fullstack-ops-postgres-named-volume
+docker rm fullstack-ops-postgres-named-volume
+docker volume inspect fullstack-ops-postgres-data
+
+docker run -d --name fullstack-ops-postgres-named-volume -p 127.0.0.1:15432:5432 --env-file $labEnvPath --mount type=volume,source=fullstack-ops-postgres-data,target=/var/lib/postgresql postgres:18-alpine
+docker exec fullstack-ops-postgres-named-volume pg_isready -U fullstackops -d fullstackops
+(docker inspect fullstack-ops-postgres-named-volume | ConvertFrom-Json).Mounts |
+  Select-Object Type, Name, Destination, RW
+docker exec fullstack-ops-postgres-named-volume psql -U fullstackops -d fullstackops -v ON_ERROR_STOP=1 -t -A -c 'SELECT id, title FROM lab_tasks ORDER BY id;'
+```
+
+`psql` container içinden yerel bağlantı kurdu. İlk `SELECT` sonucu `1|Module 3B persistent task` idi. İlk container kaldırıldıktan sonra `docker volume inspect` volume'un hâlâ var olduğunu gösterdi. İkinci container'daki gerçek `SELECT` de **`1|Module 3B persistent task`** döndürdü.
+
+| Gözlem | İlk container | Yeniden oluşturulan container |
+| --- | --- | --- |
+| Container ID | `154d5646ca32dc1009af49ee2284f461eea72229f0d7af8ebbafa93acd5dae3c` | `f0f443382eed0ecbb2bb2aa339384585224595df540d0611ee8630445f04a143` |
+| `Mounts.Type` | `volume` | `volume` |
+| `Mounts.Name` | `fullstack-ops-postgres-data` | `fullstack-ops-postgres-data` |
+| `Mounts.Destination` | `/var/lib/postgresql` | `/var/lib/postgresql` |
+| `Mounts.RW` | `True` | `True` |
+| Port | `127.0.0.1:15432->5432/tcp` | `127.0.0.1:15432->5432/tcp` |
+| `SELECT` | `1|Module 3B persistent task` | `1|Module 3B persistent task` |
+
+Container ID'leri değişti, volume adı ve veri değişmedi. PostgreSQL veri dosyaları container'dan ayrı volume'da kaldı; ikinci container aynı volume'u açıkça bağladı.
+
+## Anonim ve named volume farkı
+
+| Konu | Module 3A: anonim volume | Module 3B: named volume |
+| --- | --- | --- |
+| Oluşum | Image'ın `VOLUME` tanımıyla Docker otomatik oluşturdu | `docker volume create` ile açıkça oluşturuldu |
+| Ad | Docker'ın ürettiği uzun ad | Kullanıcının seçtiği `fullstack-ops-postgres-data` |
+| Remove/recreate | Yeni container farklı anonim volume aldı; tablo görünmedi | Yeni container aynı named volume'u bağladı; kayıt kaldı |
+| Container kaldırılınca | Eski volume ayrıca silinene kadar durabilir | Bu deneyde açıkça korundu |
+
+Named volume tek başına yedekleme veya mutlak kalıcılık garantisi değildir. Burada veri, yeni container **aynı volume'u aynı veri yoluna bağladığı** için korundu.
+
+## Güvenli cleanup ve son durum
+
+```powershell
+docker stop fullstack-ops-postgres-named-volume
+docker rm fullstack-ops-postgres-named-volume
+docker ps -a --filter name=fullstack-ops-postgres-named-volume
+docker volume inspect fullstack-ops-postgres-data
+docker image inspect postgres:18-alpine
+Remove-Item -LiteralPath $labEnvPath
+```
+
+Test container'ı ve geçici env dosyası kaldırıldı. `fullstack-ops-postgres-data` **silinmedi**; sonraki backend persistence çalışması için local sistemde kaldı. `postgres:18-alpine` image'ı da kaldı. İlişkisiz Docker kaynaklarına dokunulmadı; `docker volume prune` ve `docker system prune` kullanılmadı.

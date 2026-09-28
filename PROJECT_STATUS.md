@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 3A — Completed
+Module 3B — Completed
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 3 — PostgreSQL & Persistence
 
 ## Current Step
 
-Module 3A — PostgreSQL Container Lifecycle and Anonymous Volume Lab completed
+Module 3B — PostgreSQL Named Volume Persistence completed
 
 ## Completed
 
@@ -77,9 +77,15 @@ Module 3A — PostgreSQL Container Lifecycle and Anonymous Volume Lab completed
 
 - Both Module 3A anonymous volumes and the test container removed; the PostgreSQL image retained locally
 
+- Module 3B named volume `fullstack-ops-postgres-data` created and mounted at `/var/lib/postgresql`
+
+- `lab_tasks` row survived container remove/recreate when the same named volume was explicitly remounted
+
+- Module 3B test container removed; named volume and PostgreSQL image retained locally
+
 ## Next Goal
 
-On explicit request: Module 3B — PostgreSQL Named Volume; verify that a newly created container can reuse the same named volume and its data.
+On explicit request: Module 3C — Backend PostgreSQL Integration Planning.
 
 ## Blockers
 
