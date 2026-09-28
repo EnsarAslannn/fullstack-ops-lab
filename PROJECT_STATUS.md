@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 3E — Completed
+Module 3 — Completed
 
 ## Current Phase
 
-Module 3 — PostgreSQL & Persistence
+Module 4 — Docker Networking
 
 ## Current Step
 
-Module 3E — Initial Migration and Persistent Task CRUD completed
+Not started
 
 ## Completed
 
@@ -101,9 +101,13 @@ Module 3E — Initial Migration and Persistent Task CRUD completed
 
 - Release build and existing smoke tests passed; test tasks and PostgreSQL test container removed, named volume and image retained
 
+- Module 3F final acceptance verified migration state, Release build, health/OpenAPI, CRUD, API restart, PostgreSQL stop/start, outage/recovery, and concurrent database-generated IDs
+
+- Module 3F test tasks and acceptance container removed; Module 3B lab row, migration history, named volume, and PostgreSQL image retained
+
 ## Next Goal
 
-On explicit request: Module 3F — PostgreSQL Persistence Final Acceptance.
+On explicit request: Module 4 — Docker Networking, starting with the custom bridge network in `PROJECT_SPEC.md`.
 
 ## Blockers
 

@@ -374,3 +374,33 @@ PostgreSQL zaman damgaları mikrosaniye hassasiyetindedir. İlk başarılı veri
 `dotnet restore FullStackOpsLab.slnx` ve Release build başarılıydı (**0 uyarı, 0 hata**). `tests/Phase0A.Smoke.ps1` health/OpenAPI için; `tests/Phase0B.Tasks.Smoke.ps1` CRUD, validation ve 404 için; `tests/Module3D.EfFoundation.Smoke.ps1` model için; yeni persistence testi API restart için geçti. POST/PUT sonrası aynı ID ve alanlar tekrar okundu. Ayrı deneyde PostgreSQL container'ı stop/start yapıldı, API yeniden başlatıldı ve aynı görev **HTTP 200** döndü; DELETE ile **204** dönerek temizlendi. `tasks` sonunda **0 kayıt** içerdi. `lab_tasks` hâlâ `1|Module 3B persistent task` döndürdü; migration geçmişinde `InitialCreate` vardı.
 
 Veri API sürecinde değil, `fullstack-ops-postgres-data` named volume'una bağlı PostgreSQL dosyalarında tutulduğu için API restart ve veritabanı container stop/start sonrasında korundu. Deneyde `fullstack-ops-postgres-dev` kaldırıldı; named volume ve `postgres:18-alpine` image'ı sonraki adım için bırakıldı. Gerçek parola ve tam connection string yalnızca repository dışındaki user-secrets'ta kaldı; test ve migration dosyalarına yazılmadı.
+
+---
+
+# Module 3F — PostgreSQL Persistence Final Acceptance
+
+## Migration ve temel API kabulü
+
+Git çalışma alanı başlangıçta temizdi. Mevcut `fullstack-ops-postgres-data` volume'u `postgres:18-alpine` image'ına, yalnızca bu deneyin `fullstack-ops-postgres-acceptance` container'ında `/var/lib/postgresql` yoluna bağlandı; host bağlantısı `127.0.0.1:15432:5432` idi. Başlangıçta `lab_tasks`, `tasks` ve `__EFMigrationsHistory` tabloları mevcuttu. `lab_tasks` sorgusu `1|Module 3B persistent task`, `tasks` sayısı `0`, migration geçmişi `20260928113912_InitialCreate` döndürdü.
+
+Repository local `dotnet-ef` sürümü `10.0.12` idi. `dotnet ef migrations list`, `InitialCreate` migration'ını uygulandı olarak gösterdi. `dotnet ef migrations has-pending-model-changes`, model ile snapshot arasında **bekleyen değişiklik yok** sonucunu verdi. `dotnet ef migrations script 0 InitialCreate --idempotent` yalnızca incelendi, uygulanmadı: SQL, `__EFMigrationsHistory` içinde migration kaydı yoksa `tasks` tablosunu oluşturuyor ve geçmiş kaydını ekliyor; `lab_tasks` için komut içermiyor. API başlangıcında `EnsureCreated` veya otomatik `Migrate` çağrısı bulunmuyor.
+
+`dotnet restore FullStackOpsLab.slnx` ve `dotnet build FullStackOpsLab.slnx -c Release --no-restore` geçti: **0 uyarı, 0 hata**. `Phase0A.Smoke.ps1`, `Phase0B.Tasks.Smoke.ps1`, `Module3D.EfFoundation.Smoke.ps1` ve `Module3E.Persistence.Smoke.ps1` geçti. Gerçek HTTP kontrolleri list/tekil GET `200`, POST `201` ve doğru `Location`, PUT `200`, DELETE `204`, geçersiz başlık `400`, eksik kayıt `404` davranışını doğruladı. Yanıt alanları `id`, `title`, `description`, `isCompleted`, `createdAt`, `updatedAt` olarak kaldı.
+
+## API ve PostgreSQL yeniden başlatma
+
+Bu deneye özgü bir görev POST ile oluşturuldu (`id=12`, `201`, `Location=/api/tasks/12`). Altı JSON alanı kaydedildi. API süreci kapatılıp PostgreSQL çalışırken yeniden başlatıldığında GET **200** döndü; ID, başlık, açıklama, tamamlanma durumu ve iki UTC zaman damgası aynıydı. Bu, kaydın API belleğiyle birlikte silinmediğini gösterir.
+
+API kapatıldı; **aynı** `fullstack-ops-postgres-acceptance` container'ına `docker stop` ve `docker start` uygulandı. `pg_isready` yeniden hazır olduğunu gösterdi. `docker inspect`, container ID'sinin ve `volume|fullstack-ops-postgres-data|/var/lib/postgresql` mount'unun aynı kaldığını doğruladı. API yeniden açıldığında görev yine **200** ve aynı alanlarla okundu. Named volume, PostgreSQL veri dosyalarını container lifecycle'ından ayrı tutar; bu deneyde aynı volume bağlantısı korunduğu için veri de korundu.
+
+## Veritabanı erişilemezken davranış ve toparlanma
+
+API açıkken PostgreSQL container'ı kontrollü olarak durduruldu. Varsayılan Windows test sürecinde `GET /api/tasks`, HTTP status göndermeden bağlantıyı kapattı (`curl` HTTP kodu **000**, “Empty reply from server”); aynı sırada `/health` **200 Healthy** döndü. EF CLI'da da görülen Windows Event Log yazma izni sorununun etkisini ayırmak için yalnızca test API sürecinde `Logging__EventLog__LogLevel__Default=None` ayarlandı. Aynı veritabanı kesintisinde GET bu kez **500** döndü. Bu iki gözlem, Event Log izni ile boş yanıt arasındaki ilişkiye işaret eder; uygulama kodu veya HTTP hata sözleşmesi bu görevde değiştirilmedi.
+
+PostgreSQL tekrar başlatılıp `pg_isready` başarılı olduktan sonra **aynı API süreci**, listeyi ve `id=12` görevini **200** ile döndürdü. Kaydın altı alanı değişmemişti. Mevcut `/health` yalnızca kayıtlı temel health check'i çalıştırıyor; PostgreSQL readiness kontrolü içermiyor. Bu nedenle veritabanı kapalıyken de 200 dönebilir ve veritabanı erişimi için tek başına güvence vermez.
+
+## Eşzamanlı ID üretimi ve temizlik
+
+Beş benzersiz başlıkla eşzamanlı POST gönderildi: **5/5 yanıt 201**, ID'ler **13, 14, 15, 16, 17** ve hepsi farklıydı. ID artık uygulama içi sayaçtan değil PostgreSQL identity sütunundan geliyor; eski liste/sayaç lock'u gerekmiyor. Geçici PowerShell temizlik komutunda koleksiyonun yanlış sarmalanması ilk DELETE'i `404` yaptı; gerçek tablo kontrolünde hiçbir görev silinmemişti. Beş kayıt tek tek başlıkları doğrulanarak API üzerinden `204` ile silindi. Ana acceptance görevi de API üzerinden `204` ile silindi ve sonraki GET `404` oldu.
+
+Son `tasks` sayısı **0**. `lab_tasks` hâlâ `1|Module 3B persistent task`, `__EFMigrationsHistory` hâlâ `20260928113912_InitialCreate` döndürdü. Test API süreci ve yalnızca `fullstack-ops-postgres-acceptance` container'ı kaldırıldı. `fullstack-ops-postgres-data` named volume'u ile `postgres:18-alpine` image'ı kaldı. User-secrets repository dışında; gerçek parola veya tam bağlantı değeri dokümantasyona yazılmadı.
