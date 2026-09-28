@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 2 — Completed
+Module 3A — Completed
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 3 — PostgreSQL & Persistence
 
 ## Current Step
 
-Not started
+Module 3A — PostgreSQL Container Lifecycle and Anonymous Volume Lab completed
 
 ## Completed
 
@@ -71,9 +71,15 @@ Not started
 
 - Backend and frontend test containers removed; all three Module 2 images retained for comparison
 
+- Module 3A PostgreSQL 18 Alpine container lifecycle tested with an automatically created anonymous volume
+
+- `lab_tasks` row survived stop/start; remove/recreate attached a different anonymous volume and the table was absent
+
+- Both Module 3A anonymous volumes and the test container removed; the PostgreSQL image retained locally
+
 ## Next Goal
 
-On explicit request: run PostgreSQL first without a volume and observe data loss after removing its container.
+On explicit request: Module 3B — PostgreSQL Named Volume; verify that a newly created container can reuse the same named volume and its data.
 
 ## Blockers
 
