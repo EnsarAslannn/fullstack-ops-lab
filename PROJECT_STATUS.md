@@ -10,7 +10,7 @@ Module 2 — Dockerfiles and Image Optimization
 
 ## Current Step
 
-Module 2B — Backend Multi-Stage Build Optimization (completed)
+Module 2C — Frontend Multi-Stage Dockerfile (completed)
 
 ## Completed
 
@@ -61,9 +61,15 @@ Module 2B — Backend Multi-Stage Build Optimization (completed)
 
 - Both test containers removed; both comparison images retained locally
 
+- Module 2C frontend image built with a Node.js build stage and Nginx runtime stage
+
+- Frontend image measured twice; HTTP assets, desktop/mobile layout, and expected standalone `/api` error state verified
+
+- Frontend test container removed; frontend image and both backend comparison images retained locally
+
 ## Next Goal
 
-On explicit request: plan the next Module 2 step for the frontend Dockerfile.
+On explicit request: Module 2D — final Docker image verification and learning review.
 
 ## Blockers
 

@@ -212,3 +212,81 @@ Multi-stage container'da `dotnet --list-sdks` boş sonuç verdi; `/usr/share/dot
 ### Avantaj ve trade-off'lar
 
 Final image'ın ölçülen content size değeri %71,11 azaldı. SDK ve kaynak kod final image'da olmadığından çalışan container daha dar bir dosya seti içerir. Bunun karşılığı iki aşamayı anlamak ve yönetmek, ayrıca ilk kez kullanılacak runtime base image'ını indirmektir. Ölçülen ilk build süreleri ağ ve mevcut cache durumundan etkilenir; yalnızca bu iki sayıdan her ortamda multi-stage build'in daha yavaş olduğu sonucu çıkarılmaz.
+
+## Module 2C — Frontend multi-stage Dockerfile
+
+### Build ve runtime aşamaları
+
+Güncel `src/frontend/Dockerfile` iki aşamalıdır:
+
+```dockerfile
+FROM node:24-alpine AS build
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:stable-alpine
+COPY --from=build /app/dist/ /usr/share/nginx/html/
+EXPOSE 80
+```
+
+Resmi Node.js 24 image'ı React, TypeScript ve Vite kaynaklarından production `dist` çıktısını üretir. `COPY --from=build`, yalnızca bu çıktıyı resmi Nginx image'ının statik dosya dizinine taşır. Final image'da Node.js build araçları veya kaynaklar bulunmaz. `EXPOSE 80` container portunu belgeler; Nginx image'ının mevcut entrypoint ve `nginx -g 'daemon off;'` komutu korunur. `src/frontend` build context olarak kullanılır.
+
+`npm ci`, `package-lock.json` içindeki sürümleri kullanarak temiz ve tekrarlanabilir kurulum yapar; lock dosyasını güncellemek için kullanılmaz. `npm install` bağımlılık ekleme/güncelleme iş akışına uygundur ve lock dosyasını değiştirebilir. Paket dosyaları kaynaklardan önce kopyalandığı için yalnızca React/TypeScript kaynakları değişirse `npm ci` katmanı cache'de kalabilir. Paket veya lock dosyası değişirse bu katman yeniden çalışır.
+
+`src/frontend/.dockerignore`, host `node_modules/`, `dist/` ve `*.tsbuildinfo` çıktılarının build context'e girmesini önler. `.git/`, IDE dosyaları, `.env` dosyaları, loglar ve geçici test çıktıları da dışlanır. `package.json`, `package-lock.json`, `vite.config.ts`, `index.html`, `src/` ve `public/` gerekli build girdileri olarak kalır. İlk build'de Docker'ın aktardığı context 60,71 kB idi.
+
+### Gerçek komutlar ve image ölçümleri
+
+Repository kökünden, npm komutları için `src/frontend` içinde çalıştırıldı:
+
+```powershell
+cd src/frontend
+npm ci
+npm run build
+cd ../..
+docker build --progress=plain -t fullstack-ops-frontend:multistage src/frontend
+docker build --progress=plain -t fullstack-ops-frontend:multistage src/frontend
+docker image inspect fullstack-ops-frontend:multistage
+docker image ls fullstack-ops-frontend:multistage
+docker image history fullstack-ops-frontend:multistage
+```
+
+| Ölçüm | Gerçek sonuç |
+| --- | --- |
+| İlk build (`Stopwatch`) | 20,559 sn |
+| Kaynak değişmeden ikinci build (`Stopwatch`) | 0,829 sn |
+| Image | `fullstack-ops-frontend:multistage` |
+| İkinci build sonrası image ID | `sha256:b81848bd9244ccec90b4513c4a60a182fafbf24e7c2d587ec8932329b1b13691` |
+| `docker image inspect` content size | 26.161.179 byte (26,161179 MB, ondalık) |
+| `docker image ls` content size / disk usage | 26,2 MB / 93,1 MB |
+| Build base | `node:24-alpine` |
+| Final base | `nginx:stable-alpine` |
+
+İlk image build'inde Node base image'ı indirildi; `npm ci` 27 paket kurdu ve `npm run build` TypeScript ile Vite çıktısını oluşturdu. İkinci build'de paket dosyası kopyası, `npm ci`, kaynak kopyası, `npm run build` ve `dist` kopyası dahil bütün build adımları `CACHED` göründü. `docker image history` final image'da yaklaşık 262 kB `dist` kopyası ve Nginx katmanlarını gösterdi; Node build katmanları final history'de yoktu. Image ID build anına aittir ve yeni attestation manifest'iyle değişebilir.
+
+### Container ve tarayıcı doğrulaması
+
+```powershell
+docker run -d --name fullstack-ops-frontend-multistage -p 127.0.0.1:18081:80 fullstack-ops-frontend:multistage
+docker ps --filter name=fullstack-ops-frontend-multistage
+docker logs fullstack-ops-frontend-multistage
+Invoke-WebRequest http://localhost:18081/
+docker exec fullstack-ops-frontend-multistage nginx -v
+docker exec fullstack-ops-frontend-multistage ls -la /usr/share/nginx/html
+docker stop fullstack-ops-frontend-multistage
+docker rm fullstack-ops-frontend-multistage
+```
+
+`docker ps` eşlemeyi `127.0.0.1:18081->80/tcp` gösterdi. Nginx 1.30.5 başlangıç loglarında hata yoktu; `docker inspect` state'i `running`, image'ı `fullstack-ops-frontend:multistage` ve komutu `nginx -g 'daemon off;'` olarak doğruladı. HTTP sonuçları: `/` **200**, JavaScript asset'i **200** (225.149 byte), CSS asset'i **200** (3.578 byte), favicon **200**. `dist/index.html` içindeki React kök elemanı mevcuttu.
+
+Chrome ile 1280 px masaüstü ve 390 px mobil genişlikte arayüz, başlık, mevcut hata kutusu ve yeniden deneme düğmesi göründü. Her iki genişlikte de document/body genişliği viewport genişliğine eşitti; yatay taşma olmadı. JavaScript exception veya başarısız ağ bağlantısı yoktu. Console'daki tek hata, beklenen `/api/tasks` **404** cevabının tarayıcı bildirimi idi.
+
+Final container'da `nginx -v` çalıştı ve statik HTML, JavaScript, CSS dosyaları bulundu. `node` ve `npm` komutları, `/app/src` ve `/app/node_modules` bulunmadı. Test bitince yalnızca `fullstack-ops-frontend-multistage` container'ı durdurulup kaldırıldı. Frontend image'ı ile iki backend karşılaştırma image'ı local sistemde bırakıldı.
+
+### Standalone `/api` davranışı
+
+Frontend API client isteklerde `/api/tasks` göreli yolunu kullanır. `vite.config.ts` içindeki `/api` proxy yalnızca Vite development server çalışırken devrededir. Production build statik dosyalardan oluşur; Nginx Vite development server'ını çalıştırmaz. Bu Module 2C Nginx image'ında `/api` reverse proxy henüz yoktur. Bu nedenle standalone container `/api/tasks` için **404** döndürdü ve mevcut arayüz hata kutusunda **“Görev bulunamadı. Listeyi yenileyin.”** mesajı gösterdi. Bu, API'ye erişildiği anlamına gelmez; mesaj mevcut client'ın 404 yorumudur. Sonraki Nginx reverse proxy modülünde `/api` backend'e yönlendirilerek bu bağlantı çözülecektir. Bu adımda API sözleşmesi, frontend URL'si veya CORS ayarı değiştirilmedi.
