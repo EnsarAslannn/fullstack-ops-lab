@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 2 — In progress
+Module 2 — Completed
 
 ## Current Phase
 
-Module 2 — Dockerfiles and Image Optimization
+Module 3 — PostgreSQL & Persistence
 
 ## Current Step
 
-Module 2C — Frontend Multi-Stage Dockerfile (completed)
+Not started
 
 ## Completed
 
@@ -67,9 +67,13 @@ Module 2C — Frontend Multi-Stage Dockerfile (completed)
 
 - Frontend test container removed; frontend image and both backend comparison images retained locally
 
+- Module 2 final acceptance verified: local builds, cached image builds, backend health/OpenAPI/CRUD, frontend assets, and expected standalone `/api` 404
+
+- Backend and frontend test containers removed; all three Module 2 images retained for comparison
+
 ## Next Goal
 
-On explicit request: Module 2D — final Docker image verification and learning review.
+On explicit request: run PostgreSQL first without a volume and observe data loss after removing its container.
 
 ## Blockers
 
