@@ -163,3 +163,86 @@ Host makinedeki `localhost` host'un kendisini; backend container'ındaki `localh
 ## Temizlik
 
 Test görevi API üzerinden silindi. Backend ve PostgreSQL test container'ları durdurulup kaldırıldı; ardından yalnızca `fullstack-ops-network-localhost-lab` ağı kaldırıldı. İki geçici env dosyası silindi. Deney öncesi ve sonrası container, network ve volume sayıları karşılaştırıldı. `fullstack-ops-postgres-data` named volume'u, `postgres:18-alpine` ve `fullstack-ops-api:networking` image'ları korundu. Başka Docker kaynağına dokunulmadı; prune kullanılmadı.
+
+---
+
+# Module 4 — DNS ve Teşhis Araçları
+
+`PROJECT_SPEC.md` bu bölüme numara vermez. Amaç, bağlantı arızasını **container durumu → ağ üyeliği → DNS → TCP → PostgreSQL readiness → kimlik doğrulama/SQL → API** sırasıyla ayırmaktır. API veya PostgreSQL runtime image'ına araç eklenmedi. Küçük resmî `busybox:1.37.0` image'ı yalnızca geçici `fullstack-ops-net-diagnostics` container'ında `nslookup`, `nc`, `wget` ve dosya incelemesi için kullanıldı. Production image'ını küçük tutmak, yalnızca çalışması için gereken içeriği taşımak açısından yararlıdır. PostgreSQL'e özgü `pg_isready` zaten mevcut PostgreSQL container'ında çalıştırıldı; ikinci bir PostgreSQL tanı container'ı ve anonim volume oluşturulmadı.
+
+## Kurulum, image incelemesi ve gizli bilgi
+
+Başlangıç Git çalışma alanı temizdi. Docker Engine istemci/sunucu sürümü `29.6.1`; envanter **12 container, 7 network, 19 volume, 27 image** idi. `fullstack-ops-postgres-data` named volume'u ve `postgres:18-alpine` ile `fullstack-ops-api:networking` image'ları mevcuttu. Seçilen adlar ve host `18080` portu boştu.
+
+Önceki `docker image inspect` gözlemi yeniden üretildi: `docker image ls --no-trunc`, `fullstack-ops-api:networking` tag'ini ve tam `sha256:9b7e1e6257436f0465245b00d78f5614fc15f9af71058e51fdaca9a547991b26` ID'sini gösterdi. Tag'in PowerShell karakter kodları normal ASCII idi; gizli karakter veya eski değişken saptanmadı. Buna rağmen `docker image inspect --format '{{.Id}}' fullstack-ops-api:networking` **1** (`No such image`), tam ve benzersiz kısa ID ile inspect **0**, `docker.io/library/fullstack-ops-api:networking` ile inspect **0** döndü. Çıplak tag ile `docker run` da başarılıydı. Anomalinin kesin nedeni belirlenmedi; image silinmedi, yeniden tag'lenmedi veya build edilmedi.
+
+`fullstack-ops-network-diagnostics` user-defined bridge oluşturuldu. PostgreSQL mevcut named volume'u `/var/lib/postgresql` hedefine bağlayıp **host portu olmadan** çalıştırıldı. API aynı ağa bağlandı; yalnızca `127.0.0.1:18080:8080` yayınlandı. Bağlantı hedefi `Host=fullstack-ops-postgres-diagnostics`, `Port=5432`, `Database=fullstackops`, `Username=fullstackops` idi. Gerçek parola local user-secrets'tan alınarak repository dışındaki geçici env dosyasında `ConnectionStrings__Postgres` anahtarıyla verildi. Parola ve tam bağlantı dizesi bu belgeye, terminal çıktısına veya image'a konmadı. Env dosyası deney sonunda silindi; bu local yöntem production secret yönetimi değildir.
+
+## DNS ve network kapsamı
+
+`docker network inspect fullstack-ops-network-diagnostics`: driver `bridge`, subnet `172.22.0.0/16`, gateway `172.22.0.1`; PostgreSQL `172.22.0.2`, API `172.22.0.3`, tanı container'ı `172.22.0.4`. IP'ler yeniden oluşturma sırasında değişebilir; uygulama ayarında IP yerine Docker DNS adı kullanılır.
+
+Tanı container'ındaki `/etc/resolv.conf` `nameserver 127.0.0.11` ve `options ndots:0` gösterdi. Bu, user-defined ağdaki Docker embedded DNS adresidir. Gerçek sorgular:
+
+| `nslookup` hedefi | Sonuç | Çıkış kodu |
+| --- | --- | ---: |
+| `fullstack-ops-postgres-diagnostics` | `172.22.0.2`; network inspect ile aynı | 0 |
+| `fullstack-ops-api-diagnostics` | `172.22.0.3`; network inspect ile aynı | 0 |
+| `fullstack-ops-no-such-container` | `NXDOMAIN` | 1 |
+| Tanı container'ı lab ağından ayrıldıktan sonra iki gerçek ad | İkisi de `SERVFAIL`; adlar artık erişilebilir değildi | 1 / 1 |
+
+Şartnamenin Module 4 bölümünde network alias yer almadığı için alias eklenmedi. Bir alias kullanılsaydı yalnızca eklendiği ağ kapsamında anlamlı olurdu; sonraki Compose service name yaklaşımı da aynı ağ içi isim çözümleme fikrini kullanır. Bu deneyde alias sonucu ölçülmedi.
+
+## DNS, TCP, readiness ve uygulama farkı
+
+Tanı araçları ve gerçek komut örnekleri:
+
+```powershell
+docker ps
+docker inspect fullstack-ops-postgres-diagnostics --format '{{.State.Status}}|{{json .HostConfig.PortBindings}}'
+docker network inspect fullstack-ops-network-diagnostics
+docker exec fullstack-ops-net-diagnostics cat /etc/resolv.conf
+docker exec fullstack-ops-net-diagnostics nslookup fullstack-ops-postgres-diagnostics
+docker exec fullstack-ops-net-diagnostics nc -z -w 2 fullstack-ops-postgres-diagnostics 5432
+docker exec fullstack-ops-net-diagnostics nc -z -w 2 fullstack-ops-postgres-diagnostics 5433
+docker exec fullstack-ops-postgres-diagnostics pg_isready -h fullstack-ops-postgres-diagnostics -p 5432 -U fullstackops -d fullstackops -t 2
+docker exec fullstack-ops-postgres-diagnostics pg_isready -h fullstack-ops-no-such-container -p 5432 -U fullstackops -d fullstackops -t 2
+docker exec fullstack-ops-postgres-diagnostics pg_isready -h fullstack-ops-postgres-diagnostics -p 5433 -U fullstackops -d fullstackops -t 2
+docker exec fullstack-ops-net-diagnostics wget -q -O - http://fullstack-ops-api-diagnostics:8080/health
+docker port fullstack-ops-api-diagnostics
+docker port fullstack-ops-postgres-diagnostics
+docker logs fullstack-ops-api-diagnostics
+```
+
+`docker logs` ve tam `docker inspect` çıktıları yayınlanmadan önce secret açısından gözden geçirilmelidir; özellikle `Config.Env` gerçek bağlantı değerini içerebilir. Bu laboratuvarda yalnızca gerekli log bulguları ve güvenli inspect alanları raporlandı.
+
+| Katman ve hedef | Gerçek sonuç | Çıkış kodu |
+| --- | --- | ---: |
+| DNS: PostgreSQL adı | `172.22.0.2` olarak çözüldü | 0 |
+| TCP: aynı ad, port `5432` | `nc -z -w 2` başarılı | 0 |
+| TCP: aynı ad, kapalı port `5433` | `nc -z -w 2` başarısız; DNS hâlâ doğru | 1 |
+| PostgreSQL readiness: doğru ad/port | `accepting connections` | 0 |
+| PostgreSQL readiness: var olmayan ad | `no response` | 2 |
+| PostgreSQL readiness: doğru ad, yanlış port `5433` | `no response` | 2 |
+| BusyBox → API `fullstack-ops-api-diagnostics:8080/health` | `Healthy` | 0 |
+
+`nc` açık TCP portunu gösterir; PostgreSQL protokolünü, parolayı veya SQL yetkisini kanıtlamaz. `pg_isready` servis hazır oluşunu gösterir; doğru parolayı ve SQL yetkisini tek başına kanıtlamaz. Ping ve DNS de yalnızca kendi katmanlarını gösterir. Container'ın `running` olması veya `/health` yanıtının **200** olması bu projede veritabanı readiness kanıtı değildir. API'nin başarılı Task sorgusu; DNS, TCP, PostgreSQL hazırlığı, kimlik doğrulama, SQL yürütümü ve API eşlemesini birlikte sınar.
+
+## HTTP ve veri doğrulaması
+
+Host üzerinden `/health` **200**, `/openapi/v1.json` **200**, `GET /api/tasks` **200** döndü. BusyBox aynı ağa bağlıyken API'ye host portu `18080` yerine container portu **8080** üzerinden ulaştı. Benzersiz test görevi POST ile **201** oluşturuldu (`Location: /api/tasks/20`), GET **200**, DELETE **204**, silme sonrası GET **404** döndü. Liste başta ve sonda `[]`; PostgreSQL `tasks` sayısı başta ve sonda **0** idi. `lab_tasks` satırı `1:Module 3B persistent task`, migration kaydı `20260928113912_InitialCreate` olarak korundu. API başlangıç logunda `8080` dinleme bilgisi vardı; bağlantı hatası görülmedi.
+
+`docker port` API için `8080/tcp -> 127.0.0.1:18080` gösterdi; PostgreSQL için host mapping döndürmedi. PostgreSQL `PortBindings={}` ve `docker ps` yalnızca `5432/tcp` gösterdi. Bu Docker ağı içi erişim için PostgreSQL host portunun gerekli olmadığını gösterir.
+
+## Teşhis karar sırası ve temizlik
+
+1. `docker ps` ve güvenli alanlara sınırlanmış `docker inspect`: container çalışıyor mu?
+2. `docker network inspect`: iki container aynı network'te mi?
+3. `docker exec ... nslookup`: ad doğru IP'ye çözülüyor mu?
+4. `docker exec ... nc -z -w 2`: beklenen TCP portu açık mı?
+5. `docker exec ... pg_isready -t 2`: PostgreSQL protokolü hazır mı?
+6. `psql` veya gerçek `GET /api/tasks`: kimlik doğrulama ve SQL çalışıyor mu?
+7. `docker logs`: uygulama hangi hatayı kaydediyor? Secret olabilecek satırları paylaşmadan önce ayır.
+8. `docker port` ve `docker inspect` port bindings: host portu gerçekten gerekiyor mu? API için evet, host'tan erişim istendi; PostgreSQL için hayır.
+
+Test kaydı silindi. Tanı, API ve PostgreSQL container'ları; lab network'ü ve geçici env dosyası kaldırıldı. BusyBox image'ı bu deneyde ilk kez çekilmişti; test sonunda yalnızca bu tag kaldırıldı. Son envanter tekrar **12 container, 7 network, 19 volume, 27 image** idi. `fullstack-ops-postgres-data`, `postgres:18-alpine` ve `fullstack-ops-api:networking` korundu. Başka Docker kaynağına dokunulmadı; prune kullanılmadı.

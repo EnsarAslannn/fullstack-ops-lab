@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 4 — In progress
+Module 5 — Completed
 
 ## Current Phase
 
-Module 4 — Docker Networking
+Module 5 — Redis Cache
 
 ## Current Step
 
-Module 4 — Kritik Hata Senaryosu (container içindeki localhost): Completed
+GET /api/tasks cache-aside flow: Completed
 
 ## Completed
 
@@ -115,9 +115,19 @@ Module 4 — Kritik Hata Senaryosu (container içindeki localhost): Completed
 
 - Correct container DNS host restored Task CRUD, OpenAPI, validation, and 404 responses; test task, containers, network, and temporary env files removed
 
+- Module 4 DNS and diagnostic tools verified Docker embedded DNS, successful and failed name resolution, open and closed TCP ports, PostgreSQL readiness, and real Task SQL flow
+
+- Diagnostic containers, network, temporary env file, test task, and lab-only BusyBox image removed; PostgreSQL named volume and application images retained
+
+- Module 5 Redis lab verified PING, SET, GET, TTL expiry, and DEL on a localhost-only disposable cache container
+
+- `GET /api/tasks` now uses a 60-second configurable cache-aside list key; POST, PUT, and DELETE invalidate after successful PostgreSQL writes
+
+- Real Redis/PostgreSQL smoke verified empty and populated hits, expiration, 400/404 non-invalidation, CRUD, Redis outage/recovery, and preserved PostgreSQL data
+
 ## Next Goal
 
-On explicit request: Module 4 DNS — examine container-name resolution and the diagnostic tools listed next in `PROJECT_SPEC.md`.
+On explicit request: Module 6 — Nginx Reverse Proxy, beginning with single-entry routing from `PROJECT_SPEC.md`.
 
 ## Blockers
 
