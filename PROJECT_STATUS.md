@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 5 — Completed
+Module 6 — Completed
 
 ## Current Phase
 
-Module 5 — Redis Cache
+Module 6 — Nginx Reverse Proxy
 
 ## Current Step
 
-GET /api/tasks cache-aside flow: Completed
+Single-entry frontend and API routing: Completed
 
 ## Completed
 
@@ -125,9 +125,17 @@ GET /api/tasks cache-aside flow: Completed
 
 - Real Redis/PostgreSQL smoke verified empty and populated hits, expiration, 400/404 non-invalidation, CRUD, Redis outage/recovery, and preserved PostgreSQL data
 
+- Module 6 frontend Nginx serves React assets and preserves `/api/tasks` when proxying to the backend over a user-defined Docker network
+
+- Only frontend `127.0.0.1:18081:80` was published; API, PostgreSQL, and Redis communicated on the internal network
+
+- Nginx CRUD, validation, Redis cache behavior, real browser flows, 390 px layout, backend outage/recovery, and wrong-hostname 502 were verified
+
+- Module 6 test tasks, Redis key, diagnostic and application containers, test network, and temporary files removed; PostgreSQL named volume retained
+
 ## Next Goal
 
-On explicit request: Module 6 — Nginx Reverse Proxy, beginning with single-entry routing from `PROJECT_SPEC.md`.
+On explicit request: Module 7 — Docker Compose Orchestration, beginning with a declarative service and network plan from `PROJECT_SPEC.md`.
 
 ## Blockers
 
