@@ -109,15 +109,14 @@ function App() {
         <p className="eyebrow">FullStack Ops Lab / Phase 0C</p>
         <h1>Sandbox Tasks</h1>
         <p className="intro-copy">
-          Görevlerini ekle, tamamla ve sil. API yeniden başladığında bu oturumdaki
-          görevler silinir.
+          Görevlerini oluştur, güncelle ve sil. Hepsini tek bir yerden takip et.
         </p>
       </header>
 
       <div className="summary" aria-live="polite">
         <span><strong>{tasks.length}</strong> görev</span>
         <span><strong>{completedCount}</strong> tamamlandı</span>
-        <span className="memory-note">Bellekte saklanır</span>
+        <span className="memory-note">Görevlerini yönet</span>
       </div>
 
       {error && (
@@ -177,7 +176,7 @@ function App() {
           <div className="panel-heading">
             <div>
               <h2 id="tasks-heading">Görevler</h2>
-              <p className="panel-hint">Bu oturumdaki görevlerin.</p>
+              <p className="panel-hint">Oluşturduğun görevler burada listelenir.</p>
             </div>
           </div>
 
