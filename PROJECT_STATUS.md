@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 7 planning — Completed
+Module 7 Compose definition/configuration — Completed; runtime acceptance not started
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 7 — Docker Compose Orchestration
 
 ## Current Step
 
-Service, network, volume, configuration, and startup plan: Completed
+Four-service Compose definition and static validation: Completed; runtime acceptance not started
 
 ## Completed
 
@@ -137,9 +137,13 @@ Service, network, volume, configuration, and startup plan: Completed
 
 - The plan covers DNS naming, localhost-only frontend port, external PostgreSQL volume, explicit migrations, health/dependency checks, configuration safety, Redis cache limits, and acceptance tests
 
+- Module 7 first Compose definition added for `frontend`, `api`, `postgres`, and `redis`, with a single bridge network and existing external PostgreSQL volume
+
+- Nginx upstream changed to Compose service DNS `api:8080`; placeholder configuration and static Compose validation completed without starting services or running migrations
+
 ## Next Goal
 
-On explicit request: create the first four-service `compose.yaml`, update the Nginx upstream to `api:8080`, prepare placeholder configuration, and validate with `docker compose config -q`.
+Compose runtime acceptance: verify service startup, health, routing, persistence, and cleanup on explicit request.
 
 ## Blockers
 
