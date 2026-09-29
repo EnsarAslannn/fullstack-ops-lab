@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 6 — Completed
+Module 7 planning — Completed
 
 ## Current Phase
 
-Module 6 — Nginx Reverse Proxy
+Module 7 — Docker Compose Orchestration
 
 ## Current Step
 
-Single-entry frontend and API routing: Completed
+Service, network, volume, configuration, and startup plan: Completed
 
 ## Completed
 
@@ -133,9 +133,13 @@ Single-entry frontend and API routing: Completed
 
 - Module 6 test tasks, Redis key, diagnostic and application containers, test network, and temporary files removed; PostgreSQL named volume retained
 
+- Module 7 four-service Compose application plan documented without creating a Compose file or starting services
+
+- The plan covers DNS naming, localhost-only frontend port, external PostgreSQL volume, explicit migrations, health/dependency checks, configuration safety, Redis cache limits, and acceptance tests
+
 ## Next Goal
 
-On explicit request: Module 7 — Docker Compose Orchestration, beginning with a declarative service and network plan from `PROJECT_SPEC.md`.
+On explicit request: create the first four-service `compose.yaml`, update the Nginx upstream to `api:8080`, prepare placeholder configuration, and validate with `docker compose config -q`.
 
 ## Blockers
 
