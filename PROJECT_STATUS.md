@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 7 Compose definition/configuration — Completed; runtime acceptance not started
+Module 7 — Completed
 
 ## Current Phase
 
-Module 7 — Docker Compose Orchestration
+Module 8 — Health Checks & Service Readiness
 
 ## Current Step
 
-Four-service Compose definition and static validation: Completed; runtime acceptance not started
+Not started
 
 ## Completed
 
@@ -141,9 +141,15 @@ Four-service Compose definition and static validation: Completed; runtime accept
 
 - Nginx upstream changed to Compose service DNS `api:8080`; placeholder configuration and static Compose validation completed without starting services or running migrations
 
+- Module 7 runtime acceptance passed: four healthy Compose services, single localhost frontend port, service DNS, Nginx assets and CRUD, Redis cache invalidation, and API/Redis/PostgreSQL restarts
+
+- Compose down/up preserved the Task through the existing external PostgreSQL volume; acceptance tasks and Redis key were removed, `lab_tasks` and `InitialCreate` were preserved, and final Compose containers/network were removed
+
+- Chrome flows, real empty state, loading, disabled controls, error/retry, and 390 px layout were verified; a Chrome DELETE abort event occurred despite confirmed HTTP 204 and successful deletion
+
 ## Next Goal
 
-Compose runtime acceptance: verify service startup, health, routing, persistence, and cleanup on explicit request.
+On explicit request: begin Module 8 with a small lab distinguishing a running container from a healthy service and checking what the current `/health` endpoint actually measures.
 
 ## Blockers
 

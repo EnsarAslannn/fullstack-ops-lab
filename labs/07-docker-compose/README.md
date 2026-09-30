@@ -1,6 +1,6 @@
-# Modül 7 — Docker Compose Orchestration: ilk tanım
+# Modül 7 — Docker Compose Orchestration
 
-**Durum: Compose tanımı ve statik doğrulama tamamlandı; runtime acceptance henüz başlamadı.** Kök `compose.yaml`, Modül 6'da ayrı komutlarla kurulan dört servisi tanımlar. `docker compose up` çalıştırılmadı; Compose servisi, ağı veya volume'u oluşturulmadı. Nginx upstream'i Compose servis adına uyarlandı; uygulama kodu, Dockerfile ve veritabanı değiştirilmedi.
+**Durum: dört servisli Compose runtime acceptance tamamlandı.** Kök `compose.yaml`, Modül 6'da ayrı komutlarla kurulan dört servisi tanımlar. Bu kabulde servisler başlatıldı, gerçek akışlar ve `down/up` veri kalıcılığı doğrulandı, ardından Compose container'ları ve ağı kaldırıldı. Nginx upstream'i Compose servis adını kullanır; uygulama kodu, Dockerfile ve migration değiştirilmedi. Sonuçlar 11. bölümde, önceki statik doğrulama ise 8. bölümde ayrı tutulur.
 
 `PROJECT_SPEC.md` nihai hedefte `frontend`, `backend`, `postgres`, `redis`, ayrı `nginx`, `prometheus` ve `grafana` servislerini sayar. Bu ilk adım, kullanıcının istediği **dört servisli Compose tanımıdır**. Mevcut frontend image'ı React dosyalarını zaten Nginx ile sunar. Nihai servis ayrımı ve observability sonraki açık adımlarda şartnameyle yeniden karşılaştırılmalıdır. Buradaki `api`, şartnamedeki backend rolünü yerine getirir.
 
@@ -21,7 +21,7 @@ Sabit `container_name` kullanmamak Compose'un proje kapsamında isim üretmesine
 
 Compose dosyası dört servisi tek `app` user-defined bridge ağına bağlar. Compose ağı proje kapsamında yönetecektir; sabit IP, alias, `links` veya ikinci ağ yoktur. `internal: true` kullanılmaz çünkü istenen host portlarının sınırlandırılmasıdır. [Docker'ın Compose ağ açıklaması](https://docs.docker.com/compose/how-tos/networking/) servis adıyla DNS erişimini ve değişebilen container IP'lerini anlatır.
 
-`src/frontend/nginx.conf` upstream'i `api:8080` oldu. `proxy_pass http://api:8080;` sonunda URI `/` bulunmaz; böylece `/api/tasks` yolu backend'e aynı biçimde gider. Bu yönlendirme ancak servisler çalıştırıldığında uçtan uca doğrulanabilir. Karar seçenekleri:
+`src/frontend/nginx.conf` upstream'i `api:8080` oldu. `proxy_pass http://api:8080;` sonunda URI `/` bulunmaz; böylece `/api/tasks` yolu backend'e aynı biçimde gider. Bu yönlendirme runtime kabulünde `GET /api/tasks → 200` ve `POST → 201` ile uçtan uca doğrulandı. Karar seçenekleri:
 
 | Seçenek | Değerlendirme |
 | --- | --- |
@@ -29,7 +29,7 @@ Compose dosyası dört servisi tek `app` user-defined bridge ağına bağlar. Co
 | `api` servisine `fullstack-ops-api-proxy` network alias vermek | Eski config'i korur, fakat geçici Modül 6 container adını kalıcı Compose mimarisine taşır ve ek adlandırma gerektirir. |
 | Nginx template ve environment kullanmak | Ortamlar arasında upstream seçimi sağlar, ancak bu tek ağlı laboratuvar için ek template/render mantığı getirir. |
 
-Nginx'in servis adı çözümlemesi frontend başlarken başarılı olmalıdır; bu nedenle `frontend`, `api` healthy olduktan sonra başlatılacak şekilde tanımlandı. API container'ı ileride **yeniden oluşturulursa** IP değişebilir. Runtime acceptance sırasında canlı Nginx'in yeni IP'yi nasıl gördüğü ayrıca ölçülmelidir.
+Nginx'in servis adı çözümlemesi frontend başlarken başarılı olmalıdır; runtime çıktısında `frontend`, `api` healthy olduktan sonra başladı. API container'ı ileride **yeniden oluşturulursa** IP değişebilir; canlı Nginx'in bu durumda yeni IP'yi nasıl gördüğü bu kabulde ayrıca ölçülmedi.
 
 ## 3. PostgreSQL volume kararı
 
@@ -65,7 +65,7 @@ Tanımlanan zincir: `postgres` + `redis` → ikisi `service_healthy` → `api` h
 | `api` | Runtime image'ında bulunan Bash `/dev/tcp`, `head` ve `grep` ile HTTP `GET /health` ve 200 durum satırı | `curl`/`wget` image'da yoktur. `/health` DB/Redis readiness içermez; bağımlılıklar düşse bile 200 olabilir. |
 | `frontend` | Image'da bulunan `wget` ile `GET http://127.0.0.1/` | Statik sayfanın çalışmasını gösterir; `/api/` upstream'in sağlıklı olduğunu tek başına kanıtlamaz. |
 
-Tanımda `interval: 5s`, `timeout: 3s`, `retries: 5`, API ve PostgreSQL için `start_period: 15s` kullanıldı. Gerçek health durumları ancak runtime acceptance sırasında ölçülecek. [Microsoft'un healthcheck rehberi](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks) .NET Linux image'larında `curl` bulunmayabileceğini belirtir. Modül 8 daha zengin readiness kontrolleri içindir; API health davranışı değiştirilmedi.
+Tanımda `interval: 5s`, `timeout: 3s`, `retries: 5`, API ve PostgreSQL için `start_period: 15s` kullanıldı. Runtime kabulünde dört servis `healthy` oldu ve son healthcheck loglarının çıkış kodu 0'dı. [Microsoft'un healthcheck rehberi](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks) .NET Linux image'larında `curl` bulunmayabileceğini belirtir. Modül 8 daha zengin readiness kontrolleri içindir; API health davranışı değiştirilmedi.
 
 ## 6. Secret ve configuration
 
@@ -83,11 +83,11 @@ PostgreSQL ana veri kaynağıdır; Redis yalnızca `fullstack-ops:tasks:all:v1` 
 
 ## 8. Oluşturulan dosyalar ve komut akışı
 
-Repository kökünde **tek `compose.yaml`** oluşturuldu. `PROJECT_SPEC.md` örnek ağaçta `docker-compose.yml` ve override gösterse de bir base dosya bu dört servis için yeterlidir. `src/frontend/nginx.conf` upstream'i `api:8080` oldu. Build context'leri frontend için `./src/frontend`, API için `./src/backend/FullStackOpsLab.Api` olarak tanımlandı. Dosyada dört servis, tek `app` ağı ve external PostgreSQL volume bulunur. Root `.env.example` placeholder'larla güncellendi; gerçek `.env` oluşturulmadı.
+Repository kökünde **tek `compose.yaml`** oluşturuldu. `PROJECT_SPEC.md` örnek ağaçta `docker-compose.yml` ve override gösterse de bir base dosya bu dört servis için yeterlidir. `src/frontend/nginx.conf` upstream'i `api:8080` oldu. Build context'leri frontend için `./src/frontend`, API için `./src/backend/FullStackOpsLab.Api` olarak tanımlandı. Dosyada dört servis, tek `app` ağı ve external PostgreSQL volume bulunur. İlk statik tanım adımında root `.env.example` placeholder'larla güncellendi ve henüz gerçek `.env` oluşturulmadı; bu dosya daha sonraki runtime kabulünde hazırlandı.
 
-**Aşağıdaki komutlar runtime acceptance içindir; bu görevde çalıştırılmadı.** Statik doğrulamada gerçek secret içermeyen `docker compose --env-file .env.example config -q` kullanıldı. Düz `config` çıktısı ekrana basılmadı. `docker compose up` çalıştırılmadı.
+İlk statik doğrulamada gerçek secret içermeyen `docker compose --env-file .env.example config -q` kullanıldı. Runtime kabulünde repository dışındaki user-secrets değerinden Git tarafından yok sayılan yerel `.env` hazırlandı ve `docker compose --env-file .env config -q`, `build`, `up -d --wait`, `restart` ve `down` komutları çalıştırıldı. Çözümlenmiş `config` çıktısı ekrana basılmadı. Aşağıdaki tablo komutların amacını açıklar; `pull` ve `down -v` bu kabulde çalıştırılmadı.
 
-Bu adımın gerçek doğrulaması:
+İlk statik tanım adımının doğrulaması:
 
 - `docker compose --env-file .env.example config -q`: çıkış kodu 0. Çözümlenmiş yapı yalnızca bellekte incelendi: tam dört servis, tek `app` bridge ağı, yalnız frontend'de `127.0.0.1:18081:80`, external `fullstack-ops-postgres-data` ve Redis `/data` tmpfs doğrulandı.
 - `dotnet build FullStackOpsLab.slnx -c Release`: 0 uyarı, 0 hata. `npm ci` ve `npm run build`: başarılı. İlk frontend build denemesinde Windows sandbox `spawn EPERM` verdi; aynı build izinli ortamda başarılı oldu.
@@ -111,9 +111,9 @@ Bu adımın gerçek doğrulaması:
 
 `docker compose up --build -d` şartnamedeki nihai tek komut hedefidir. Bu ilk dört servisli tanımda **boş volume için migration ve external volume hazırlığı yüzünden henüz tek komut hedefi sağlanmaz**. Daha sonra açık yetkili bir tek-seferlik migration servisi değerlendirilebilir; bu adım onu uygulamaz.
 
-## 9. Sonraki runtime acceptance için kabul kriterleri
+## 9. Runtime acceptance kriterleri
 
-Bunlar **planlanan runtime testleridir, geçmiş sonuçlar değildir**. Bu adımda yalnızca `config -q`, dosya içeriği ve yerel build sonuçları doğrulandı:
+Aşağıdaki kriterler bu kabulde gerçek servislerle sınandı; ölçülen sonuçlar 11. bölümdedir:
 
 1. `docker compose --env-file .env.example config -q` sıfır çıkış kodu verir (bu statik kontrol geçti).
 2. Dört servis başlar.
@@ -130,7 +130,30 @@ Bunlar **planlanan runtime testleridir, geçmiş sonuçlar değildir**. Bu adım
 
 ## 10. Bu tanımın açık sınırları
 
-- Mevcut API `/health` yalnızca temel liveness gösterir; PostgreSQL/Redis readiness değildir. API runtime image'ında `bash` var, `curl`/`wget` yok; frontend Nginx image'ında `wget` var. Gerçek Compose health durumları runtime acceptance sırasında doğrulanacaktır.
+- Mevcut API `/health` yalnızca temel liveness gösterir; PostgreSQL/Redis readiness değildir. API runtime image'ında `bash` var, `curl`/`wget` yok; frontend Nginx image'ında `wget` var. Compose health durumları doğrulandı, fakat daha zengin dependency readiness ayrı Modül 8 konusudur.
 - Mevcut `fullstack-ops-postgres-data` external seçimi yerel veriyi korur, fakat yeni bilgisayarda ön hazırlık ister. Şartnamenin tek komutla sıfırdan kurulum hedefi henüz karşılanmaz.
 - Şartnamenin nihai ayrı `nginx` ve observability servisleri bu dört servisli başlangıç tanımında yoktur. Sonraki modüllerde servis ayrımı yeniden karara bağlanmalıdır.
-- `compose.yaml` oluşturuldu; gerçek `.env`, Compose volume'u, network'ü veya servisi oluşturulmadı. Migration uygulanmadı ve runtime kabul testleri çalıştırılmadı. Statik doğrulama runtime başarısı anlamına gelmez.
+- Yerel `.env` user-secrets kaynağından hazırlandı ve Git tarafından yok sayılıyor. Compose network/container'ları kabul sırasında oluşturulup sonunda kaldırıldı. External volume korundu; migration uygulanmadı.
+
+## 11. Gerçek runtime acceptance — 30 Eylül 2026
+
+Başlangıçta Git çalışma alanı temizdi. Docker Desktop Engine başlangıçta kapalıydı; arka planda başlatıldıktan sonra Engine `29.6.1`, Compose `v5.3.0` doğrulandı. İlişkisiz Docker kaynaklarının ilk envanteri kaydedildi. Var olan `fullstack-ops-postgres-data` volume'u **yeniden oluşturulmadı veya silinmedi**. Gerçek development parolası repository dışındaki user-secrets kaynağından yalnızca Git'in yok saydığı `.env` dosyasına aktarıldı; burada ve komut çıktılarında gösterilmiyor. `docker compose --env-file .env config -q` sıfır çıkış kodu verdi.
+
+| Kontrol | Gerçek sonuç |
+| --- | --- |
+| Compose build | `docker compose --env-file .env build` başarılı; `fullstack-ops-lab-api:latest` image ID `0a3ad79e8212`, `fullstack-ops-lab-frontend:latest` image ID `e5fc6d8e1635` |
+| Final image araçları | API image'ında .NET SDK yok; frontend image'ında Node ve npm yok; geçici container'da `nginx -t` başarılı. Image history içinde development parolası bulunmadı. |
+| Başlangıç ve health | `up -d --wait --wait-timeout 120` başarılı; `postgres`, `redis`, `api`, `frontend` sırayla bağımlılık koşullarına göre başladı ve dördü de `healthy`. Son healthcheck çıkış kodları 0; PostgreSQL `accepting connections`, Redis `PONG` gösterdi. |
+| Network ve port | Dört servis tek `fullstack-ops-lab_app` bridge ağında. `frontend`, `api`, `postgres`, `redis` DNS adları container içinden çözüldü; sabit IP tanımı yok. Tek host binding `127.0.0.1:18081->80/tcp`. API/PostgreSQL/Redis host binding'i yok; eski `18080`, `15432`, `16379` ve API `8080` host portları dinlemiyordu. |
+| PostgreSQL | Inspect: `Type=volume`, `Name=fullstack-ops-postgres-data`, `Destination=/var/lib/postgresql`. `tasks`, `lab_tasks`, `__EFMigrationsHistory` bulundu; migration kaydı `20260928113912_InitialCreate`. `lab_tasks` satırı `1|Module 3B persistent task` korundu. Başlangıç `tasks` sayısı 0. API açılışında otomatik migration çağrısı yok; bu kabulde migration uygulanmadı. |
+| Nginx ve frontend | Yalnız `http://127.0.0.1:18081` üzerinden `/`, JavaScript, CSS, `/favicon.svg` ve SPA fallback **200**. `/api/tasks` **200** döndü. `api:8080` upstream ve `/api/tasks` yolunun korunması gerçek GET/POST ile doğrulandı; Nginx error logunda hata yoktu. |
+| CRUD | Benzersiz test görevi POST **201**, `Location: /api/tasks/27`; GET **200**, PUT **200**, boş başlık **400**, bulunmayan ID **404**. Yanıtta `id`, `title`, `description`, `isCompleted`, `createdAt`, `updatedAt` alanları vardı. Görev test boyunca korundu, son temizlikte DELETE **204** ile silindi. |
+| Redis | `fullstack-ops:tasks:all:v1` temizlendi; ilk GET sonrası key oluştu ve TTL **60 s**, ikinci GET sonrası API logunda hit vardı. PUT key'i sildi; sonraki GET yeniden oluşturdu. İlk log kontrolünde cache miss 3, hit 2, invalidation 2 görüldü. Redis `/data` mount'u `tmpfs` idi. |
+| Restart | API restart sonrası aynı görev tüm alanlarıyla bulundu. Redis restart key'i `1 → 0` yaptı; GET sonrası `1` oldu ve görev korundu. PostgreSQL restart sonrası ilk GET geçici başarısız oldu, kontrollü tekrar başarılıydı; cache temizlenerek gerçek DB listesi ve tekil görev **200** doğrulandı. API `/health` bu sırada dependency readiness ölçmez. |
+| Chrome | Kurulu Google Chrome headless modda kullanıldı. Ana görev görüldü; ayrı tarayıcı görevi oluşturulup yenilemede korundu, tamamlandı ve silindi. Loading, disabled buton, hata/retry ve 390 px genişlikte yatay taşma olmaması doğrulandı. Boş liste önce kontrollü boş GET ile, test verisi silindikten sonra ayrıca **gerçek API** ile doğrulandı. Beklenmeyen console hatası yoktu. Kontrollü hata testinde bir beklenen başarısız GET vardı. Chrome bir DELETE isteğinde `net::ERR_ABORTED` olayı bildirdi; aynı isteğin tarayıcı yanıtı ve Nginx access logu **204** idi, UI kaydı kaldırdı. |
+| `down/up` | İlk `down` dört container'ı ve ağı kaldırdı, external volume kaldı. Tekrar `up --wait` dört servisi `healthy` yaptı; aynı volume bağlandı, görev aynı ID ve alanlarla bulundu. Redis key'i yeniden oluşturmadan önce yoktu, GET sonrasında oluştu. |
+| Final veri ve cleanup | Kabul ve tarayıcı görevleri silindi; `tasks=0`. Redis Task liste key'i temizlendi. Module 3B `lab_tasks` satırı ve `InitialCreate` geçmişi korundu. Final `down` sonrası proje container'ı/ağı yok; external volume ile iki Compose uygulama image'ı localde kaldı. Geçici tarayıcı scriptleri ve araç dizini kaldırıldı. |
+
+Kullanılan temel komutlar: `docker compose --env-file .env config -q`, `build`, `up -d --wait --wait-timeout 120`, `ps`, `exec -T`, `restart api`, `restart redis`, `restart postgres`, `down`; ayrıca `docker inspect`, `docker network inspect`, `docker volume inspect`, `docker image history`, local Release ve Vite build komutları. Host HTTP istekleri yalnız frontend `18081` adresine gönderildi. `down -v`, `system prune`, `volume prune`, migration, commit ve push çalıştırılmadı.
+
+Bu kabul **hazırlanmış local volume** ile geçti. Yeni bilgisayarda external volume önceden oluşturulmalı, PostgreSQL credentials uyumlu olmalı ve boş şema için `InitialCreate` açıkça uygulanmalıdır. Bu dört servisli adım, şartnamedeki nihai ayrı Nginx/observability servislerini ve sıfırdan tek komut kurulum hedefini henüz karşılamaz.
