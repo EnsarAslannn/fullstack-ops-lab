@@ -2,11 +2,11 @@
 
 ## Status
 
-Module 7 — Completed
+Module 8 — Completed
 
 ## Current Phase
 
-Module 8 — Health Checks & Service Readiness
+Module 9 — Environment Configuration & Secrets
 
 ## Current Step
 
@@ -147,9 +147,17 @@ Not started
 
 - Chrome flows, real empty state, loading, disabled controls, error/retry, and 390 px layout were verified; a Chrome DELETE abort event occurred despite confirmed HTTP 204 and successful deletion
 
+- Module 8 baseline showed the API stayed running and Docker-healthy with `/health` 200 while Redis or PostgreSQL was stopped and an uncached Task GET returned 500
+
+- `/health/live` preserves process-only liveness; `/health/ready` checks PostgreSQL and Redis and drives the Compose API healthcheck without changing the existing `/health` contract
+
+- Redis and PostgreSQL outages each produced readiness 503 and Docker unhealthy; both recovered to 200 and healthy on the same API container
+
+- Module 8 smoke, Release build, Phase 0A/0B and EF foundation smoke checks passed; Task test data/cache were cleaned and the Module 3B row and migration history were preserved
+
 ## Next Goal
 
-On explicit request: begin Module 8 with a small lab distinguishing a running container from a healthy service and checking what the current `/health` endpoint actually measures.
+On explicit request: begin Module 9 by inventorying current environment configuration sources and secret handling.
 
 ## Blockers
 

@@ -1,12 +1,18 @@
 using FullStackOpsLab.Api.Data;
+using FullStackOpsLab.Api.Health;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
+    .AddCheck<PostgreSqlReadinessCheck>("postgres", tags: ["ready"], timeout: TimeSpan.FromSeconds(2))
+    .AddCheck<RedisReadinessCheck>("redis", tags: ["ready"], timeout: TimeSpan.FromSeconds(2));
 
 const string taskListCacheKey = "fullstack-ops:tasks:all:v1";
 var taskListCacheTtlSeconds = builder.Configuration.GetValue<int?>("Cache:TasksTtlSeconds") ?? 60;
@@ -40,7 +46,18 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live")
+});
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live")
+});
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 
 var taskRoutes = app.MapGroup("/api/tasks");
 
