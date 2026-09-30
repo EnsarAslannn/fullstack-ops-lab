@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 8 — Completed
+Module 9 — Configuration/secrets inventory completed; implementation not started
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 9 — Environment Configuration & Secrets
 
 ## Current Step
 
-Not started
+Configuration/secrets inventory completed; implementation not started
 
 ## Completed
 
@@ -155,9 +155,11 @@ Not started
 
 - Module 8 smoke, Release build, Phase 0A/0B and EF foundation smoke checks passed; Task test data/cache were cleaned and the Module 3B row and migration history were preserved
 
+- Module 9 configuration and secret key sources, precedence, local/Compose flows, exposure surfaces, onboarding gaps, and prioritized risks documented without implementation changes
+
 ## Next Goal
 
-On explicit request: begin Module 9 by inventorying current environment configuration sources and secret handling.
+On explicit request: begin the small Module 9 configuration contract and startup validation step with secret-safe failure messages.
 
 ## Blockers
 
