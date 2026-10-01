@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 9 — Configuration/secrets inventory and startup validation verified; further implementation pending
+Module 9 — Configuration/secrets inventory, startup validation and safe local .env onboarding verified; further implementation pending
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 9 — Environment Configuration & Secrets
 
 ## Current Step
 
-Configuration contract and secret-safe startup validation verified
+Safe local .env onboarding verified
 
 ## Completed
 
@@ -159,9 +159,11 @@ Configuration contract and secret-safe startup validation verified
 
 - Module 9 configuration contract validates PostgreSQL, Redis and cache TTL at API startup with secret-safe errors; 20 isolated scenarios, Compose CRUD/cache/readiness regression, real 60-second Redis TTL and cleanup passed
 
+- Module 9 local .env preflight checks Git exclusion, required Compose values, silent Compose configuration and existing external volume; seven isolated fixtures and the local read-only check passed without changing secret sources
+
 ## Next Goal
 
-On explicit request: document safe local `.env` onboarding separately from host user-secrets.
+On explicit request: add a secret leakage regression check for tracked and new repository files.
 
 ## Blockers
 
