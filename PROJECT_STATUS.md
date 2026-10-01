@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 9 — Configuration/secrets inventory completed; implementation not started
+Module 9 — Configuration/secrets inventory and startup validation verified; further implementation pending
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 9 — Environment Configuration & Secrets
 
 ## Current Step
 
-Configuration/secrets inventory completed; implementation not started
+Configuration contract and secret-safe startup validation verified
 
 ## Completed
 
@@ -157,9 +157,11 @@ Configuration/secrets inventory completed; implementation not started
 
 - Module 9 configuration and secret key sources, precedence, local/Compose flows, exposure surfaces, onboarding gaps, and prioritized risks documented without implementation changes
 
+- Module 9 configuration contract validates PostgreSQL, Redis and cache TTL at API startup with secret-safe errors; 20 isolated scenarios, Compose CRUD/cache/readiness regression, real 60-second Redis TTL and cleanup passed
+
 ## Next Goal
 
-On explicit request: begin the small Module 9 configuration contract and startup validation step with secret-safe failure messages.
+On explicit request: document safe local `.env` onboarding separately from host user-secrets.
 
 ## Blockers
 

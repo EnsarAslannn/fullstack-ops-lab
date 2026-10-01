@@ -1,3 +1,4 @@
+using FullStackOpsLab.Api.Configuration;
 using FullStackOpsLab.Api.Data;
 using FullStackOpsLab.Api.Health;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -15,29 +16,10 @@ builder.Services.AddHealthChecks()
     .AddCheck<RedisReadinessCheck>("redis", tags: ["ready"], timeout: TimeSpan.FromSeconds(2));
 
 const string taskListCacheKey = "fullstack-ops:tasks:all:v1";
-var taskListCacheTtlSeconds = builder.Configuration.GetValue<int?>("Cache:TasksTtlSeconds") ?? 60;
-if (taskListCacheTtlSeconds <= 0)
-{
-    throw new InvalidOperationException("Cache:TasksTtlSeconds must be greater than zero.");
-}
-
-var postgresConnectionString = builder.Configuration.GetConnectionString("Postgres");
-if (string.IsNullOrWhiteSpace(postgresConnectionString))
-{
-    throw new InvalidOperationException(
-        "Missing ConnectionStrings:Postgres configuration. Set it through user-secrets or an environment variable.");
-}
-
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(postgresConnectionString));
-
-var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
-if (string.IsNullOrWhiteSpace(redisConnectionString))
-{
-    throw new InvalidOperationException(
-        "Missing ConnectionStrings:Redis configuration. Set it through user-secrets or an environment variable.");
-}
-
-builder.Services.AddStackExchangeRedisCache(options => options.Configuration = redisConnectionString);
+var apiConfiguration = ApiConfiguration.Read(builder.Configuration);
+var taskListCacheTtlSeconds = apiConfiguration.TaskListCacheTtlSeconds;
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(apiConfiguration.PostgresConnectionString));
+builder.Services.AddStackExchangeRedisCache(options => options.Configuration = apiConfiguration.RedisConnectionString);
 
 var app = builder.Build();
 
