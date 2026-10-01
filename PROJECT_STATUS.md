@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 9 — Configuration/secrets inventory, startup validation and safe local .env onboarding verified; further implementation pending
+Module 9 — Configuration/secrets inventory, startup validation, local .env onboarding and secret leakage regression check verified; further implementation pending
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 9 — Environment Configuration & Secrets
 
 ## Current Step
 
-Safe local .env onboarding verified
+Secret leakage regression check verified
 
 ## Completed
 
@@ -161,9 +161,11 @@ Safe local .env onboarding verified
 
 - Module 9 local .env preflight checks Git exclusion, required Compose values, silent Compose configuration and existing external volume; seven isolated fixtures and the local read-only check passed without changing secret sources
 
+- Module 9 secret leakage regression check scans tracked and non-ignored new text files without printing values; 15 isolated fixture cases and the current repository scan passed
+
 ## Next Goal
 
-On explicit request: add a secret leakage regression check for tracked and new repository files.
+On explicit request: document clean-machine bootstrap, including external volume, credential alignment and explicit InitialCreate migration.
 
 ## Blockers
 
