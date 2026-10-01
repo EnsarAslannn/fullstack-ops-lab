@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 9 — Configuration/secrets inventory, startup validation, local .env onboarding and secret leakage regression check verified; further implementation pending
+Module 9 — Configuration/secrets inventory, startup validation, local .env onboarding, secret leakage check and clean-machine setup guide documented; final acceptance pending
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 9 — Environment Configuration & Secrets
 
 ## Current Step
 
-Secret leakage regression check verified
+Clean-machine setup guide documented; execution not yet verified
 
 ## Completed
 
@@ -163,9 +163,11 @@ Secret leakage regression check verified
 
 - Module 9 secret leakage regression check scans tracked and non-ignored new text files without printing values; 15 isolated fixture cases and the current repository scan passed
 
+- Module 9 clean-machine guide documents volume, credentials, PostgreSQL-first startup, reviewed InitialCreate SQL, four-service acceptance and host flow; secret-free SQL generation passed, but a fresh-machine run and SQL application were not performed
+
 ## Next Goal
 
-On explicit request: document clean-machine bootstrap, including external volume, credential alignment and explicit InitialCreate migration.
+On explicit request: document the production secret approach without implementation, then perform Module 9 final acceptance on a clean setup.
 
 ## Blockers
 

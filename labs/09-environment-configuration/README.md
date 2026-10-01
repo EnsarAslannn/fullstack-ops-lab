@@ -186,3 +186,193 @@ Kurallar sınırlıdır: `LiteralConnectionCredential`, aynı satırdaki host/se
 Bulgu görülürse değerini terminale yazdırmadan belirtilen dosya/satırı yerel olarak incele; gerçek sızıntıysa commit/push yapma. Dosyayı otomatik redakte etme veya secret rotate etme bu script'in görevi değildir. Gerçek credential için ayrı güvenli müdahale ve gerekiyorsa geçmiş/remote değerlendirmesi planla. Exit code 2 için Git erişimini, dosya okuma iznini veya desteklenmeyen dosya türünü düzeltip taramayı yeniden çalıştır. İleride CI veya pre-commit kapısı düşünülebilir; bu adımda eklenmedi.
 
 Doğrulama: `powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.SecretLeakage.Smoke.ps1` izole geçici Git repository'lerinde **15/15** senaryoda geçti. Temiz ve placeholder dosyalar, environment referansı, sahte literal connection credential, parola/token ataması, tracked/ignored `.env`, untracked bulgu, silinmiş dosya, boşluklu yol, çoklu bulgu, güçlü token biçimi, özel anahtar işareti, bozuk UTF-8 ve geçersiz repository sınandı. Sahte canary değerler stdout/stderr'de görünmedi; fixture'lar temizlendi ve gerçek repository index'ine eklenmedi. Mevcut repository taraması **exit 0, bulgu yok** sonucunu verdi. Önceki `.env` preflight smoke testinin yeniden doğrulaması bu küçük adımın kabul kontrolüdür.
+
+## 13. Temiz bilgisayar kurulum rehberi
+
+Bu sıra, repository'yi ilk kez alan ve önceden hazırlanmış user-secrets veya PostgreSQL volume'u **olmayan** geliştirici içindir. Komutlar repository kökünde PowerShell için yazıldı. Bu görevde mevcut volume üzerinde temiz kurulum deneyi yapılmadı; aşağıdaki çalıştırma ve SQL uygulama adımları henüz uçtan uca doğrulanmadı.
+
+### 1. Araçlar ve clone
+
+Docker Engine ve Docker Compose dört container'ı çalıştırmak için gerekir. Host üzerinde migration SQL'i üretilecekse **.NET 10 SDK** ve repository'deki local `dotnet-ef` aracı gerekir. API final image'ında yalnız ASP.NET runtime vardır; SDK ve `dotnet-ef` yoktur. Frontend'in Compose build'i kendi Node stage'ini kullanır; host Node/npm yalnız host frontend geliştirme veya build için gerekir.
+
+```powershell
+docker version
+if ($LASTEXITCODE -ne 0) { throw 'Docker Engine erişilemiyor.' }
+docker compose version
+if ($LASTEXITCODE -ne 0) { throw 'Docker Compose bulunamadı.' }
+dotnet --version               # Yalnız host EF SQL üretimi için
+if ($LASTEXITCODE -ne 0) { throw '.NET SDK bulunamadı.' }
+$repositoryUrl = Read-Host 'Repository clone URL'
+git clone $repositoryUrl fullstack-ops-lab
+if ($LASTEXITCODE -ne 0) { throw 'Clone başarısız.' }
+Set-Location fullstack-ops-lab
+dotnet tool restore            # dotnet-tools.json: local dotnet-ef 10.0.12
+if ($LASTEXITCODE -ne 0) { throw 'Local dotnet-ef restore başarısız.' }
+```
+
+Clone URL'sini kimlik bilgisi gömmeden gir. `docker version` server erişimini de göstermelidir; CLI'ın kurulu olması Docker Engine'in çalıştığı anlamına gelmez.
+
+### 2. `.env` dosyasını mevcut dosyayı ezmeden hazırla
+
+```powershell
+if (Test-Path -LiteralPath .env) { throw 'Mevcut .env üzerine yazma; önce durumunu incele.' }
+Copy-Item -LiteralPath .env.example -Destination .env
+```
+
+`.env` dosyasını yerel editörde doldur. `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD` ve `ASPNETCORE_ENVIRONMENT` gerekir; `<set-outside-git>` placeholder'ı kalmamalı. Parolayı Git'e, komut argümanına veya dokümana yazma. `Cache__TasksTtlSeconds` isteğe bağlı pozitif tamsayıdır. Örnekteki `ConnectionStrings__Postgres` ve `ConnectionStrings__Redis` host akışına ait yer tutuculardır; mevcut `compose.yaml` bunları kullanmaz. Compose önce `.env` ile YAML değişkenlerini çözer, sonra yalnız `environment` alanındaki değerleri container'a geçirir. Backend user-secrets dosyasını otomatik okumaz. Git ignored `.env` hâlâ düz metindir.
+
+Yeni **boş** PostgreSQL volume'unda image, `POSTGRES_*` değerleriyle ilk rolü/database'i oluşturur. **Initialized** volume'da `.env` parolasını değiştirmek rol parolasını değiştirmez. Var olan volume başka veri veya role ait olabilir; uyumsuzluğu volume silerek çözme. [Docker PostgreSQL initialization açıklaması](https://docs.docker.com/guides/postgresql/) bu ilk çalıştırma sınırını açıklar.
+
+### 3. External volume ve statik kontroller
+
+```powershell
+docker info --format '{{.ServerVersion}}'
+docker volume inspect fullstack-ops-postgres-data --format '{{.Name}}'
+```
+
+**Yalnız** Engine çalışırken inspect volume'un bulunmadığını doğrularsa şu komutu ayrıca çalıştır:
+
+```powershell
+docker volume create fullstack-ops-postgres-data
+```
+
+Sonra:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.EnvPreflight.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.SecretLeakage.Check.ps1
+```
+
+`docker volume create` satırını koşulsuz çalıştırma. Inspect hatası Engine/izin hatası da olabilir; önce nedenini ayır. Var olan volume'u sıfırlama veya silme. `external: true` nedeniyle Compose bu volume'u oluşturmaz ([Docker Compose volumes](https://docs.docker.com/reference/compose-file/volumes/)). Env preflight Git dışı durum, zorunlu anahtarlar, sessiz `config -q` ve volume varlığını denetler; secret kontrolü tracked ve ignored olmayan yeni dosyaları tarar. Preflight parola eşleşmesini veya database readiness'i kanıtlamaz.
+
+### 4. Yalnız PostgreSQL'i başlat ve kimlik doğrula
+
+```powershell
+docker compose --env-file .env up -d --no-deps --wait --wait-timeout 120 postgres
+if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL healthy olmadı; burada dur.' }
+docker compose --env-file .env ps postgres
+docker compose --env-file .env exec -T postgres sh -c 'exec pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL hazır değil.' }
+docker compose --env-file .env exec -T postgres sh -c 'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -X -w -v ON_ERROR_STOP=1 -t -A -c "SELECT 1"'
+if ($LASTEXITCODE -ne 0) { throw 'Credential veya SQL bağlantısı başarısız; API trafiğini açma.' }
+```
+
+Bu sırada API/frontend başlamaz ve PostgreSQL host portu yayınlanmaz. `pg_isready` servis hazırlığını gösterir; parola test etmez. Ardından container **içinden TCP** ile `SELECT 1`, `.env` parolasının gerçek PostgreSQL rolüyle eşleştiğini doğrular. `-w` etkileşimli parola istemini kapatır. Docker erişimi olan kişi container environment'ındaki secret'ı görebilir; bunu production vault sayma.
+
+### 5. Mevcut migration'dan SQL üret ve **önce incele**
+
+Yeni migration oluşturma. Host `dotnet ef`, mevcut `20260928113912_InitialCreate` migration'ından idempotent SQL üretir; bu komut database'e bağlanıp SQL uygulamaz. Design-time `Program.cs`, PostgreSQL ve Redis connection string'lerini başlangıçta doğrular. Bu yüzden aşağıda yalnız komutun process environment'ına geçici, sahte ve erişilemeyen adresler verilir; `Production` modu user-secrets'ın otomatik yüklenmesini önler. `finally` önceki environment'ı geri koyar; user-secrets değiştirilmez. `$sqlPath` sonraki blok için **aynı PowerShell oturumunda** kalmalı.
+
+```powershell
+dotnet restore FullStackOpsLab.slnx
+$apiProject = 'src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj'
+$sqlPath = Join-Path ([IO.Path]::GetTempPath()) ('fullstackops-InitialCreate-' + [guid]::NewGuid().ToString('N') + '.sql')
+$keys = @('ASPNETCORE_ENVIRONMENT', 'DOTNET_ENVIRONMENT',
+          'ConnectionStrings__Postgres', 'ConnectionStrings__Redis',
+          'Logging__EventLog__LogLevel__Default')
+$previous = @{}
+foreach ($key in $keys) { $previous[$key] = [Environment]::GetEnvironmentVariable($key, 'Process') }
+try {
+    [Environment]::SetEnvironmentVariable('ASPNETCORE_ENVIRONMENT', 'Production', 'Process')
+    [Environment]::SetEnvironmentVariable('DOTNET_ENVIRONMENT', 'Production', 'Process')
+    [Environment]::SetEnvironmentVariable('ConnectionStrings__Postgres',
+        'Host=127.0.0.1;Port=1;Database=preview;Username=preview', 'Process')
+    [Environment]::SetEnvironmentVariable('ConnectionStrings__Redis', '127.0.0.1:1', 'Process')
+    [Environment]::SetEnvironmentVariable('Logging__EventLog__LogLevel__Default', 'None', 'Process')
+    dotnet ef migrations script 0 InitialCreate --idempotent --project $apiProject --startup-project $apiProject --output $sqlPath
+    if ($LASTEXITCODE -ne 0) { throw 'Migration SQL üretimi başarısız; uygulama adımına geçme.' }
+} finally {
+    foreach ($key in $keys) {
+        [Environment]::SetEnvironmentVariable($key, $previous[$key], 'Process')
+    }
+}
+Get-Content -LiteralPath $sqlPath -Encoding UTF8
+```
+
+SQL'i incele: `tasks` tablosu, `__EFMigrationsHistory` ve `20260928113912_InitialCreate` kimliği bulunmalı; ilgisiz tablolara yıkıcı komut olmamalı. `--idempotent` history'deki uygulanmış migration'ı atlamak için koşul üretir. Elle oluşturulmuş `tasks` tablosu ama eksik history kaydı gibi çelişkileri otomatik çözmez; böyle bir durumda **durup veriyi incele**. SQL üretimi ve idempotent seçenekleri [EF Core migration uygulama](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying) ve [EF CLI](https://learn.microsoft.com/en-us/ef/core/cli/dotnet) belgelerinde anlatılır. API runtime image'ında SDK/EF CLI olmadığı, backend Dockerfile'ın iki stage'inden doğrulanır.
+
+### 6. İncelenmiş SQL'i psql ile uygula ve doğrula
+
+Yalnız hedef database, TCP credential testi ve SQL incelemesi doğruysa devam et. PowerShell 5.1 native stdin encoding'i farklı olabildiğinden `$OutputEncoding` geçici olarak BOM'suz UTF-8 ayarlanır; `Get-Content -Raw -Encoding UTF8` metni stdin'e verir. `-T` stdin'i container'a taşır, `-f /dev/stdin` scripti okur. `ON_ERROR_STOP=1` SQL hatasında psql'in nonzero çıkmasını sağlar; `$LASTEXITCODE` kapıdır. `-X` psqlrc'yi atlar, `-w` prompt açmaz. [PowerShell 5.1 encoding](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_character_encoding?view=powershell-5.1) ve [PostgreSQL 18 psql](https://www.postgresql.org/docs/18/app-psql.html) ayrıntıları doğrular.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+if (-not (Test-Path -LiteralPath $sqlPath)) { throw 'İncelenmiş SQL dosyası bulunamadı.' }
+$previousOutputEncoding = $OutputEncoding
+try {
+    $OutputEncoding = [Text.UTF8Encoding]::new($false)
+    Get-Content -LiteralPath $sqlPath -Raw -Encoding UTF8 |
+        docker compose --env-file .env exec -T postgres sh -c 'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -X -w -v ON_ERROR_STOP=1 -f /dev/stdin'
+    if ($LASTEXITCODE -ne 0) { throw 'Migration SQL başarısız; stack başlatma.' }
+
+    $verifySql = @'
+DO $$
+BEGIN
+    IF to_regclass('public.tasks') IS NULL THEN
+        RAISE EXCEPTION 'tasks missing';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM "__EFMigrationsHistory"
+        WHERE "MigrationId" = '20260928113912_InitialCreate'
+    ) THEN
+        RAISE EXCEPTION 'InitialCreate missing';
+    END IF;
+END
+$$;
+SELECT to_regclass('public.tasks') AS tasks_table;
+SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";
+'@
+    $verifySql | docker compose --env-file .env exec -T postgres sh -c 'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -X -w -v ON_ERROR_STOP=1 -f /dev/stdin'
+    if ($LASTEXITCODE -ne 0) { throw 'tasks veya migration history doğrulanamadı.' }
+} finally {
+    $OutputEncoding = $previousOutputEncoding
+}
+# Çıktıda tasks tablosunu ve 20260928113912_InitialCreate satırını gör.
+# İş bittiyse yalnız bu geçici SQL dosyasını kaldır:
+Remove-Item -LiteralPath $sqlPath -Force
+```
+
+Mevcut idempotent SQL, `START TRANSACTION` ve `COMMIT` içerir; ayrıca `psql --single-transaction` ekleme. [psql belgesi](https://www.postgresql.org/docs/18/app-psql.html) script kendi transaction komutlarını taşıyorsa bu seçeneğin beklenen etkiyi bozabileceğini söyler. Migration zaten history'de kayıtlıysa idempotent script onu yeniden uygulamaz; yine de çıktıdaki schema ve history'yi doğrula. Gelecekte yeni migration eklenirse SQL'i yeniden incele. Bu görevde SQL **yalnız üretildi**, psql uygulanmadı.
+
+### 7. Dört servisli stack'i aç ve küçük kabul yap
+
+```powershell
+docker compose --env-file .env up -d --build --wait --wait-timeout 180
+if ($LASTEXITCODE -ne 0) { throw 'Stack healthy olmadı.' }
+docker compose --env-file .env ps
+```
+
+`postgres`, `redis`, `api` ve `frontend` servisleri `healthy` olmalı. Mevcut Compose'da **yalnız frontend** host'a `127.0.0.1:18081:80` olarak publish edilir; API `8080`, PostgreSQL `5432` ve Redis `6379` yalnız Compose ağı içindedir. Tarayıcı adresi **http://127.0.0.1:18081/**. Önce listeyi al; yalnız kendi deneme görevini oluştur, sayfayı yenileyip kalıcılığı gör, tamamla ve sil. İlk GET Redis miss ve liste key'i, ikinci GET hit; başarılı POST/PUT/DELETE invalidation üretmelidir. API loglarında yalnız ilgili cache olaylarını, Redis'te `TTL fullstack-ops:tasks:all:v1` sonucunu ve Task HTTP yanıtlarını yerel olarak incele; tam logları paylaşmadan önce secret açısından ayır. `/health/live` process'i, `/health/ready` PostgreSQL ile Redis'i denetler. Nginx `/api` isteklerini `api:8080` upstream'ine iletir. Bu manuel kabul bu görevde yapılmadı.
+
+### 8. Stop, start, restart ve down
+
+```powershell
+docker compose --env-file .env stop       # Container'lar kalır; sonra start kullanılabilir.
+docker compose --env-file .env start      # Var olan container'lar yeniden başlar.
+docker compose --env-file .env restart    # Restart eder; yeni image build etmez.
+docker compose --env-file .env down       # Compose container/ağı kalkar; external volume kalır.
+docker volume inspect fullstack-ops-postgres-data --format '{{.Name}}'
+```
+
+Bunlar alternatif lifecycle işlemleridir; her satırı art arda çalıştırman gerekmez. `down` sonrasında aynı external volume tekrar mount edildiğinde veri kalır. `down -v` normal durdurma/temizlik komutu değildir: bu projedeki external volume Compose tarafından yönetilmese de gelecekteki Compose-managed named/anonymous volume'ları silebilir. Volume silmeyi olağan kurulum veya cleanup adımı olarak önerme.
+
+### 9. Sorun giderme
+
+| Belirti | Güvenli teşhis ve karar |
+| --- | --- |
+| Docker Engine kapalı | `docker version` / `docker info` ile server erişimini kontrol et; Engine hatasını volume eksikliği sanma. |
+| `.env` eksik veya placeholder | Env preflight yalnız sorunlu anahtar adını gösterir. Yerel dosyada düzelt; çözümlenmiş `docker compose config` çıktısını paylaşma. |
+| External volume eksik | Engine çalışırken `docker volume inspect` ile doğrula; yalnız gerçekten yoksa yeni volume oluştur. |
+| Var olan volume ile parola uyumsuz | Container içindeki **TCP** `psql SELECT 1` başarısız olur. Volume'u silme veya `.env` parolasını rastgele değiştirip deneme; rol/veri sahibini belirle. |
+| Migration uygulanmamış veya history çelişkili | `tasks` ve `__EFMigrationsHistory` durumunu incele. İdempotent SQL'i yalnız hedef database ve içeriği doğrulanınca uygula; tablo/history kaydını elle silme. |
+| Servis unhealthy | `docker compose --env-file .env ps` ve ilgili `docker compose --env-file .env logs SERVICE` ile teşhis et; loglarda secret olabilir. |
+| Nginx 502/504 | API health, `api:8080` upstream'i ve Compose ağını kontrol et; frontend portu açık olsa da API hazır olmayabilir. |
+| Redis erişilemez | `/health/live` 200 kalabilir, `/health/ready` 503 olur; mevcut liste API'sinde Redis fallback yoktur. Redis health/network durumunu düzelt. |
+
+### 10. Ayrı host geliştirme akışı
+
+Host `dotnet run` API'si, backend projesinin `UserSecretsId` kaynağındaki `ConnectionStrings:Postgres` ve `ConnectionStrings:Redis` değerlerini kullanır. User-secrets Git dışındadır, production vault değildir. `.env` host .NET sürecine otomatik yüklenmez. Önceki host lablarında PostgreSQL `127.0.0.1:15432`, Redis `127.0.0.1:16379` hedefleri kullanıldı; **mevcut Compose bunları host'a publish etmez**. Yalnız Compose stack'ini açarak host API'nin `postgres:5432` ve `redis:6379` adlarını çözeceğini veya doğrudan bağlanacağını varsayma: bunlar Compose ağı içi ad/portlardır. Host API için ayrı localhost-only servisler veya ayrıca tasarlanmış geliştirme topolojisi gerekir. Host Vite geliştirmesi Node/npm ister ve `/api` isteklerini host API'ye proxy eder. Gerçek user-secrets değerlerini bu rehbere ya da komut geçmişine yazma.
+
+### Bu rehberin doğrulama sınırı
+
+Proje yolları, dört Compose servisi, tek host portu, iki Dockerfile, `dotnet-tools.json`, `ApiConfiguration` ve mevcut `InitialCreate` migration'ı incelendi. Host `.NET 10.0.401` ve local `dotnet-ef 10.0.12` doğrulandı. **Sahte, geçici process configuration** ile `dotnet ef migrations script 0 InitialCreate --idempotent` başarılı oldu; SQL'de `tasks`, `__EFMigrationsHistory`, migration kimliği ve kendi `START TRANSACTION`/`COMMIT` komutları görüldü. Geçici SQL silindi. Bu görevde PostgreSQL container'ı başlatılmadı, migration uygulanmadı, mevcut volume/database/`.env`/user-secrets değiştirilmedi. Temiz bilgisayarda rehberin baştan sona kabulü **henüz doğrulanmadı**.

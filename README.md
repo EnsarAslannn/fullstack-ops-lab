@@ -2,9 +2,13 @@
 
 FullStack Ops Lab is a learning project built around a small task application called Sandbox Tasks. The long-term goal is to learn full-stack development and operations step by step. The main technical plan is in [PROJECT_SPEC.md](PROJECT_SPEC.md), and current progress is in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-## Current scope: Phase 0C
+## Current setup
 
-The repository contains a .NET 10 Web API and a React + TypeScript + Vite frontend. They run directly on the host. The frontend lists, creates, completes or reopens, and deletes tasks through the in-memory Task API. It shows loading, empty, and error states and checks the title before sending a new task.
+The current four-service Compose app uses PostgreSQL for tasks and Redis for list caching. For a first clone, follow the [clean-machine setup guide](labs/09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi). The Phase 0 notes below describe the earlier host-only learning stage.
+
+## Historical Phase 0C notes
+
+At Phase 0C, the .NET 10 Web API and React + TypeScript + Vite frontend ran directly on the host. The frontend listed, created, completed or reopened, and deleted tasks through the then in-memory Task API. It showed loading, empty, and error states and checked the title before sending a new task.
 
 ```text
 FullStackOpsLab.slnx                 .NET solution
