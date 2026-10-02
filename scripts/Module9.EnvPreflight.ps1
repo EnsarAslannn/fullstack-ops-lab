@@ -1,10 +1,11 @@
 param(
-    [string]$EnvFile = '.env'
+    [string]$EnvFile = '.env',
+    [string]$VolumeName = 'fullstack-ops-postgres-data',
+    [string]$ComposeOverrideFile
 )
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$volumeName = 'fullstack-ops-postgres-data'
 $requiredKeys = @('POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'ASPNETCORE_ENVIRONMENT')
 
 function Fail([string]$Message) {
@@ -50,6 +51,20 @@ function Invoke-Docker([string]$Arguments, [AllowNull()][string]$InputText) {
 }
 
 try {
+    if ($VolumeName -notmatch '^[A-Za-z0-9][A-Za-z0-9_.-]*$') {
+        Fail 'VolumeName must be a valid Docker volume name.'
+    }
+    $composeArguments = '-f compose.yaml'
+    if ($ComposeOverrideFile) {
+        $overrideCandidate = if ([System.IO.Path]::IsPathRooted($ComposeOverrideFile)) { $ComposeOverrideFile } else { Join-Path $root $ComposeOverrideFile }
+        $override = [System.IO.Path]::GetFullPath($overrideCandidate)
+        $prefix = $root.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $override.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+            -not [System.IO.File]::Exists($override)) {
+            Fail 'ComposeOverrideFile must be an existing file inside the repository.'
+        }
+        $composeArguments += ' -f "' + $override.Replace('"', '\"') + '"'
+    }
     $candidate = if ([System.IO.Path]::IsPathRooted($EnvFile)) { $EnvFile } else { Join-Path $root $EnvFile }
     $file = [System.IO.Path]::GetFullPath($candidate)
     $rootPrefix = $root.TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
@@ -106,7 +121,7 @@ services:
     }
     Write-Output 'Required Compose keys: present and non-placeholder.'
 
-    $config = Invoke-Docker "compose --env-file $quotedFile -f compose.yaml config -q" $null
+    $config = Invoke-Docker "compose --env-file $quotedFile $composeArguments config -q" $null
     if ($config.ExitCode -ne 0) {
         Fail 'docker compose config -q failed. Check compose.yaml and local environment; resolved values were not displayed.'
     }

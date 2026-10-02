@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 9 — Configuration/secrets inventory, startup validation, local .env onboarding, secret leakage check and clean-machine setup guide documented; final acceptance pending
+Module 9 — Completed: configuration/secrets controls, production secret documentation and isolated empty-volume bootstrap acceptance verified
 
 ## Current Phase
 
-Module 9 — Environment Configuration & Secrets
+Module 10 — Observability: Logs, Prometheus & Grafana
 
 ## Current Step
 
-Clean-machine setup guide documented; execution not yet verified
+Not started
 
 ## Completed
 
@@ -163,11 +163,21 @@ Clean-machine setup guide documented; execution not yet verified
 
 - Module 9 secret leakage regression check scans tracked and non-ignored new text files without printing values; 15 isolated fixture cases and the current repository scan passed
 
-- Module 9 clean-machine guide documents volume, credentials, PostgreSQL-first startup, reviewed InitialCreate SQL, four-service acceptance and host flow; secret-free SQL generation passed, but a fresh-machine run and SQL application were not performed
+- Module 9 initial clean-machine documentation step covered volume, credentials, PostgreSQL-first startup, reviewed InitialCreate SQL, four-service acceptance and host flow; only secret-free SQL generation was executed at that step
+
+- Module 9 production secret approach documented without vault, file-provider or Compose secrets integration
+
+- Module 9 isolated bootstrap on the same host used a committed clone, separate fake configuration, a new empty external volume and unique Compose project; PostgreSQL TCP authentication, first/repeated InitialCreate SQL and deliberate SQL-error exit 3 passed
+
+- Module 9 final acceptance passed four healthy services, Nginx CRUD and six-field contract, 59-second remaining Redis TTL for a 60-second configuration, invalidation, health and down/up persistence; configuration 20/20, preflight 10/10 and secret fixtures 15/15 passed with Release build 0 warnings/errors
+
+- Module 9 test containers/network/volume/images and temporary files removed; real .env and user-secrets hashes unchanged, development volume unused, original containers/volumes/images and project networks preserved; built-in bridge network ID changed for an unconfirmed reason during the experiment
+
+- Module 9 completed; separate clean-machine/VM and production deployment remain outside the verified scope
 
 ## Next Goal
 
-On explicit request: document the production secret approach without implementation, then perform Module 9 final acceptance on a clean setup.
+On explicit request: begin Module 10 with Docker-native inspection of existing application logs, service health and resource usage before adding observability services.
 
 ## Blockers
 

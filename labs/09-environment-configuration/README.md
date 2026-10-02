@@ -1,6 +1,6 @@
 # Modül 9 — Environment Configuration & Secrets
 
-11. bölüm, önceki envanter ve startup validation adımlarının ardından gelen güvenli yerel `.env` onboarding adımıdır. Module 9 bütünü henüz tamamlanmadı.
+Module 9 tamamlandı. 10–12. bölümler güvenli configuration kontrollerini, 13. bölüm kurulum rehberini, 14. bölüm production secret yaklaşımını, 15. bölüm yeni boş volume ile izole bootstrap kabulünü anlatır.
 
 İlk dokuz bölüm mevcut durum envanteridir. **10. bölümde** configuration contract ve başlangıç doğrulamasının ilk küçük uygulama adımı anlatılır. Envanter sırasında Compose, `.env`, user-secrets ve Docker kaynakları değiştirilmedi. İnceleme öncesinde Git çalışma alanı temizdi. Yerel `.env` vardı, `.gitignore` tarafından yok sayılıyordu ve `git ls-files` içinde değildi. Backend projesinin `UserSecretsId` tanımı ve bu projeye ait yerel user-secrets dosyası vardı; yalnızca anahtar adları incelendi. `dotnet user-secrets list`, düz `docker compose config` ve tam `docker inspect` çıktıları değer gösterebileceğinden çalıştırılmadı.
 
@@ -124,7 +124,7 @@ Olasılık/etki dereceleri bu yerel eğitim projesi için **nitel tahmindir**; o
 4. Clean-machine bootstrap dokümantasyonu: external volume, credential uyumu ve `InitialCreate` migration sırasını tekrarlanabilir şekilde anlat.
 5. Production secret yaklaşımını yalnız tasarla: runtime secret kaynağı, Docker erişimi, rotasyon ve log sınırları; bu yerel labda yeni çözüm kurma.
 
-Envanter görevi sırasında bu adımlar uygulanmamıştı. Şimdi yalnız ilk küçük adım tamamlandı; Module 9'un diğer adımları açık.
+Envanter görevi sırasında bu adımlar uygulanmamıştı. Beş küçük adımın sonucu aşağıda belgelenmiştir; production yaklaşımı yalnız dokümante edildi.
 
 ## 10. Configuration contract ve başlangıç doğrulaması
 
@@ -150,7 +150,7 @@ Mevcut `tests/Module5.Cache.Smoke.ps1` scripti Compose'a ait container adları v
 
 Mevcut `tests/Module8.Readiness.Smoke.ps1` doğrudan Compose topolojisinde geçti. Normalde `/health`, `/health/live`, `/health/ready` **200** ve Docker API health **healthy** idi. Redis ve PostgreSQL ayrı ayrı durdurulduğunda aynı API container'ı **running** kaldı; live **200**, ready **503**, Docker health **unhealthy** ve Task GET **500** oldu. PostgreSQL kesintisinden önce liste cache'i temizlendi; GET böylece gerçek DB okumasını sınadı. Her bağımlılık geri geldiğinde aynı API container'ı ready **200** ve healthy durumuna döndü. `tests/Module3E.Persistence.Smoke.ps1` host portu ve yerel Development/user-secrets akışı için olduğundan Compose'a körlemesine uygulanmadı.
 
-Son kontrolde `tasks` **0**, `lab_tasks` **1**, migration history **1** ve Task listesi Redis key'i **yok** idi. `docker compose --env-file .env down` yalnız dört test container'ını ve proje ağını kaldırdı; `down -v` kullanılmadı. Sonra bu projeye ait container/ağ sayısı **0**, external volume mevcut ve ilgisiz **12** container yerinde kaldı. `.env` ve user-secrets değiştirilmedi. Module 9'un sonraki küçük adımları henüz uygulanmadı.
+Son kontrolde `tasks` **0**, `lab_tasks` **1**, migration history **1** ve Task listesi Redis key'i **yok** idi. `docker compose --env-file .env down` yalnız dört test container'ını ve proje ağını kaldırdı; `down -v` kullanılmadı. Sonra bu projeye ait container/ağ sayısı **0**, external volume mevcut ve ilgisiz **12** container yerinde kaldı. `.env` ve user-secrets değiştirilmedi. Bu önceki startup validation kabulü sırasında sonraki küçük adımlar henüz uygulanmamıştı.
 
 Ayrıştırıcı seçimleri: [Npgsql bağlantı parametreleri](https://www.npgsql.org/doc/connection-string-parameters) ve [StackExchange.Redis configuration biçimi](https://github.com/StackExchange/StackExchange.Redis/blob/main/docs/Configuration.md). Test sürecindeki Windows hata modu davranışı [Microsoft SetErrorMode belgesine](https://learn.microsoft.com/en-us/windows/win32/api/errhandlingapi/nf-errhandlingapi-seterrormode) dayanır.
 
@@ -189,7 +189,7 @@ Doğrulama: `powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.S
 
 ## 13. Temiz bilgisayar kurulum rehberi
 
-Bu sıra, repository'yi ilk kez alan ve önceden hazırlanmış user-secrets veya PostgreSQL volume'u **olmayan** geliştirici içindir. Komutlar repository kökünde PowerShell için yazıldı. Bu görevde mevcut volume üzerinde temiz kurulum deneyi yapılmadı; aşağıdaki çalıştırma ve SQL uygulama adımları henüz uçtan uca doğrulanmadı.
+Bu sıra, repository'yi ilk kez alan ve önceden hazırlanmış user-secrets veya PostgreSQL volume'u **olmayan** geliştirici içindir. Komutlar repository kökünde PowerShell için yazıldı. Akış, 15. bölümde aynı host üzerinde ayrı configuration ve yeni boş volume ile yürütüldü. Ayrı temiz bilgisayar/VM doğrulaması yapılmadı.
 
 ### 1. Araçlar ve clone
 
@@ -299,11 +299,16 @@ Yalnız hedef database, TCP credential testi ve SQL incelemesi doğruysa devam e
 $ErrorActionPreference = 'Stop'
 if (-not (Test-Path -LiteralPath $sqlPath)) { throw 'İncelenmiş SQL dosyası bulunamadı.' }
 $previousOutputEncoding = $OutputEncoding
+$previousErrorActionPreference = $ErrorActionPreference
 try {
     $OutputEncoding = [Text.UTF8Encoding]::new($false)
+    # PowerShell 5.1: stderr'deki normal NOTICE, SQL hatası sayılmamalı.
+    $ErrorActionPreference = 'Continue'
     Get-Content -LiteralPath $sqlPath -Raw -Encoding UTF8 |
         docker compose --env-file .env exec -T postgres sh -c 'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -X -w -v ON_ERROR_STOP=1 -f /dev/stdin'
-    if ($LASTEXITCODE -ne 0) { throw 'Migration SQL başarısız; stack başlatma.' }
+    $sqlExitCode = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    if ($sqlExitCode -ne 0) { throw 'Migration SQL başarısız; stack başlatma.' }
 
     $verifySql = @'
 DO $$
@@ -322,17 +327,21 @@ $$;
 SELECT to_regclass('public.tasks') AS tasks_table;
 SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";
 '@
+    $ErrorActionPreference = 'Continue'
     $verifySql | docker compose --env-file .env exec -T postgres sh -c 'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -X -w -v ON_ERROR_STOP=1 -f /dev/stdin'
-    if ($LASTEXITCODE -ne 0) { throw 'tasks veya migration history doğrulanamadı.' }
+    $verifyExitCode = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    if ($verifyExitCode -ne 0) { throw 'tasks veya migration history doğrulanamadı.' }
 } finally {
     $OutputEncoding = $previousOutputEncoding
+    $ErrorActionPreference = $previousErrorActionPreference
 }
 # Çıktıda tasks tablosunu ve 20260928113912_InitialCreate satırını gör.
 # İş bittiyse yalnız bu geçici SQL dosyasını kaldır:
 Remove-Item -LiteralPath $sqlPath -Force
 ```
 
-Mevcut idempotent SQL, `START TRANSACTION` ve `COMMIT` içerir; ayrıca `psql --single-transaction` ekleme. [psql belgesi](https://www.postgresql.org/docs/18/app-psql.html) script kendi transaction komutlarını taşıyorsa bu seçeneğin beklenen etkiyi bozabileceğini söyler. Migration zaten history'de kayıtlıysa idempotent script onu yeniden uygulamaz; yine de çıktıdaki schema ve history'yi doğrula. Gelecekte yeni migration eklenirse SQL'i yeniden incele. Bu görevde SQL **yalnız üretildi**, psql uygulanmadı.
+Mevcut idempotent SQL, `START TRANSACTION` ve `COMMIT` içerir; ayrıca `psql --single-transaction` ekleme. [psql belgesi](https://www.postgresql.org/docs/18/app-psql.html) script kendi transaction komutlarını taşıyorsa bu seçeneğin beklenen etkiyi bozabileceğini söyler. Migration zaten history'de kayıtlıysa idempotent script onu yeniden uygulamaz; yine de çıktıdaki schema ve history'yi doğrula. Gelecekte yeni migration eklenirse SQL'i yeniden incele. Normal `NOTICE` stderr'e yazılabilir; özellikle `2>&1` ile yakalandığında PowerShell 5.1 bunu `Stop` altında kesebilir. Yukarıdaki dar `Continue` bölümü yalnız native komut içindir; SQL başarısı yine exit code ile zorunlu kontrol edilir. Gerçek SQL hatası final kabulde **exit 3** döndürdü.
 
 ### 7. Dört servisli stack'i aç ve küçük kabul yap
 
@@ -375,4 +384,87 @@ Host `dotnet run` API'si, backend projesinin `UserSecretsId` kaynağındaki `Con
 
 ### Bu rehberin doğrulama sınırı
 
-Proje yolları, dört Compose servisi, tek host portu, iki Dockerfile, `dotnet-tools.json`, `ApiConfiguration` ve mevcut `InitialCreate` migration'ı incelendi. Host `.NET 10.0.401` ve local `dotnet-ef 10.0.12` doğrulandı. **Sahte, geçici process configuration** ile `dotnet ef migrations script 0 InitialCreate --idempotent` başarılı oldu; SQL'de `tasks`, `__EFMigrationsHistory`, migration kimliği ve kendi `START TRANSACTION`/`COMMIT` komutları görüldü. Geçici SQL silindi. Bu görevde PostgreSQL container'ı başlatılmadı, migration uygulanmadı, mevcut volume/database/`.env`/user-secrets değiştirilmedi. Temiz bilgisayarda rehberin baştan sona kabulü **henüz doğrulanmadı**.
+Rehberin ilk dokümantasyon adımında yalnız statik inceleme ve sahte process configuration ile SQL üretimi yapılmıştı. Sonraki final kabulde aynı host üzerinde yeni boş volume'a SQL uygulandı ve stack doğrulandı; ayrıntılar 15. bölümde. Gerçek geliştirme `.env`, user-secrets ve PostgreSQL volume'u bu kurulumda kullanılmadı. Ayrı temiz bilgisayar/VM kabulü hâlâ yapılmadı.
+
+## 14. Production secret yaklaşımı — yalnız dokümantasyon
+
+Ignored `.env`, Compose interpolation için yerel düz metin kaynağıdır. User-secrets geliştirme içindir, repository dışında olsa da şifreli vault değildir. Production credential'ı geliştirme ortamına taşımamak gerekir ([Microsoft Secret Manager](https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets?view=aspnetcore-10.0)).
+
+Production'da dağıtım platformunun denetimli secret store'u veya Azure Key Vault gibi vault değerlendirilmelidir. Uygulama kimliği yalnız gerekli secret'ları okuyabilmeli; yönetici/rotation yetkisi ayrı tutulmalıdır. Ortamların ayrılması, erişim kayıtları, en az yetki ve planlı rotation birlikte ele alınır ([Key Vault güvenlik rehberi](https://learn.microsoft.com/en-us/azure/key-vault/general/secure-key-vault)). Bu projeye provider veya vault entegrasyonu eklenmedi.
+
+| Aktarım | Avantaj | Sınır |
+| --- | --- | --- |
+| Process environment | Mevcut .NET configuration anahtarlarıyla çalışır | Docker yetkisi olan kişi inspect ile görebilir; hata/log çıktısına taşınabilir. Değer değişince çalışan uygulamanın nasıl yenileneceği tasarlanmalıdır. |
+| Salt okunur secret dosyası mount'u | Secret'a yalnız ilgili servis ve dosya izinleriyle erişim verilebilir | Host dosyası ve Docker erişimi korunmalıdır; uygulamanın dosyayı okuyup configuration'a aktarması gerekir. |
+
+Compose secrets, servis bazında dosyayı `/run/secrets/...` altına mount eder; yerel kaynak dosyasıyla kullanımı tek başına şifreli vault veya otomatik rotation sistemi değildir. `_FILE` bazı image'ların desteklediği bir sözleşmedir; API'deki `ApiConfiguration.Read` bunu okumaz. Dosya mount etmek mevcut `ConnectionStrings:Postgres` anahtarını otomatik doldurmaz ([Docker Compose secrets](https://docs.docker.com/compose/how-tos/use-secrets/)). Bu görevde dosya provider'ı, `_FILE` veya Compose secrets eklenmedi.
+
+Secret Git'e, örnek config'e, ekran görüntüsüne, log/exception'a ya da Vite frontend bundle'ına girmemeli. Runtime credential Docker build girdisi değildir. `ARG`/`ENV` içine secret yazmak image metadata/layer riskidir; gelecekte build sırasında özel paket credential'ı gerekirse geçici BuildKit secret mount ayrı değerlendirilir ([Docker build secrets](https://docs.docker.com/build/building/secrets/)). Mevcut build context'ler ve `.dockerignore` env dosyalarını dışlar.
+
+**PostgreSQL rotation planı:** Yetkili kişi DB rol parolası ve uygulamanın runtime secret kaynağını birlikte güncellemeli, yeni bağlantıları/health'i doğrulamalı ve eski credential'ı devreden çıkarmalıdır. Tek credential kullanılan mevcut yapıda kesinti ve geri dönüş planı gerekir. Initialized volume için yalnız `.env` değişikliği rol parolasını değiştirmez. Bu görevde rotation yapılmadı; `.env` ile user-secrets arasında otomatik kopyalama yoktur.
+
+## 15. Yeni boş volume ile izole bootstrap final kabulü
+
+### İzolasyon ve komutlar
+
+**1 Ekim 2026:** Başlangıç Git durumu temizdi. Commit edilmiş HEAD, repository dışındaki benzersiz geçici klasöre `git clone --local --no-hardlinks` ile alındı. Ignored `.env`, user-secrets, `bin`, `obj`, `dist` veya `node_modules` kopyalanmadı. Yalnız bu görevde değiştirilen iki preflight/script test dosyası ayrıca test kopyasına aktarıldı. Yeni `.env`, `.env.example` üzerinden üretildi; parola runtime'da rastgele sahte değerdi, çıktılara yazılmadı.
+
+- Compose projesi: `fsops-m9-be6cb36350fc`.
+- Yeni external volume: `fsops-m9-data-3be6b2dcf6ce4d8fa37512e88c49661b`.
+- Geçici frontend mapping: `127.0.0.1:57769:80`.
+- İsimlerin boşta olduğu önce kontrol edildi. Volume oluşturma kaydı ve projeye ait sahiplik label'ı kaydedildi.
+- Volume adı ve frontend portu yalnız ignored geçici `.env.module9-compose.yaml` override'ında değişti. Ana `compose.yaml` değişmedi. Yalnız proje adını değiştirmek sabit `fullstack-ops-postgres-data` external volume hedefini değiştirmez.
+
+Preflight artık isteğe bağlı `-VolumeName` ve `-ComposeOverrideFile` alır; parametresiz kullanım aynı volume ve `compose.yaml` ile devam eder. Override repository içinde var olan dosya olmalı, volume adı Docker ad biçimine uymalıdır. Bu parametreler kaynak oluşturmaz; `-VolumeName` kontrol hedefini seçer, mount tanımını değiştirmez. Override'daki external volume adıyla aynı hedefi vermek kullanıcının sorumluluğudur.
+
+Aşağıdaki değişkenler yalnız geçici test kopyasında kullanıldı; gerçek geliştirme `.env` dosyası bu komutlara verilmedi:
+
+```powershell
+$testProject = 'fsops-m9-be6cb36350fc'
+$testVolume = 'fsops-m9-data-3be6b2dcf6ce4d8fa37512e88c49661b'
+$composeArgs = @('compose', '--project-name', $testProject, '--env-file', '.env',
+                 '-f', 'compose.yaml', '-f', '.env.module9-compose.yaml')
+# Yalnız isim çakışması olmadığı doğrulandıktan sonra oluşturuldu:
+docker volume create --label "fullstackops.module9.acceptance=$testProject" $testVolume
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.EnvPreflight.ps1 -VolumeName $testVolume -ComposeOverrideFile .env.module9-compose.yaml
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.SecretLeakage.Check.ps1
+docker @composeArgs config -q
+docker @composeArgs up -d --no-deps --wait --wait-timeout 120 postgres
+# 13. bölümdeki pg_isready, TCP psql, SQL üretim/uygulama kontrollerinden sonra:
+docker @composeArgs up -d --build --wait --wait-timeout 180
+docker @composeArgs down
+docker volume inspect $testVolume --format '{{.Name}}'
+docker @composeArgs up -d --wait --wait-timeout 180
+```
+
+Bu eski test isimlerini tekrar kullanmak yerine yeni deney için yeni benzersiz ad/boş port seç. Geçici override port listesini `!override` ile değiştirdi; ikinci bir frontend portu eklemedi.
+
+### Gerçek sonuçlar
+
+| Kontrol | Sonuç |
+| --- | --- |
+| PostgreSQL-first | Yalnız PostgreSQL çalıştı; `pg_isready` geçti; container içinden TCP `psql SELECT 1` **1**, exit **0**. Yeni boş volume yeni credential ile initialize edildi. |
+| EF CLI / SQL | Local `dotnet tool restore`, solution restore ve mevcut InitialCreate'dan idempotent SQL üretimi geçti. EF child process Production ve sahte erişilemeyen adresler kullandı; host user-secrets okunmadı. SQL **1059 byte**; `tasks`, history, migration kimliği ve transaction gözden geçirildi. |
+| Migration ilk uygulama | Exit **0**; `tasks` ve `__EFMigrationsHistory`, `20260928113912_InitialCreate` satırı oluştu. |
+| Migration tekrar | UTF-8 PowerShell stdin → `psql -X -w -v ON_ERROR_STOP=1 -f /dev/stdin`, exit **0**. Eklenen sentinel kaydının sayısı **1** kaldı; sonra silindi. Normal NOTICE için rehberdeki dar error-preference düzeltmesiyle tekrar doğrulandı. |
+| Bilerek hatalı SQL | Hem yakalanan child stdout/stderr hem rehberin native stdin pipeline'ında exit **3**; beklenen SQL hata mesajı vardı. |
+| Compose | İlk up ve down/up sonrasında dört servis **running/healthy**. Yalnız frontend localhost portu publish edildi; DB, Redis ve API için host portu yok. |
+| Nginx CRUD | GET **200**, POST **201** ve `/api/tasks/{id}` Location, PUT **200**, DELETE **204**, boş başlık **400**, bulunmayan GET/PUT/DELETE **404**. Altı JSON alanı ve nullable `description` korundu. Mevcut `Phase0B.Tasks.Smoke.ps1` test URL'siyle ayrıca geçti. |
+| Cache | İlk boş liste GET'i miss ve key oluşturdu; ikinci GET hit. İlgili güvenli API log event sayımlarındaki artış **1 miss / 1 hit** idi. Konfigürasyon **60 s**, gerçek Redis TTL okuması **59 s**; geçen süre nedeniyle uyumlu. POST/PUT/DELETE key'i kaldırdı, 400/404 kaldırmadı. |
+| Health | `/health`, `/health/live`, `/health/ready` **200**. Nginx bu yolları API'ye proxy etmez; kontroller frontend container'ından internal `api:8080` adresine yapıldı. |
+| Kalıcılık | Benzersiz görev down/up sonrasında aynı ID, title, description, completion ve iki timestamp ile bulundu; API ile silindi. |
+| Release build | **0 uyarı / 0 hata**. |
+| Module 9 regresyon | Configuration **20/20**, preflight **10/10** (önceki 7 + eksik override, geçersiz volume adı, eksik seçilen volume), secret leakage **15/15**. Gerçek repository taraması exit **0**; Compose `config -q` ve `git diff --check` geçti. |
+| Güvenli hata çıktısı | Configuration negatifleri nonzero **ve** beklenen güvenli mesajla doğrulandı; canary/tam test connection string stdout/stderr'de yoktu. Teste ait hata penceresi yaklaşımı korundu. Preflight/secret fixture'ları kendi canary'lerini de kontrol etti; bootstrap çıktıları sahte parola içermedi. |
+
+10. bölümdeki eski Compose kabulü **önceden initialize edilmiş geliştirme volume'u** üzerindeydi. Bu kabul ise yeni **boş** external volume, ayrı `.env` ve ayrı Compose projesiyle bootstrap sırasını test etti. Aynı Windows host ve mevcut Docker/build cache kullanıldı; ayrı temiz bilgisayar/VM, production vault, gerçek production credential veya production deployment doğrulanmış sayılmaz. `dotnet test` sonucu yerine gerçekten yürütülen smoke senaryoları esas alındı.
+
+### Temizlik ve mevcut ortamın korunması
+
+Test Task'ları, migration sentinel'i ve test Redis key'i temizlendi. Test projesine `down` uygulandı; `-v`/prune kullanılmadı. Container/network kalmadığı kontrol edildi. Test external volume'u kaldırılmadan önce adı, başlangıçta yokluğu, sahiplik label'ı, aynı oluşturma zamanı ve container referansı olmadığı doğrulandı. Yalnız bu yeni volume kaldırıldı. İki benzersiz test image tag'i de yeni image ID ve Compose proje label'ı doğrulanarak kaldırıldı; ortak build cache/base image'lara dokunulmadı. Geçici kopya, `.env`, SQL ve yakalanan çıktılar temizlendi.
+
+Gerçek `.env` ve user-secrets dosyalarının SHA256 değerleri başlangıçla aynıydı; değerler/hash'ler paylaşılmadı. Başlangıçtaki **12 container**, **19 volume** ve bütün image ID'leri korundu; `fullstack-ops-postgres-data` mount edilmedi veya değiştirilmedi. Mevcut proje ağlarının ID'leri korundu. **Envanter gözlemi:** Docker'ın built-in `bridge` ağı aynı adla durmasına rağmen ID'si değişti; yeni oluşturma zamanı deney aralığındaydı. Bu görevde yalnız test projesinin ağı hedeflendi. Erişilebilen network event geçmişi nedeni göstermedi; varsayılan ağın tamamen değişmeden kaldığı iddia edilmiyor ve nedeni doğrulanmadı. İlişkisiz proje container'ları önceki stopped durumlarında kaldı.
+
+**2 Ekim 2026 son kontrolü:** Önceki geçici dosya temizliği otomatik onay incelemesinin kullanım limiti nedeniyle çalıştırılamamıştı; devam oturumunda klasör, sahte configuration, SQL ve yakalanan çıktılar kaldırıldı. Gerçek `.env`/user-secrets hash'leri yeniden aynı bulundu; repository secret taraması ve diff kontrolü geçti. Docker Engine bu son oturumda erişilemediğinden canlı Docker envanteri yeniden doğrulanamadı; yukarıdaki Docker kabul ve cleanup sonuçları 1 Ekim'deki gerçek çalışmaya aittir.
+
+Şartnamedeki Module 9 configuration/secrets ve Git güvenliği kriterleri karşılandı; Module 9 **Completed**. Sonraki modül **Module 10 — Observability: Logs, Prometheus & Grafana**. İlk öneri mevcut logları, health/inspect ve kaynak kullanımını Docker-native araçlarla incelemektir; bu görevde uygulanmadı.
