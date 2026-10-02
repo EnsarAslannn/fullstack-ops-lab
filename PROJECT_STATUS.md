@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 9 — Completed: configuration/secrets controls, production secret documentation and isolated empty-volume bootstrap acceptance verified
+Module 10 — Docker-native inspection completed; metrics instrumentation, Prometheus and Grafana not started
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 10 — Observability: Logs, Prometheus & Grafana
 
 ## Current Step
 
-Not started
+Docker-native log, health and resource inspection completed
 
 ## Completed
 
@@ -175,9 +175,15 @@ Not started
 
 - Module 9 completed; separate clean-machine/VM and production deployment remain outside the verified scope
 
+- Module 10 first step verified existing Docker/Compose logs, safe state/health/probe/restart/network inspect and a timestamped four-service resource snapshot without adding monitoring components
+
+- Module 10 Nginx test Task CRUD passed; controlled API logs showed 2 misses, 1 hit and 3 invalidations; Module 8 Redis/PostgreSQL outages and recovery passed on the same running API container, with HTTP readiness 503 distinguished from Docker probe timeouts
+
+- Module 10 test Task/cache cleaned, initially absent stack removed and external PostgreSQL volume preserved; existing Task/lab/migration rows and secret hashes unchanged, original 12 containers/7 networks/19 volumes retained including unchanged default bridge ID
+
 ## Next Goal
 
-On explicit request: begin Module 10 with Docker-native inspection of existing application logs, service health and resource usage before adding observability services.
+On explicit request: add backend .NET request/runtime and cache metrics with System.Diagnostics.Metrics/OpenTelemetry Metrics and verify the internal /metrics output before adding Prometheus or Grafana.
 
 ## Blockers
 
