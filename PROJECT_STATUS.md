@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 10 — Docker-native inspection and backend metrics completed; Prometheus and Grafana not started
+Module 10 — Docker-native inspection, backend metrics and Prometheus internal scrape completed; Grafana not started
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 10 — Observability: Logs, Prometheus & Grafana
 
 ## Current Step
 
-Backend HTTP/runtime/cache metrics and internal /metrics acceptance completed
+Prometheus service, named TSDB volume and internal metrics scrape acceptance completed
 
 ## Completed
 
@@ -187,9 +187,15 @@ Backend HTTP/runtime/cache metrics and internal /metrics acceptance completed
 
 - Module 10 Nginx CRUD, six-field/nullable contract, Module 8 dependency outage/recovery and 20 isolated configuration scenarios passed; Release build had 0 warnings/errors; test data/cache/containers cleaned, external volume and secret hashes preserved
 
+- Module 10 Prometheus v3.13.4 LTS configured with a version-controlled 15-second api:8080/metrics scrape, localhost-only UI, named TSDB volume, retention and resource limits; promtool/preflight/Compose configuration passed and five services were healthy
+
+- Module 10 Prometheus smoke passed successive UP scrapes, query API HTTP/runtime/cache series, scraped CRUD counter increases, finite rate/p95/cache-ratio queries, API DOWN/up=0 and recovery, and Redis outage with live 200/ready 503/API unhealthy while metrics remained UP
+
+- Module 10 TSDB historical sample survived down/up; test rows/cache and newly created monitoring test volume cleaned, original 12 containers/7 networks/19 volumes and external PostgreSQL/secret sources preserved; initial Engine versus pre-stack bridge ID differed for an unconfirmed reason, saved snapshot and cleanup IDs matched
+
 ## Next Goal
 
-On explicit request: add the official Prometheus service, version-controlled prometheus.yml and a 15-second internal api:8080/metrics scrape; verify target UP and real HTTP/cache metric queries before adding Grafana.
+On explicit request: add Grafana and provision its Prometheus datasource through YAML using http://prometheus:9090; do not treat Module 10 as completed yet.
 
 ## Blockers
 

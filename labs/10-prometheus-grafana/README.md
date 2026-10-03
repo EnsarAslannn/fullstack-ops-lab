@@ -1,6 +1,6 @@
-# Modül 10 — Docker-native gözlem
+# Modül 10 — Docker-native gözlem, backend metrics ve Prometheus
 
-Bu README önce 2 Ekim'deki Docker-native gözlem adımını, ardından 3 Ekim'deki backend metrics adımını belgeler. `PROJECT_SPEC.md` önce Docker log/inspect/stats incelemesini, sonra backend metrics instrumentation, Prometheus ve Grafana'yı ister. Sıra ile görev arasında fark yoktur. Şartnamedeki `labs/10-prometheus-grafana/` klasörü kullanılır; klasör adı monitoring bileşenlerinin eklendiği anlamına gelmez. İlk bölümdeki ölçümler ve eksikler o tarihteki snapshot'tır; güncel metrik durumu aşağıdaki ikinci bölümde açıklanır.
+Bu README sırasıyla 2 Ekim'deki Docker-native gözlem, 3 Ekim'deki backend metrics ve Prometheus internal scrape adımlarını belgeler. `PROJECT_SPEC.md` önce Docker log/inspect/stats incelemesini, sonra backend metrics instrumentation, Prometheus ve Grafana'yı ister. Sıra ile görev arasında fark yoktur. Şartnamedeki `labs/10-prometheus-grafana/` klasörü kullanılır. İlk iki bölümün ölçümleri ve eksikleri kendi kabul tarihindeki snapshot'tır; güncel beş servisli topoloji ve çalıştırma talimatları **Prometheus — internal scrape kabulü** bölümündedir. Grafana henüz eklenmedi; Module 10 bütünü devam ediyor.
 
 **Sonuç: 2 Ekim 2026 tarihinde ilk adım PASS. Module 10 bütünü devam ediyor.**
 
@@ -274,4 +274,136 @@ Yalnız backend Program/proje dosyası, yeni `Telemetry/TaskCacheMetrics.cs`, ye
 
 Sayaçlar process restart'ında sıfırlanır; henüz event almayan cache instrument'ı scrape'te absent olabilir. API restart'ından önce dolu cache counter'larının, restart sonrasında series olarak henüz bulunmadığı gerçekten doğrulandı. Bunlar persistent DB sayaçları değildir. Scrape çıktısı prosesin cumulative snapshot'ıdır; henüz kalıcı zaman serisi deposu yok. Rate/error ratio/p95 için ileride scrape geçmişi gerekir. Bu smoke trafik deneyi benchmark veya production yük testi değildir; API süresi Nginx dahil uçtan uca kullanıcı gecikmesini ölçmez.
 
-Module 10 bütünü **devam ediyor**. Şartnameye göre sonraki küçük adım yalnız öneridir: resmî Prometheus servisini, version control altında `prometheus.yml` dosyasını ve 15 saniyelik `api:8080/metrics` scrape hedefini ekleyip target UP ve gerçek metric adlarını doğrulamak. Grafana bundan sonra gelir; burada uygulanmadı.
+Bu backend kabulünün ardından planlanan küçük adım Prometheus servisi ve 15 saniyelik internal scrape idi; tamamlanması aşağıdaki bölümde belgelenir. Grafana bu backend adımında uygulanmadı.
+
+## Prometheus — internal scrape kabulü
+
+**PASS — 3 Ekim 2026.** Bu bölüm yukarıdaki backend adımından sonraki durumu anlatır: Compose artık beş servislidir. Backend instrumentation, Task JSON/HTTP contract, cache, Nginx, PostgreSQL ve Redis configuration değiştirilmedi. Grafana, alerting, tracing ve merkezi log sistemi henüz yok.
+
+### Image, port ve scrape configuration
+
+Resmî [indirme sayfasında](https://prometheus.io/download/) 3 Ekim 2026 tarihinde listelenen LTS bakım sürümü **3.13.4** (29 Eylül 2026) seçildi. Bu, o tarihteki en yeni feature sürümü olduğu iddiası değildir; LTS hattını kullanır. [Resmî Docker kurulum belgesi](https://prometheus.io/docs/prometheus/latest/installation/) `prom/prometheus` image'ını gösterir.
+
+- Image: `prom/prometheus:v3.13.4`; `latest` kullanılmaz. Sürüm tag'i yine registry'de mutable olabilir.
+- Çekilen digest: `sha256:87861b8cf91579109319ebc300f3f1060e6da9c05d6ae8ad15a20c879e84e32e`.
+- Image içindeki `prometheus --version` ve `promtool --version`: **3.13.4**, platform `linux/amd64`.
+- UI, stack çalışırken: **http://127.0.0.1:9090**. Frontend: http://127.0.0.1:18081. 9090 başlangıçta boştu; başka servis kullanıyorsa onu durdurma.
+- API/PG/Redis host portu yayınlanmaz; scrape mevcut `app` ağı üzerinde yapılır.
+- `monitoring/prometheus/prometheus.yml`, container'da `/etc/prometheus/prometheus.yml` yoluna **read-only** bind edilir.
+- Job: `fullstack-ops-api`; target: `api:8080`; yol: `/metrics`; interval **15s**, timeout **10s**.
+- Prometheus API'nin healthy olmasına `depends_on` ile bağlanmaz; API erişilemiyorken de çalışıp bu durumu ölçebilir.
+- Prometheus healthcheck'i `/-/ready` kullanır. Image içinde gerçekten `/bin/wget` bulundu; beş servis healthy oldu.
+
+Prometheus pull modeliyle API'nin cumulative metric snapshot'ını alır, timestamp ekleyerek kendi TSDB'sinde saklar. API Prometheus'a metric göndermez. API counter'ları process restart'ında reset olur; Prometheus'un eski örnekleri bundan ayrı saklanır.
+
+### Veri saklama ve kaynak sınırları
+
+Şartnamedeki `prometheus_data` named volume'u `/prometheus` yoluna bağlıdır. Varsayılan proje adıyla gerçek volume **`fullstack-ops-lab_prometheus_data`** olur. External `fullstack-ops-postgres-data` ile ilgisi yoktur.
+
+Retention flag'leri **7d** ve **256MB**; gerçek `/api/v1/status/flags` çıktısı bunları **1w / 256MiB** olarak normalize etti. Dolayısıyla boyut eşiği 268.435.456 byte'tır. İki politika birlikte kullanılır; daha önce sınırına ulaşan politika etkili olur. Bu, dosya sistemi için kesin disk kotası değildir: WAL/head verisi ve compaction geçici alanı ek yer kullanabilir, retention cleanup anlık değildir. [Storage belgesi](https://prometheus.io/docs/prometheus/latest/storage/) bu sınırları açıklar. Yedi gün bekleme veya boyut baskısı deneyi yapılmadı; flag'ler ve veri kalıcılığı doğrulandı.
+
+Prometheus container sınırları **512 MiB RAM / 1 CPU**. Inspect gerçek değerleri **536870912 byte / 1000000000 NanoCPUs** gösterdi. Bunlar yerel öğrenme sınırlarıdır; production kapasite ölçümü değildir. Resmî image kullanıcı kimliği **65534 (nobody)** döndü; bu adımda ek hardening uygulanmadı.
+
+Normal `docker compose down` named volume'u bırakır; yeniden `up` eski metric geçmişini açar. **`down -v` monitoring verisini silebilir**; normal lab temizliğinde kullanma. Bu deneyde down/up sonrasında aynı geçmiş `up=1` örneği, aynı timestamp ile geri alındı (`time=1791022252` için query). Yalnız başlangıçta bulunmadığı ve proje label'ları doğrulandığı için, göreve ait test monitoring volume'u son cleanup'ta açık adıyla kaldırıldı. Bu bir normal kullanım önerisi değildir; sonraki `up` boş monitoring volume'u oluşturur. PostgreSQL volume'u korundu.
+
+### Çalıştırma ve doğrulama komutları
+
+Repository kökünden; Module 9'a göre hazırlanmış `.env`, external PostgreSQL volume'u ve uygulanmış migration gerekir. Mevcut secret'ları değiştirme; çözümlenmiş Compose configuration'ı paylaşma.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.EnvPreflight.ps1
+docker compose --env-file .env config -q
+docker pull prom/prometheus:v3.13.4
+
+$configPath = (Resolve-Path monitoring/prometheus/prometheus.yml).Path
+docker run --rm --mount "type=bind,source=$configPath,target=/etc/prometheus/prometheus.yml,readonly" --entrypoint /bin/promtool prom/prometheus:v3.13.4 check config /etc/prometheus/prometheus.yml
+
+# İlk clone'da build gerekir. Bu kabulde değişmeyen, önceki adımda doğrulanmış API/frontend image'ları kullanıldı.
+docker compose --env-file .env build api frontend
+docker compose --env-file .env up -d --wait --wait-timeout 180
+docker compose --env-file .env ps
+
+# İzole trafik, yeni API prosesi ve başlangıçta mevcut liste cache'i olmadan çalıştır.
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module10.Prometheus.Smoke.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module10.Metrics.Smoke.ps1 -EndpointOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.SecretLeakage.Check.ps1
+git diff --check
+```
+
+Gerçek kabulde `up -d --no-build --wait --wait-timeout 180` kullanıldı; uygulama kaynakları değişmedi. Promtool **SUCCESS**, env preflight ve Compose config **PASS**. Script servisleri ilk kez başlatmaz; hazır bir stack üzerinde yalnız kontrollü API/Redis stop/start yapar. Başka kullanıcı trafiğiyle aynı anda çalıştırma. API counter'ları önceden kullanılmışsa testi yeni prosesle ve test cache'i bulunmadan hazırla; mevcut kullanıcı cache'ini körlemesine silme.
+
+Yeni test target URL/interval, scrape zamanının ilerlemesi, query API, runtime serileri, HTTP/cache counter'ları, altı JSON alanı/nullable description, POST Location, kesinti/recovery ve dış `/metrics` davranışını doğrular. Başarısız assertion exit 1 verir. Scrape beklemesi 55 saniye, health beklemesi 90 saniye ile sınırlıdır. HTTP/Docker response body ve native stderr terminale aktarılmaz. Task kayıtları ve yalnız testin sahip olduğu cache key'i `finally` ile temizlenir; kesilen servisler geri başlatılır.
+
+Eski `Module8.Readiness.Smoke.ps1` tam **dört** servis bekler; yeni beş servisli topolojide körlemesine çalıştırılmadı. Burada Redis kesintisi, live/ready, running/unhealthy ve recovery aynı kabul kriterleriyle yeni script'te doğrulandı. PostgreSQL kesinti deneyi bu küçük adımda tekrarlanmadı; önceki adımın sonucu yukarıdadır.
+
+### Gerçek scrape ve trafik sonuçları
+
+Son tam smoke koşusu **10:07:47–10:10:03 UTC / 13:07:47–13:10:03 Türkiye saati** aralığındadır. Test öncesi hedef için iki ardışık başarılı scrape beklenip `up=1` doğrulandı; son bir dakikadaki `up` sample sayısı **4** idi. Sample sayısı tek başına bütün sample'ların başarılı olduğunu kanıtlamaz; target health ve `up` ayrıca kontrol edildi.
+
+| Kontrol | Gerçek sonuç |
+| --- | --- |
+| Target | `http://api:8080/metrics`, interval **15s**, health **up**; son recovery scrape **2026-10-03T10:10:02.403068929Z**. |
+| Kontrollü CRUD | GET list/ID **200**, POST **201** ve `/api/tasks/{id}` Location, PUT **200**, DELETE **204**, boş başlık **400**, silinmiş ID **404**. Altı JSON alanı ve nullable description korundu. |
+| Trafikten sonraki scrape | HTTP histogram `_count` **+8**; cache miss/hit/invalidation **1 / 1 / 3**. Sonraki miss/hit çifti ayrı scrape'a yansıdı. |
+| Runtime query | CPU, working set ve GC allocation serileri query API'den okundu; CPU mode label'ı nedeniyle iki, memory/allocation birer sample vardı. |
+| 1m request rate | **0,0724471605048013 istek/s**. |
+| 1m GET-list p95 | **0,00475 s**, histogram bucket'larından tahmin. Kesin tekil request ölçümü veya benchmark değil. |
+| 1m cache hit oranı | **0,5 (%50)**. |
+| Kesinti öncesi 5xx | Seri bulunmadığından sorgu **boş**; ölçülmüş sıfır gibi raporlanmadı. |
+| Redis stopped | API **running/unhealthy**, live **200**, ready **503**, iki list GET **500**; iki sonraki metrics scrape başarılı, **up=1**. |
+| Kesinti penceresi 5xx oranı | **1 (%100)**; o kısa 1m penceredeki kontrollü hata trafiğinin oranı, production hata oranı değil. |
+| Redis recovery | Aynı API container'ında ready **200**, Docker health **healthy**. |
+| API stopped / start | Target **DOWN/up=0**, aynı API container'ı tekrar healthy olunca **UP/up=1**. |
+| Nginx dış `/metrics` | **200 HTML SPA fallback**, API metrikleri değil. Nginx'e yeni route eklenmedi. |
+| TSDB down/up | Eski timestamp'teki `up=1` sample'ı aynı timestamp/değerle geri döndü; volume kalıcılığı kanıtlandı. |
+
+`up`, Prometheus'un target HTTP scrape'ını yapabilmesini anlatır. `ready`, API'nin PostgreSQL/Redis ile iş yapmaya hazır olmasını anlatır. Redis kesintisinde `/metrics` bağımlılıklara sorgu göndermediği için scrape devam ederken kullanıcı isteği 500 verdi. Prometheus `/-/ready` ise Prometheus servisinin kendi hazır oluşudur; API readiness yerine geçmez. Docker health de periyodik probe sonucu olduğundan anlık HTTP readiness ile geçiş sırasında aynı anda değişmeyebilir.
+
+İlk tam koşuda 5xx ratio sorgusu boş kaldı ve test **FAIL** verdi: uzun dependency health beklemesi sırasında ilerlemiş eski scrape zamanı yanlışlıkla yeni scrape sayılmıştı. Yalnız test, her trafik işleminden sonra **güncel lastScrape'tan daha yeni** sample bekleyecek şekilde düzeltildi. Son koşu geçti. Query helper boş, NaN veya sonsuz sonuçları geçerli sayısal ölçüm kabul etmez. Servis configuration veya backend davranışı bu nedenle değiştirilmedi.
+
+### Gerçek isimlerle PromQL
+
+[Query API](https://prometheus.io/docs/prometheus/latest/querying/api/) için `/api/v1/query?query=...` veya UI'daki expression alanı kullanılabilir. Job label Prometheus tarafından eklenir. HTTP labels gerçek exporter adlarıdır: `http_route`, `http_request_method`, `http_response_status_code`; histogram bucket label'ı `le`.
+
+```promql
+# Instant vector: en son target durumu (runtime readiness değildir).
+up{job="fullstack-ops-api"}
+
+# Range vector'daki counter örneklerinden saniye başına istek; restart reset'lerini rate ele alır.
+sum(rate(http_server_request_duration_seconds_count{job="fullstack-ops-api"}[5m]))
+
+# 5xx / tüm istekler. 5xx serisi yoksa boş; payda 0 ise NaN olabilir.
+sum(rate(http_server_request_duration_seconds_count{job="fullstack-ops-api",http_response_status_code=~"5.."}[5m]))
+/
+sum(rate(http_server_request_duration_seconds_count{job="fullstack-ops-api"}[5m]))
+
+# GET liste route template'i gerçekten /api/tasks/ (son slash dahil).
+histogram_quantile(0.95,
+  sum by (le) (rate(http_server_request_duration_seconds_bucket{job="fullstack-ops-api",http_route="/api/tasks/",http_request_method="GET"}[5m]))
+)
+
+sum(rate(fullstackops_cache_hits_total{job="fullstack-ops-api"}[5m]))
+/
+(
+  sum(rate(fullstackops_cache_hits_total{job="fullstack-ops-api"}[5m]))
+  + sum(rate(fullstackops_cache_misses_total{job="fullstack-ops-api"}[5m]))
+)
+
+# Gauge: son memory örneği; counter değil, rate uygulama.
+dotnet_process_memory_working_set_bytes{job="fullstack-ops-api"}
+
+# CPU counter: kullanıcı/sistem mode serilerini sum ile birleştir.
+sum(rate(dotnet_process_cpu_time_seconds_total{job="fullstack-ops-api"}[5m]))
+```
+
+`sum` seçilen series'leri toplar; `sum by(le)` histogram bucket sınırlarını korur. `rate` cumulative counter için kullanılır; gauge'a uygulanmaz. Üstteki örnekler 5m öğrenme penceresidir; kabul tablosundaki ölçümler aynı sorguların **1m** sürümlerinden alınmıştır. En az iki sample gerekir; yeni counter yalnız ilk event'ten sonra görünür. Trafiksiz p95 NaN, henüz doğmamış seri boş olabilir. Bunları sağlıklı trafik, sıfır hata veya sıfır gecikme kanıtı sayma. Histogram quantile bir bucket tahminidir; Nginx dahil uçtan uca latency değildir. Bu adım için kaydedilmiş yeterli kontrollü sample vardır; uzun dönem trend/yük testi yoktur.
+
+### Güvenlik, cleanup ve kalan adım
+
+Internal metric response, Prometheus series label metadata ve son smoke stdout/stderr'sinde gerçek PostgreSQL parola/connection string ve Task canary bulunmadığı değerleri göstermeden kontrol edildi. Mevcut metrics `-EndpointOnly` kontrolü de **PASS**. Secret leakage regression repository'nin tracked ve yeni ignored olmayan dosyalarında geçti; Git geçmişi taranmadı.
+
+Başlangıçta stack yoktu. Test Task'ları ve test liste key'i temizlendi; mevcut `tasks`, Module 3B `lab_tasks` ve `__EFMigrationsHistory` satır hash'leri aynı kaldı. INSERT nedeniyle identity sequence ilerleyebilir. `.env`/user-secrets hash'leri korundu. Beş container ve `app` network `down` ile kaldırıldı. Normal down/up persistence deneyinden sonra yalnız yeni test monitoring volume'u, başlangıçta bulunmadığı ve Compose ownership label'ları doğrulanarak `docker volume rm fullstack-ops-lab_prometheus_data` ile kaldırıldı. **External PostgreSQL volume'u ve ilişkisiz kaynaklar korundu; `down -v`/prune kullanılmadı.** Image'lar localde bırakıldı.
+
+Kaydedilmiş başlangıç/bitiş envanteri **12 ilişkisiz container / 7 network / 19 volume** için aynı çıktı. İlk Engine erişim kontrolünde görülen built-in bridge ID `f015…`, stack başlamadan kaydedilen snapshot ve cleanup'ta `7f52…` idi. Neden doğrulanmadı; Docker configuration değiştirilmedi. Snapshot ile bitiş arasında network ID farkı yok. Geçici kanıt dosyaları repository dışında tutulup temizlendi.
+
+Module 10 tamamlanmadı. Sonraki küçük adım, yalnız açık talep üzerine **Grafana servisi ve YAML ile Prometheus datasource provisioning**; dashboard/alerting/tracing bu görevde uygulanmadı.
