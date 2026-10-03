@@ -1,6 +1,6 @@
-# Modül 10 — Docker-native gözlem, backend metrics, Prometheus ve Grafana datasource
+# Modül 10 — Docker-native gözlem, backend metrics, Prometheus ve Grafana
 
-Bu README sırasıyla Docker-native gözlem, backend metrics, Prometheus internal scrape ve Grafana datasource adımlarını belgeler. `PROJECT_SPEC.md` sırası korunur. Önceki bölümler kendi kabul tarihindeki snapshot'tır; güncel **altı servisli** topoloji ve çalıştırma talimatları son **Grafana — YAML datasource provisioning** bölümündedir. Dashboard henüz eklenmedi; Module 10 bütünü devam ediyor.
+Bu README sırasıyla Docker-native gözlem, backend metrics, Prometheus internal scrape, Grafana datasource ve Overview dashboard adımlarını belgeler. `PROJECT_SPEC.md` sırası korunur. Önceki bölümler kendi kabul tarihindeki snapshot'tır; güncel **altı servisli** topoloji datasource bölümünde, dashboard kurulumu ve sorguları son **Overview dashboard provisioning** bölümündedir. Module 10 final kabulü henüz yapılmadı.
 
 **Sonuç: 2 Ekim 2026 tarihinde ilk adım PASS. Module 10 bütünü devam ediyor.**
 
@@ -520,4 +520,118 @@ Başlangıçta stack yoktu. Test Task'ları ve test liste cache'i temizlendi. Me
 
 Orijinal **12 container ID/state / 19 volume adı** aynı kaldı; **7 network adı** korundu. Built-in bridge ID başlangıç snapshot'ındaki `9b3d…` yerine sonunda `bf562…` idi; neden doğrulanmadı, Docker configuration değiştirilmedi. Diğer network ID'leri aynıydı. Geçici credential/env, Playwright araçları, browser screenshot probe ve kanıt dosyaları temizlendi. Seçilen Grafana 13.2.3 image'ı localde bırakıldı.
 
-**Module 10 bütünü devam ediyor.** Sıradaki küçük adım yalnız açık talep üzerine dashboard provider YAML ve sabit datasource UID'sini kullanan `FullStack Ops Lab Overview` dashboard JSON'udur. Bu görevde uygulanmadı.
+Bu datasource kabulünden sonraki dashboard adımı aşağıda belgelenir. Datasource adımında dashboard uygulanmadı.
+
+## Overview dashboard provisioning
+
+### Dosyalar, kurulum ve kalıcılık
+
+`monitoring/grafana/provisioning/dashboards/overview.yml`, file provider'ı tanımlar. `monitoring/grafana/dashboards/overview.json`, **FullStack Ops Lab Overview** dashboard'unun repository'deki kaynağıdır. Sabit dashboard UID **fullstack-ops-overview**, folder UID **fullstack-ops-lab**, datasource UID **fullstack-ops-prometheus**. Manuel import veya UI üzerinden datasource ekleme gerekmez.
+
+Compose provider klasörünü `/etc/grafana/provisioning/dashboards`, dashboard klasörünü `/var/lib/grafana/dashboards` yoluna **read-only** bağlar. Mevcut datasource mount'u da read-only kalır; `/var/lib/grafana` named volume'u hesap ve dashboard metadata'sını saklar. Mount'lar inspect ile `RW=false` olarak doğrulandı. Backend instrumentation, secrets, servis adları ve portlar değişmedi.
+
+Provider 30 saniyede dosyaları yeniden tarar; Docker bind mount'larında filesystem event davranışına güvenmez. `allowUiUpdates=false` ve JSON `editable=false`: kalıcı düzenlemeleri repository JSON'unda yap. `disableDeletion=true`: dosyanın yanlışlıkla kaldırılması mevcut dashboard'u otomatik silmez; eski dashboard silme davranışı bu adımda eklenmedi. [Grafana provisioning belgesi](https://grafana.com/docs/grafana/latest/administration/provisioning/#dashboards).
+
+Repository kökünde, mevcut ignored `.env` ve hazırlanmış external PostgreSQL volume/migration ile:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.EnvPreflight.ps1
+docker compose --env-file .env config -q
+docker compose --env-file .env up -d --wait --wait-timeout 240
+```
+
+Grafana'ya kendi local admin credential'larınla giriş yap. **Dashboards → FullStack Ops Lab → FullStack Ops Lab Overview** yolunu aç veya stack çalışırken **http://127.0.0.1:3000/d/fullstack-ops-overview/fullstack-ops-lab-overview** adresini kullan. Credential'ları komut argümanına, çıktıya veya Git'e yazma.
+
+### Panel, PromQL, birim ve anlam
+
+Aşağıdaki kısaltmalar yalnız tabloyu okunur tutar; dashboard JSON'unda sorgular **tam metin** olarak bulunur. Hepsi `job="fullstack-ops-api"` filtresini taşır:
+
+- `R = sum(rate(http_server_request_duration_seconds_count{job="fullstack-ops-api",http_route=~"/api/tasks.*"}[2m]))`
+- `E = sum(rate(http_server_request_duration_seconds_count{job="fullstack-ops-api",http_route=~"/api/tasks.*",http_response_status_code=~"5.."}[2m]))`
+- `H = sum(rate(fullstackops_cache_hits_total{job="fullstack-ops-api"}[2m]))`
+- `M = sum(rate(fullstackops_cache_misses_total{job="fullstack-ops-api"}[2m]))`
+
+| Panel | PromQL | Grafana birimi | Kısa açıklama |
+| --- | --- | --- | --- |
+| API scrape durumu | `up{job="fullstack-ops-api"}` | 0/1 mapping | Scrape başarılı/başarısız; readiness ve bütün sistem sağlığı değildir. |
+| HTTP request rate | `R` | `reqps` — istek/s | Task endpoint'lerinin bütün HTTP method/status kodları. |
+| HTTP 5xx oranı | `100 * (E or (0 * R)) / R` | `percent` — % | Yalnız 5xx; 400/404 hata payına girmez. |
+| HTTP istek süresi p95 | `histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{job="fullstack-ops-api",http_route=~"/api/tasks.*"}[2m])))` | `s` — saniye | Bucket dağılımından yaklaşık p95; Nginx/tarayıcı toplam gecikmesi değildir. |
+| Process CPU kullanımı | `100 * sum(rate(dotnet_process_cpu_time_seconds_total{job="fullstack-ops-api"}[2m]))` | `percent` — tek çekirdek karşılığı % | User/system CPU zamanını toplar. 100 bir çekirdektir; çok çekirdekte 100 üstü mümkündür. Host toplam CPU yüzdesi değildir. |
+| Process working set belleği | `sum(dotnet_process_memory_working_set_bytes{job="fullstack-ops-api"})` | `bytes` | Anlık process gauge; heap ve Docker memory hesabıyla aynı değildir. |
+| Cache hit ve miss rate | `H` ve `M` | `ops` — olay/s | İki ayrı çizgi; başarılı cache okuma/deserialize olayları. |
+| Cache hit oranı | `100 * H / (H + M)` | `percent` — % | Yalnız cache okuma olaylarının oranı. |
+| Cache invalidation rate | `sum(rate(fullstackops_cache_invalidations_total{job="fullstack-ops-api"}[2m]))` | `ops` — işlem/s | Başarılı DB mutation sonrası tamamlanmış cache remove; fiziksel silinen key adedi değildir. |
+
+Gerçek scrape `dotnet_process_cpu_time_seconds_total` için **Counter** ve `cpu_mode=user/system`, working set için **Gauge** gösterdi. HTTP histogram label'ları `http_request_method`, `http_response_status_code`, `http_route`, bucket sınırı `le`. Gerçek route template'leri `/api/tasks/` ve `/api/tasks/{id:int}`. Cache counter adları ve histogram bucket'ları canlı scrape ile tekrar doğrulandı.
+
+### Doğru yorumlama ve trafiksiz görünüm
+
+- Refresh **15s**, bütün rate pencereleri **2m**: pencere sekiz nominal scrape aralığıdır. Rate hesaplamak için en az iki örnek gerekir; yeni counter'ın ilk kez görünmesi artışı tek başına kanıtlamaz. Smoke yeni counter'lara trafik vermeden önce scrape baseline'ı bekler.
+- Counter'larda önce her series için `rate()`, sonra `sum()` uygulanır; process restart resetleri rate tarafından ele alınır. Gauge'a rate uygulanmaz. [Prometheus rate ve histogram_quantile](https://prometheus.io/docs/prometheus/latest/querying/functions/).
+- `E or (0 * R)` yalnız 5xx series'i hiç oluşmamışken, gerçek request series'i üzerinden hata payını sıfır verir. `R=0` ise oran **0/0 NaN** kalır. Bu bir trafiksiz oranı sıfırla doldurma işlemi değildir.
+- p95 ve cache oranı trafik/olay yokken boş veya NaN olabilir. JSON'da `or vector(0)`, denominator clamp veya null-to-zero transformation yok; çizgiler null boşluklarını birleştirmez. Gerçek request/event rate sıfır olabilir; oran ve percentile için sıfır bilgi icat edilmez.
+- Varsayılan görünüm son **15 dakika** olduğundan trafiksizken önceki trafik grafikte hâlâ görülebilir; son noktadaki oran/p95 boşluğu normaldir. Yeni process/counter series'i ilk örneklerinde `Veri yok` gösterebilir.
+- `/health`, `/health/live`, `/health/ready`, `/metrics` mapping'leri `DisableHttpMetrics()` kullandığından request duration/count histogramına girmez. Canlı histogramda bu route serileri yoktu. CPU, working set, Kestrel ve aktif request ölçümleri probe maliyetini yine içerebilir. Task filtreleri OpenAPI gibi diğer endpoint'leri de dashboard HTTP panellerinden ayırır.
+- Bilinen .NET thread-pool count/queue export tip sınırlaması bulunan seriler bu dashboard'da kullanılmaz; onlara rate uygulanmadı.
+- Kısa lab trafiği p95 doğruluğu, throughput veya production kapasitesi için benchmark değildir. Scrape/smoothing gecikmesi vardır; oran geçmiş pencerenin oranıdır, son tek isteğin sonucu değildir.
+
+### Kabul script'i
+
+```powershell
+python tests/Module10.Dashboard.Smoke.py --help
+python -u tests/Module10.Dashboard.Smoke.py
+python -u tests/Module10.Dashboard.Smoke.py --provisioning-only
+python -u tests/Module10.Dashboard.Smoke.py --browser-only
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module10.Grafana.Smoke.ps1
+```
+
+Tam test Python + ayrı test ortamında Playwright + kurulu Microsoft Edge gerektirir. Proje npm/lock bağımlılıklarına ekleme. Servisleri script başlatmaz; izole ve healthy stack gerekir. Provisioning-only mevcut Grafana API'sinde dashboard'un gerçekten provision edildiğini kontrol eder. Browser-only render ve datasource sorgularını kontrol eder; trafik/5xx kabulünün yerine geçmez.
+
+Tam test yalnız kendi benzersiz Task'ını oluşturur/günceller/siler; mevcut cache'i zorla silmek yerine expiration'ı bekler. Kendi trafik aşamasındaki cache key'ini finally'de temizler. PostgreSQL'i kontrollü durdurur; ID GET'i doğrudan DB okuduğundan liste cache'i 5xx'i gizleyemez. Bağımlılığı finally'de geri getirir. 150 saniye API user trafiği üretmeden bekleyerek trafiksiz sorguları ve tarayıcı görünümünü kontrol eder. Diğer geliştirici trafiği eşzamanlı olmamalıdır. Dashboard kabulü eklendiği için datasource smoke'un eski **zero dashboards** assertion'ı kaldırıldı; datasource/health/query/log kontrolleri korundu.
+
+### Gerçek kabul sonuçları — 3 Ekim 2026
+
+**PASS.** Bu sonuç yalnız dashboard küçük adımı içindir; Module 10 final kabulü yapılmadı. Başlangıç Git durumu temizdi, stack kapalıydı. Docker Engine **29.6.1**, Compose **v5.3.0**, geçici test ortamında Playwright **1.63.0** ve kurulu Edge kullanıldı. JSON/bind-mount configuration değişikliği uygulama image build'i gerektirmedi; backend/frontend kaynakları ve image build tanımları değişmedi.
+
+| Kabul | Gerçek sonuç |
+| --- | --- |
+| TDD | Eski stack'te yeni test **Overview dashboard is not automatically provisioned** nedeniyle exit 1; provider/JSON sonrası aynı test PASS. |
+| Static/config | Normal env preflight ve sessiz Compose config PASS; Python syntax, JSON parse ve UTF-8 metin kontrolü PASS. Üç provisioning/dashboard bind mount'u read-only. |
+| Startup | Altı servis healthy. Otomatik dashboard API'sinde `meta.provisioned=true`, sabit UID, dokuz panel ve mevcut datasource bağlantısı. |
+| Browser/data | Gerçek Edge login; dokuz panel render edildi. Bütün panel expression'ları `/api/ds/query` ile Grafana Prometheus plugin'i üzerinden hatasız çalıştı; trafik sırasında her panelde gerçek finite numeric değer doğrulandı. Beklenmeyen page/console/datasource response hatası yok. |
+| Trafik | POST 201/doğru Location, PUT 200, DELETE 204, listeler 200. Boş başlık 400 ve olmayan ID 404; request/p95/CPU/memory/cache rate serileri pozitif, 5xx oranı **0**. |
+| Kontrollü 5xx | PostgreSQL stop sırasında doğrudan DB okuyan ID GET'i **üç kez 500**; error paneli pozitif. API aynı container'da running/unhealthy, live **200**, ready **503**, Prometheus **up=1**. PostgreSQL start sonrası aynı API healthy ve DB GET **404**. |
+| Trafiksiz | 150 saniye Task trafiği yok; health/scrape devam etti. Request/hit/miss/invalidation rate **0**, 5xx/cache oranı ve p95 **NaN**; JSON sonuç kaydında bunlar `null` ile ifade edildi. Tarayıcıda sorgu hatası yok; önceki 15 dakika trafiği geçmiş çizgilerde kalabilir. |
+| Restart | Grafana restart sonrası otomatik dashboard ve tüm paneller gerçek browser/plugin ile tekrar PASS. |
+| Down/up | Yeni Grafana container ID'si, aynı mevcut named volume'lar; dashboard aynı UID ile otomatik yüklendi, browser/plugin tekrar PASS ve altı servis healthy. |
+| Datasource regression | Mevcut datasource smoke UID/default/read-only, health, HTTP/runtime/cache query ve log kontrolleriyle PASS; dashboard adımına ait test bunun yerine geçmez. |
+
+Son script sürümünün tam başarılı koşusundan gerçek snapshot'lar (sonuç dosyasının yazılma zamanı **15:26:03 Türkiye / 12:26:03 UTC**; ölçümlerin ayrı ayrı alınma anı veya test süresi değildir):
+
+| Ölçüm | Trafik snapshot'ı | Trafiksiz snapshot |
+| --- | ---: | ---: |
+| Scrape up | 1 | 1 |
+| Task HTTP rate (istek/s) | 0.0849800992 | 0 |
+| 5xx (%) | 0 | NaN |
+| p95 (s) | 0.3583148326 | NaN |
+| Process CPU (tek çekirdek karşılığı %) | 2.0973444104 | 0.4471179854 |
+| Working set (byte) | 164921344 | 184774656 |
+| Cache hit / miss (olay/s) | 0.0571254750 / 0.0283610344 | 0 / 0 |
+| Cache hit (%) | 66.8653782893 | NaN |
+| Invalidation (işlem/s) | 0.0279168611 | 0 |
+
+Aynı son koşunun kesinti snapshot'ında 5xx **%22.4331729788** idi; farklı sorgu anlarının/pencerelerin sonuçları karıştırılmamalıdır. Bunlar küçük kontrollü örneklerdir; normal gecikme veya performans garantisi olarak kullanma. İlk kez oluşan 5xx counter'ı için de ilk hatadan sonra bir scrape baseline'ı beklenir; son script yeni API prosesinde doğrulandı ve exit 0 verdi.
+
+İlk JSON üretiminde PowerShell stdin encoding'i Türkçe karakterleri `?` yaptı. UTF-8 patch ile düzeltildi. Koşu sırasında provider bu başlık değişikliğini aldığı için ilk uzun testin son browser kontrolü tamamlanamadı; güncel dashboard metadata'sını yeniden okuyan testle tarayıcı ve tam kabul tekrar PASS aldı. Secret scanner, çalışma anında üretilen auth değişkeninin adını literal token ataması sanınca değişken `encoded_auth` olarak açıkça adlandırıldı; scanner kuralı gevşetilmedi veya gerçek credential allowlist'e alınmadı.
+
+### Güvenlik, cleanup ve sınırlar
+
+- Mevcut `.env` ve user-secrets değiştirilmedi; dosya hash'leri korundu. Credential/complete PostgreSQL connection string değerlerinin repository ve servis loglarında bulunmadığı, değerler gösterilmeden ayrıca kontrol edildi. Secret regression check ve `git diff --check` PASS. Kontrol bütün olası secret formatlarını veya Git geçmişini taramaz.
+- Browser credential'ları yalnız bellekte tutuldu. Test CLI/stdout/stderr raw exception, response body veya credential göstermez. Beklenen yeni-account advisor preference 404, yalnız ilgili endpoint/status ile ayrılır; bütün 404'ler ignore edilmez.
+- Test Task'ları ve yalnız test tarafından oluşturulan liste cache'i temizlendi. Mevcut `tasks`, Module 3B `lab_tasks` ve migration history satır hash'leri korundu; identity sequence normal test INSERT'leri nedeniyle ilerleyebilir.
+- Başlangıçta bulunmayan altı test container'ı ve Compose ağı `down` ile kaldırıldı. **Mevcut 21 volume** (external PostgreSQL, Grafana ve Prometheus dahil) korundu; volume silinmedi. **12 ilişkisiz container ID/state ve yedi network ID** aynı kaldı; default bridge ID bu deneyde değişmedi. Prune veya `down -v` kullanılmadı.
+- Geçici Playwright bağımlılıkları/kanıt dosyaları repository dışında tutulup temizlendi; package/lock değişmedi. Stack sonunda başlangıçtaki gibi kapalıdır; dashboard adresi ancak tekrar başlatıldığında erişilebilir.
+- Sabit 2m pencere hızlı değişimleri yumuşatır; küçük örneklem, scrape başlangıcı, process reset ve histogram bucket çözünürlüğü sonuçları etkiler. Yeni API prosesinde henüz event almayan serilerin boş olması query hatası değildir. Dashboard/API durumu readiness yerine geçmez.
+
+Sıradaki önerilen küçük adım, yalnız açık talep üzerine **Module 10 final acceptance ve öğrenme değerlendirmesi**. Bu görev final kabulü, dashboard dışı yeni özellik veya başka modül uygulaması yapmadı. Commit/push yapılmadı.

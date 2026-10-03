@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 10 — Docker-native inspection, backend metrics, Prometheus and Grafana datasource completed; dashboards not started; module in progress
+Module 10 — Docker-native inspection, backend metrics, Prometheus, Grafana datasource and Overview dashboard completed; module final acceptance not started
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 10 — Observability: Logs, Prometheus & Grafana
 
 ## Current Step
 
-Grafana service and YAML Prometheus datasource provisioning acceptance completed
+Overview dashboard provider YAML and dashboard JSON acceptance completed
 
 ## Completed
 
@@ -203,9 +203,17 @@ Grafana service and YAML Prometheus datasource provisioning acceptance completed
 
 - Module 10 Grafana local admin keys subsequently prepared by the user outside Git; normal .env preflight and silent Compose config passed at final review. User reported successful local login and datasource API test, then shut down the stack with compose down; secret scan and diff check passed
 
+- Module 10 Overview dashboard provisioned through read-only provider/JSON mounts with stable dashboard and datasource UIDs; nine Turkish panels use real HTTP histogram, process CPU/working set and cache metrics, 2-minute rate windows and 15-second refresh
+
+- Module 10 dashboard browser/plugin and controlled CRUD/cache acceptance passed; PostgreSQL outage produced real Task HTTP 500s and positive 5xx percentage while the same API remained running/unhealthy and scrape UP=1; live 200/ready 503 and dependency recovery verified
+
+- Module 10 traffic-free observation preserved zero event/request rates and empty/NaN ratios/p95 without fake zeros; Grafana restart and Compose down/up automatically restored the Overview dashboard in a new container with existing volumes preserved
+
+- Module 10 dashboard test Tasks/cache cleaned; original Task/lab/migration rows, .env/user-secrets hashes, 12 unrelated containers, seven network IDs and 21 existing volumes preserved; stack returned to its initially stopped state, no pruning or volume deletion
+
 ## Next Goal
 
-On explicit request: add a dashboard provider YAML and FullStack Ops Lab Overview dashboard JSON using the stable fullstack-ops-prometheus datasource UID. Module 10 remains in progress.
+On explicit request: Module 10 final acceptance and learning review of existing logs, metrics, Prometheus scraping, datasource/dashboard provisioning and recovery. No new implementation planned in this step; Module 10 remains in progress.
 
 ## Blockers
 

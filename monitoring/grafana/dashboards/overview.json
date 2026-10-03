@@ -1,0 +1,591 @@
+{
+  "id": null,
+  "uid": "fullstack-ops-overview",
+  "title": "FullStack Ops Lab Overview",
+  "tags": [
+    "fullstack-ops-lab",
+    "observability"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "refresh": "15s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "15s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "API scrape durumu",
+      "description": "Başarılı Prometheus scrape: 1 başarılı, 0 başarısız. Readiness veya bütün uygulamanın sağlığı değildir.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                "text": "Scrape başarısız",
+                  "color": "red"
+                },
+                "1": {
+                "text": "Scrape başarılı",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"fullstack-ops-api\"}",
+          "legendFormat": "API scrape",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "interval": "15s",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 2,
+      "title": "HTTP request rate",
+      "description": "Task API istekleri/saniye; bütün method ve status kodları dahildir. Health ve metrics duration probe serileri instrumentation tarafından dışlanır. rate() counter resetlerini ele alır; pencere 2 dakikadır.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"fullstack-ops-api\",http_route=~\"/api/tasks.*\"}[2m]))",
+          "legendFormat": "Task API istek/s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "15s",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "HTTP 5xx oranı",
+      "description": "Son 2 dakikadaki Task API isteklerinin 5xx yüzdesi. 400/404 dahil değildir. Başarılı trafik varken hiç 5xx serisi oluşmamışsa pay sıfırdır; toplam trafik sıfırsa 0/0 NaN kalır, sahte sıfır gösterilmez.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * ((sum(rate(http_server_request_duration_seconds_count{job=\"fullstack-ops-api\",http_route=~\"/api/tasks.*\",http_response_status_code=~\"5..\"}[2m]))) or (0 * (sum(rate(http_server_request_duration_seconds_count{job=\"fullstack-ops-api\",http_route=~\"/api/tasks.*\"}[2m]))))) / (sum(rate(http_server_request_duration_seconds_count{job=\"fullstack-ops-api\",http_route=~\"/api/tasks.*\"}[2m])))",
+          "legendFormat": "5xx %",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "15s",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "HTTP istek süresi p95",
+      "description": "Task API süre histogramının bucket rate değerlerinden yaklaşık p95, saniye. rate önce, le bazında sum sonra uygulanır. Trafik yoksa NaN/Veri yok normaldir. Nginx ve tarayıcı gecikmesi dahil değildir.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=\"fullstack-ops-api\",http_route=~\"/api/tasks.*\"}[2m])))",
+          "legendFormat": "p95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "15s",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Process CPU kullanımı",
+      "description": "User ve system CPU zamanı rate toplamı ×100. Tek CPU çekirdeğinin yüzde karşılığıdır: 100 bir çekirdek, çok çekirdekte 100 üstü mümkündür. Makine toplam CPU yüzdesi değildir. Health/scrape maliyeti bu process ölçümüne dahildir.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(rate(dotnet_process_cpu_time_seconds_total{job=\"fullstack-ops-api\"}[2m]))",
+          "legendFormat": "Bir çekirdek karşılığı %",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "15s",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Process working set belleği",
+      "description": "API process working set gauge, byte. Docker memory hesabıyla veya managed heap ile aynı değildir; rate uygulanmaz.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(dotnet_process_memory_working_set_bytes{job=\"fullstack-ops-api\"})",
+          "legendFormat": "Working set",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "15s",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Cache hit ve miss rate",
+      "description": "Task liste cache hit/miss olayları/saniye, 2 dakika. Başarıyla deserialize edilen boş liste hit sayılır. Redis okuma exceptionı hit/miss sayılmaz; DB okuma hatasından önce miss sayılmış olabilir.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(fullstackops_cache_hits_total{job=\"fullstack-ops-api\"}[2m]))",
+          "legendFormat": "Hit/s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "15s",
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(fullstackops_cache_misses_total{job=\"fullstack-ops-api\"}[2m]))",
+          "legendFormat": "Miss/s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "15s",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Cache hit oranı",
+      "description": "2 dakikadaki hit rate / (hit rate + miss rate) ×100. Cache olayı yokken boş/NaN normaldir; sıfıra doldurulmaz. Bütün HTTP isteklerinin oranı değildir.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (sum(rate(fullstackops_cache_hits_total{job=\"fullstack-ops-api\"}[2m]))) / ((sum(rate(fullstackops_cache_hits_total{job=\"fullstack-ops-api\"}[2m]))) + (sum(rate(fullstackops_cache_misses_total{job=\"fullstack-ops-api\"}[2m]))))",
+          "legendFormat": "Hit %",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "15s",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Cache invalidation rate",
+      "description": "Başarılı DB mutation sonrası tamamlanan cache remove işlemleri/saniye. Key zaten yoksa başarılı remove yine sayılır. 400/404 veya başarısız remove sayılmaz; fiziksel silinen key sayısı değildir.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(fullstackops_cache_invalidations_total{job=\"fullstack-ops-api\"}[2m]))",
+          "legendFormat": "Invalidation/s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "15s",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ]
+}

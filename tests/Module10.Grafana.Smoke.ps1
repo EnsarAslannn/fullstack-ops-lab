@@ -114,8 +114,8 @@ try {
         Assert (-not $serialized.Contains($password)) 'Credential leaked into datasource query (value withheld)'
         Write-Output ("PASS: datasource query $expression; series=$(@($query.data.result).Count)")
     }
-    Assert (@(Grafana '/api/search?type=dash-db').Count -eq 0) 'This step must not provision dashboards'
-    Write-Output 'PASS: YAML datasource UID/default/read-only, health, queries, zero dashboards and safe logs'
+    # Dashboard provisioning now has its own acceptance test; datasource checks remain reusable.
+    Write-Output 'PASS: YAML datasource UID/default/read-only, health, queries and safe logs'
 } catch {
     if ($_.Exception -is [InvalidOperationException]) { Write-Output ('FAIL: ' + $_.Exception.Message) }
     else { Write-Output 'FAIL: Grafana acceptance could not complete (details withheld)' }
