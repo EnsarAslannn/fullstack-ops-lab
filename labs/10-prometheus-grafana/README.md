@@ -1,6 +1,6 @@
 # Modül 10 — Docker-native gözlem
 
-Bu bölüm Module 10'un **yalnız ilk küçük adımıdır**. `PROJECT_SPEC.md` önce Docker log/inspect/stats incelemesini, sonra backend metrics instrumentation, Prometheus ve Grafana'yı ister. Sıra ile görev arasında fark yoktur. Şartnamedeki `labs/10-prometheus-grafana/` klasörü kullanılır; klasör adı monitoring bileşenlerinin eklendiği anlamına gelmez.
+Bu README önce 2 Ekim'deki Docker-native gözlem adımını, ardından 3 Ekim'deki backend metrics adımını belgeler. `PROJECT_SPEC.md` önce Docker log/inspect/stats incelemesini, sonra backend metrics instrumentation, Prometheus ve Grafana'yı ister. Sıra ile görev arasında fark yoktur. Şartnamedeki `labs/10-prometheus-grafana/` klasörü kullanılır; klasör adı monitoring bileşenlerinin eklendiği anlamına gelmez. İlk bölümdeki ölçümler ve eksikler o tarihteki snapshot'tır; güncel metrik durumu aşağıdaki ikinci bölümde açıklanır.
 
 **Sonuç: 2 Ekim 2026 tarihinde ilk adım PASS. Module 10 bütünü devam ediyor.**
 
@@ -115,7 +115,7 @@ API inspect'te log driver **`json-file`**, bellek sınırı **0** çıktı. Dock
 | Healthcheck | Belirli anda tanımlanmış koşulu sınar: `/health/ready` DB/Redis erişimini kontrol eder. Başarılı probe tüm iş akışlarını garanti etmez. |
 | Monitoring / observability | Monitoring bilinen durumları izler ve gerektiğinde uyarır. Observability, sistemin dış sinyallerinden neden sorusunu araştırmayı sağlar. Log, metric ve trace bu araştırmayı destekler; tek yeşil health sonucu yeterli değildir. |
 
-## Şimdiki eksikler ve sonraki küçük adım
+## Docker-native adımının sonunda eksikler ve sonraki küçük adım — 2 Ekim 2026
 
 | Soru | Mevcut cevap |
 | --- | --- |
@@ -144,3 +144,134 @@ API inspect'te log driver **`json-file`**, bellek sınırı **0** çıktı. Dock
 2 Ekim 2026 tarihinde görev tekrar istendiğinde yalnız önceki iki dokümantasyon değişikliği Git'te bekliyordu; çalışma alanı o anda temiz değildi. Tamamlanan CRUD/kesinti/stats deneyi tekrarlanmadı. Engine 29.6.1, Compose v5.3.0, env preflight, sessiz `config -q`, secret taraması ve diff kontrolü yeniden geçti. Envanter yine 12 container / 7 network / 19 volume, bu projeye ait container sayısı 0 ve external PostgreSQL volume'u mevcut idi.
 
 Önceki deneyin başında ve sonunda bridge ID'si `15ec03a4723c` olarak aynıydı. Bu sonraki salt okunur kontrolde `7b9da9a86ad9` görüldü; değişim önceki envanter ile bu kontrol arasında olmuştu. Nedeni doğrulanmadı; bu tekrar kontrolünde stack başlatılmadı, network create/remove veya Docker configuration değişikliği yapılmadı. İlk deneydeki korunma sonucu ile bu sonraki gözlem birbirinden ayrıdır. Yukarıdaki kaynak tablosu yeni ölçüm değil, 14:45'teki gerçek örnektir.
+
+## Backend metrics — ikinci küçük adım, 3 Ekim 2026
+
+Amaç uygulamanın metrik üretmesidir. Bu adım Prometheus/Grafana servisi, collector, tracing, dashboard veya alarm eklemez. Task API contract'ı, cache key'i, TTL configuration, invalidation politikası, health kontrolleri, Compose/Nginx ve frontend değişmedi. Başlangıç Git durumu temizdi; önceki Docker-native deneyi yeniden yapılmadı.
+
+### Yaklaşım ve kesin paket sürümleri
+
+- `System.Diagnostics.Metrics`: .NET 10'un hazır `Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kestrel` ve `System.Runtime` meter'ları ile uygulamanın `FullStackOpsLab.Api.Cache` meter'ı.
+- `OpenTelemetry.Extensions.Hosting` **1.19.1**: DI ile tek MeterProvider'ın yaşam döngüsü ve aggregation.
+- `OpenTelemetry.Exporter.Prometheus.AspNetCore` **1.19.1-beta.1**: internal scrape endpoint'i. Paketlerin net10.0 asset'leri var ([Hosting NuGet](https://www.nuget.org/packages/OpenTelemetry.Extensions.Hosting/1.19.1), [exporter NuGet](https://www.nuget.org/packages/OpenTelemetry.Exporter.Prometheus.AspNetCore/1.19.1-beta.1)).
+
+Hazır HTTP/runtime metriklerini ikinci bir instrumentation paketi veya custom HTTP middleware ile tekrar üretmiyoruz. Request sayısı hazır süre histogramının `_count` serisinden gelir. Microsoft'un [metrics örneği](https://learn.microsoft.com/en-us/aspnet/core/metrics/overview?view=aspnetcore-10.0) hazır meter'ları exporter'a bağlamayı gösterir; [runtime belgeleri](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/built-in-metrics-runtime) `System.Runtime` kaynağını açıklar. Kesin ad/tipler bu çalışmanın gerçek scrape çıktısından alınmıştır.
+
+Exporter hâlâ beta: API/format değişiklikleri mümkün. Bu öğrenme adımı için şartnamedeki doğrudan `/metrics` yaklaşımı kullanıldı; production uygunluğu burada kanıtlanmadı. [Resmî exporter belgesi](https://github.com/open-telemetry/opentelemetry-dotnet/blob/main/src/OpenTelemetry.Exporter.Prometheus.AspNetCore/README.md) endpoint'in varsayılan olarak authentication sağlamadığını ve beta durumunu açıklar. Scrape response cache'i `0` ms: ardışık kabul testleri eski 300 ms response'u okumaz; bunun toplama maliyeti vardır.
+
+### Gerçek metric isimleri, tipleri ve birimleri
+
+Prometheus isimleri nokta yerine underscore ve gereken unit/type suffix'leri kullanır. Aşağıdaki isimler `Accept: text/plain;version=0.0.4` ile doğrulandı.
+
+| Prometheus serisi / family | .NET instrument | Export tipi | Birim ve anlam |
+| --- | --- | --- | --- |
+| `http_server_request_duration_seconds_count` | `http.server.request.duration` | Histogram'ın cumulative count serisi | Tamamlanan API HTTP isteklerinin adedi; ayrı, tekrarlayan bir request counter yok. |
+| `http_server_request_duration_seconds` (`_bucket`, `_sum`, `_count`) | `http.server.request.duration` | Histogram | Saniye; süre dağılımı, toplam süre ve adet. Status label'ı 400/404/500'ü ayırır. |
+| `http_server_active_requests` | `http.server.active_requests` | Gauge | Anlık aktif istek sayısı. |
+| `kestrel_active_connections` | `kestrel.active_connections` | Gauge | Anlık açık bağlantı sayısı. |
+| `kestrel_connection_duration_seconds` | `kestrel.connection.duration` | Histogram | Bağlantı süresi, saniye. HTTP request süresi ile aynı ölçüm değil. |
+| `dotnet_process_cpu_time_seconds_total` | `dotnet.process.cpu.time` | Counter | Prosesin user/system CPU zaman toplamı, saniye; CPU yüzdesi değil. |
+| `dotnet_process_memory_working_set_bytes` | `dotnet.process.memory.working_set` | Gauge | Prosesin working set'i, byte; Docker stats memory hesabıyla birebir aynı değildir. |
+| `dotnet_gc_heap_total_allocated_bytes_total` | `dotnet.gc.heap.total_allocated` | Counter | Managed heap allocation toplamı, byte. |
+| `dotnet_gc_collections_total` | `dotnet.gc.collections` | Counter | GC collection sayısı; generation label'ı sınırlıdır. |
+| `dotnet_gc_pause_time_seconds_total` | `dotnet.gc.pause.time` | Counter | GC pause toplam süresi, saniye. |
+| `dotnet_thread_pool_thread_count_total` | `dotnet.thread_pool.thread.count` | Counter (bu runtime/exporter çıktısı) | Thread count serisi; farklı runtime sürümlerinden kopyalanan isim/tip yerine gerçek TYPE kullanılır. |
+| `fullstackops_cache_hits_total` | `fullstackops.cache.hits` | Counter | Task liste cache'inden okunup deserialize edilen cevap adedi. |
+| `fullstackops_cache_misses_total` | `fullstackops.cache.misses` | Counter | Redis okuması başarılı olup değerin bulunmadığı olay adedi. |
+| `fullstackops_cache_invalidations_total` | `fullstackops.cache.invalidations` | Counter | Başarılı DB mutation sonrası tamamlanan cache remove işlemi adedi. |
+
+Runtime çıktısında ayrıca assembly, exception, GC heap/committed/fragmentation, JIT, lock, process CPU count, thread-pool queue/work-item ve timer serileri bulundu. Kestrel queued connections serisi de görüldü. Bunlar aynı hazır meter'ların çıktısıdır; ikinci bir runtime collector eklenmedi. Event gerçekleşmeden bazı instrument'ların sample serisi henüz görünmeyebilir; sıfır series yerine absent series bulunması normaldir.
+
+**Runtime tip sınırı:** Thread-pool thread count ve queue length bu .NET 10 çıktısında Counter/`_total` olarak export edildi, ancak anlık değerleri azalabilir. Bu gözlem [.NET runtime #126167](https://github.com/dotnet/runtime/issues/126167) ile uyumludur; bu serilere monoton event counter gibi `rate()` uygulama. HTTP count, allocation/CPU ve uygulama cache event counter'ları bu iki thread-pool tip hatasıyla karıştırılmamalıdır. Upstream düzeltme/runtime yükseltmesi veya ayrı bir workaround bu adımda uygulanmadı.
+
+**Counter:** Olayları toplar; process yaşamı boyunca birikir. **Gauge:** O andaki değeri bildirir; artabilir veya azalabilir. **Histogram:** Her süreyi bucket'lara yerleştirir; count/sum/bucket sunar. Histogram family'yi `p95` diye adlandırmıyoruz. İleride Prometheus ile örneğin aşağıdaki sorgu kullanılabilir; bu görevde Prometheus çalışmadığından sorgu henüz çalıştırılmadı:
+
+```promql
+histogram_quantile(0.95,
+  sum by (le) (rate(http_server_request_duration_seconds_bucket{http_route="/api/tasks/",http_request_method="GET"}[5m])))
+```
+
+Bucket sınırları saniye olarak `0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10`; exporter ayrıca `+Inf` bucket'ını verir. Bu dağılımdan hesaplanan p95 yaklaşık bir percentile'dır, doğrudan her request'in logu değildir.
+
+### Label ve probe politikası
+
+Request duration view yalnız `http.request.method`, `http.route`, `http.response.status_code` tag'lerini saklar; exporter isimleri `http_request_method`, `http_route`, `http_response_status_code` olur. Liste template'i gerçekte **`/api/tasks/`**, ID endpoint'leri **`/api/tasks/{id:int}`**. HTTP çağrıları hâlâ `/api/tasks` ve `/api/tasks/ID` kullanır; route contract değişmedi.
+
+Task ID, başlık, raw URL, kullanıcı verisi, connection string ve exception mesajı label değildir. Cache counter'ları custom label içermez. Exporter'ın sabit `otel_scope_name` label'ı meter kaynağını belirtir; histogram bucket'ının `le` label'ı sınırı belirtir. Runtime/Kestrel hazır tag'leri de kendi kaynaklarına aittir (ör. GC generation, CPU mode, exception **tipi**); exception mesajı eklenmez.
+
+`/health`, `/health/live`, `/health/ready` ve `/metrics` mapping'lerinde `DisableHttpMetrics()` kullanılır: request **duration/count** serilerini health/scrape probe'larıyla kirletmezler. Kestrel bağlantı, aktif istek ve runtime kaynak kullanımı probe trafiğinin maliyetini yine içerebilir. Test, HTTP duration label set'ini ve health/metrics route serisi bulunmadığını kontrol eder; karşılaştırmalar ayrıca method/template/status ile filtrelenir. Test sırasında başka API trafiği olmamalıdır.
+
+Cache semantics:
+
+- Cache read exception => hit/miss artırılmaz; mevcut HTTP 500 davranışı korunur.
+- Cache değeri deserialize edilmeden hit sayılmaz. Boş `[]` geçerli bir hit'tir.
+- Başarılı Redis read'de değer yoksa miss'tir; sonraki DB read'in başarısız olması bunu cache error'a dönüştürmez.
+- RemoveAsync başarıyla tamamlandıktan sonra invalidation artırılır. Key zaten yoksa da başarılı remove işlemi sayılır; counter fiziksel silinen key adedi değildir.
+- DB write başarılı, invalidation başarısızsa mevcut warning/başarılı mutation response politikası korunur; invalidation counter artmaz. 400/404 mutation'lar invalidation oluşturmaz.
+- Cache error için yeni counter/retry/fail-open eklenmedi; hata logları ve HTTP 5xx incelenir.
+
+### Internal erişim ve sınırı
+
+Compose değişmedi: API yalnız **8080 internal**, host'ta API port mapping'i yok. Nginx yalnız `/api/` yolunu proxy eder. Diagnostic container gerçek Compose ağındaki API'ye `http://api:8080/metrics` ile erişir. Test var olan frontend image'ının curl aracını ayrı, benzersiz isimli `--rm` container'da kullanır; yeni image/paket gerektirmez.
+
+Frontend host adresi `http://127.0.0.1:18081/metrics` **200 text/html SPA fallback** döndürür; bu gerçek metrik erişimi değildir. Test, hem Content-Type hem metric family içeriğinin bulunmamasını kontrol eder. Internal endpoint ise **200 text/plain;version=0.0.4** ve histogram TYPE/sample'ları döndürdü.
+
+Internal network authentication değildir: aynı ağa erişen container'lar bu endpoint'i okuyabilir. Host üzerinde API'yi doğrudan geliştirici olarak çalıştırmak da metrics endpoint'ini o prosesin dinlediği adreste açar; burada kanıtlanan dışarı yayınlamama sınırı mevcut Compose/Nginx topolojisidir. Authentication/production erişim kontrolü bu görevde eklenmedi.
+
+### Komutlar ve tekrar çalıştırma
+
+Repository kökünde, mevcut `.env` ve hazırlanmış external PostgreSQL volume'u ile:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.EnvPreflight.ps1
+docker compose --env-file .env config -q
+dotnet build src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj -c Release
+docker compose --env-file .env build api
+docker compose --env-file .env up -d --wait --wait-timeout 180
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module10.Metrics.Smoke.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Phase0B.Tasks.Smoke.ps1 -BaseUrl http://127.0.0.1:18081
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module8.Readiness.Smoke.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.Configuration.Smoke.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.SecretLeakage.Check.ps1
+git diff --check
+```
+
+Yeni smoke testi hazır/izole trafik alan bir stack bekler; servisleri kendi başlatmaz/kapatmaz. Başlangıç liste cache key'i yok olmalıdır; mevcut cache'i otomatik silerek başlamaz. Fixture yalnız kendi Task kayıtlarını ve sahip olduğu liste key'ini temizler. Gerçek TTL expiration beklemesi **120 saniye** ile sınırlıdır; uzun TTL configuration için bu süre kabul testi sınırlamasıdır, uygulama configuration sınırı değildir. Varsayılan 60 saniye ile doğrulandı. `-EndpointOnly` sadece endpoint/TDD kontrolü içindir; tam kabul yerine geçmez.
+
+Boş liste hit testi mevcut kullanıcı verilerini silmez: ilk miss ile oluşmuş test cache'inin `data` hash field'ına geçici `[]` yazar, GET'in 200/[] ve hit +1 döndürdüğünü kanıtlar, sonra yalnız bu key'i temizler. **Bu, boş veritabanından liste üretme deneyi değildir.** Gerçek DB kayıtları aynı kalır. Cache key'e bu müdahale nedeniyle testi kullanıcı trafiği varken çalıştırma.
+
+Module 5 script'i ilk listenin gerçek DB'de boş olmasını, ayrı lab container adlarını ve farklı host portunu bekler; mevcut dolu development volume'u üzerinde körlemesine çalıştırılmadı. Aynı cache kabul davranışları (miss/hit, boş-hit, TTL, başarılı invalidation, 400/404 non-invalidation, Redis failure) yeni smoke testinde Nginx/Compose üzerinden doğrulandı. Phase 0A script'i Nginx'in proxy etmediği `/health`/OpenAPI host yollarını bekler; bu iki kontrol internal curl ile yapıldı. Module 8 ve Phase 0B script'leri değiştirilmeden doğru topolojiyle çalıştırıldı.
+
+### Gerçek kabul sonucu ve cleanup
+
+**PASS — 3 Ekim 2026.** Son smoke çıktısı **12:30:58–12:32:18 Türkiye saati (+03)** aralığında kaydedildi (geçici output dosyasının oluşturma/son yazma zamanları). SDK **10.0.401**, Release build **0 warning / 0 error**. Compose config/preflight ve secret leakage kontrolü başarılı. İlk Engine sorgusu erişemedi; `docker desktop start --detach` zaten çalıştığını söyledi, sonraki Engine sorgusu **29.6.1**, Compose **v5.3.0** döndürdü. Docker configuration değiştirilmedi.
+
+TDD'de yeni `-EndpointOnly` testi eski image üzerinde **internal /metrics HTTP 200 değil** nedeniyle exit 1 verdi; implementation sonrası geçti. HTTP instrument'ı ilk ölçümden önce series üretmediği için veri yazmayan boş başlık POST warmup'ı kullanıldı. Testteki route/thread-pool isimleri gerçek exporter çıktısıyla eşleştirildi; API URL'si değiştirilmedi.
+
+| Ölçüm | Son kontrollü koşunun gerçek sonucu |
+| --- | --- |
+| Başlangıç (warmup sonrası, restart edilmiş proses) | HTTP count **1**; cache hit/miss/invalidation **0 / 0 / 0**. |
+| İlk iki liste GET'i | HTTP count **+2**, cache miss **+1**, hit **+1**. |
+| Boş cache cevabı | GET **200/[]**, hit **+1**, miss **+0**; DB kayıtları silinmedi. |
+| Ana CRUD/validation penceresi | HTTP histogram count **+13**; cache misses **+3**, hits **+2**, invalidations **+3**. |
+| Liste route histogramı | `+Inf` bucket **+7** (5 GET, 2 POST); `_sum` farkı **0.5489266 saniye**. Bu bir p95 veya benchmark sonucu değil. |
+| Status ve template ayrımı | POST **201/400**, ID-template GET **200/404**, PUT **200/404**, DELETE **204/404** için ilgili count serileri ayrı ayrı **+1**. POST Location ve altı alan/nullable description korundu. |
+| Redis TTL | İlk ölçüm **60 saniye**, configuration **60 saniye**. Key gerçekten expire oldu; yeniden doldurma/expiration sonrası toplam iki ek miss, hit farkı 0. |
+| Başarısız Redis read | Liste **500**, hit/miss/invalidation **+0**; 500 HTTP count **+1**. |
+| Başarısız Redis invalidation | DB POST **201**, invalidation **+0**; oluşturulan kayıt Redis geri geldikten sonra silindi. |
+| Probe ve cardinality | Health/metrics duration serisi yok; histogram label'ları sadece method/template/status, sabit scope ve bucket sınırı. Ham ID/canary yok. |
+| Runtime ve endpoint | CPU/memory/allocation/GC/thread-pool serileri mevcut; internal **200 Prometheus text**; dış `/metrics` **200 HTML, metrik değil**; API host binding yok. |
+
+`Phase0B.Tasks.Smoke.ps1` Nginx URL'siyle **PASS**. Mevcut `Module8.Readiness.Smoke.ps1` **PASS**: normal `/health`, live, ready 200; Redis/PostgreSQL ayrı stopped iken live 200 / ready 503 / API running-unhealthy / liste 500; aynı API container'ında bağımlılık geri gelince ready 200 ve healthy. PostgreSQL deneyi önce test liste key'ini temizleyerek DB cache'in kesintiyi saklamasını önledi. Internal health/live/ready ve Development OpenAPI ayrıca **200** döndü. Configuration smoke **20/20 PASS**; negatif vakalarda güvenli key mesajı ve canary yokluğu doğrulandı, yalnız nonzero exit code yeterli sayılmadı. Test prosesine ait Windows error-mode yöntemi korundu.
+
+Her metric scrape'i Task başlığı canary'si, gerçek PostgreSQL parolası ve tam PostgreSQL connection string'inin bulunmadığını değer göstermeden kontrol etti. Son test stdout/stderr'si paylaşılmadan önce `module10-task-` ve credential assignment deseni açısından otomatik kontrol edildi; bulunmadı. Bu kapsamlı secret detector veya bütün Git geçmişi taraması değildir.
+
+Stack başlangıçta yoktu; yalnız bu görevde başlatılan dört container/network `docker compose --env-file .env down` ile kaldırıldı. Diagnostic `--rm` container'ları kalmadı. Test Task'ları ve yalnız test liste cache key'i temizlendi. Mevcut `tasks`, `lab_tasks` ve migration history satırlarının hash'leri değişmedi (identity sequence normal INSERT nedeniyle ilerleyebilir). External volume ve `.env`/user-secrets dosya hash'leri korundu. Başlangıç/bitiş **12 ilişkisiz container / 7 network / 19 volume** için ID/state/ad karşılaştırması aynı çıktı; bu deneyde default bridge ID değişmedi. Image'lar silinmedi; geçici kanıt dosyaları repository dışında tutulup temizlendi. `down -v`/prune kullanılmadı.
+
+Yalnız backend Program/proje dosyası, yeni `Telemetry/TaskCacheMetrics.cs`, yeni metrics smoke ve iki dokümantasyon dosyası değişti. Compose, frontend, migration, health check implementasyonları ve secret kaynakları değişmedi.
+
+### Ölçüm sınırları ve sonraki adım
+
+Sayaçlar process restart'ında sıfırlanır; henüz event almayan cache instrument'ı scrape'te absent olabilir. API restart'ından önce dolu cache counter'larının, restart sonrasında series olarak henüz bulunmadığı gerçekten doğrulandı. Bunlar persistent DB sayaçları değildir. Scrape çıktısı prosesin cumulative snapshot'ıdır; henüz kalıcı zaman serisi deposu yok. Rate/error ratio/p95 için ileride scrape geçmişi gerekir. Bu smoke trafik deneyi benchmark veya production yük testi değildir; API süresi Nginx dahil uçtan uca kullanıcı gecikmesini ölçmez.
+
+Module 10 bütünü **devam ediyor**. Şartnameye göre sonraki küçük adım yalnız öneridir: resmî Prometheus servisini, version control altında `prometheus.yml` dosyasını ve 15 saniyelik `api:8080/metrics` scrape hedefini ekleyip target UP ve gerçek metric adlarını doğrulamak. Grafana bundan sonra gelir; burada uygulanmadı.

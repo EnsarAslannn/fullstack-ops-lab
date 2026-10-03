@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 10 — Docker-native inspection completed; metrics instrumentation, Prometheus and Grafana not started
+Module 10 — Docker-native inspection and backend metrics completed; Prometheus and Grafana not started
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 10 — Observability: Logs, Prometheus & Grafana
 
 ## Current Step
 
-Docker-native log, health and resource inspection completed
+Backend HTTP/runtime/cache metrics and internal /metrics acceptance completed
 
 ## Completed
 
@@ -181,9 +181,15 @@ Docker-native log, health and resource inspection completed
 
 - Module 10 test Task/cache cleaned, initially absent stack removed and external PostgreSQL volume preserved; existing Task/lab/migration rows and secret hashes unchanged, original 12 containers/7 networks/19 volumes retained including unchanged default bridge ID
 
+- Module 10 backend metrics use .NET built-in HTTP/Kestrel/runtime meters and custom cache counters through OpenTelemetry; internal Prometheus text endpoint verified without publishing an API port or changing Nginx
+
+- Module 10 metrics smoke verified histogram count/status/template/buckets, cache hit/miss/empty-hit/invalidation and failed-operation accounting, real 60-second TTL expiration, process-restart reset and secret/canary absence
+
+- Module 10 Nginx CRUD, six-field/nullable contract, Module 8 dependency outage/recovery and 20 isolated configuration scenarios passed; Release build had 0 warnings/errors; test data/cache/containers cleaned, external volume and secret hashes preserved
+
 ## Next Goal
 
-On explicit request: add backend .NET request/runtime and cache metrics with System.Diagnostics.Metrics/OpenTelemetry Metrics and verify the internal /metrics output before adding Prometheus or Grafana.
+On explicit request: add the official Prometheus service, version-controlled prometheus.yml and a 15-second internal api:8080/metrics scrape; verify target UP and real HTTP/cache metric queries before adding Grafana.
 
 ## Blockers
 
