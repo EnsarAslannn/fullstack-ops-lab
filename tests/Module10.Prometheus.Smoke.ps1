@@ -213,4 +213,3 @@ try {
     if ($null -ne $createdId) { $null = Request 'DELETE' "/api/tasks/$createdId" $null }
     if ($cacheTouched) { $null = Redis @('DEL', $cacheKey) }
 }
-
