@@ -1,6 +1,6 @@
-# Modül 10 — Docker-native gözlem, backend metrics ve Prometheus
+# Modül 10 — Docker-native gözlem, backend metrics, Prometheus ve Grafana datasource
 
-Bu README sırasıyla 2 Ekim'deki Docker-native gözlem, 3 Ekim'deki backend metrics ve Prometheus internal scrape adımlarını belgeler. `PROJECT_SPEC.md` önce Docker log/inspect/stats incelemesini, sonra backend metrics instrumentation, Prometheus ve Grafana'yı ister. Sıra ile görev arasında fark yoktur. Şartnamedeki `labs/10-prometheus-grafana/` klasörü kullanılır. İlk iki bölümün ölçümleri ve eksikleri kendi kabul tarihindeki snapshot'tır; güncel beş servisli topoloji ve çalıştırma talimatları **Prometheus — internal scrape kabulü** bölümündedir. Grafana henüz eklenmedi; Module 10 bütünü devam ediyor.
+Bu README sırasıyla Docker-native gözlem, backend metrics, Prometheus internal scrape ve Grafana datasource adımlarını belgeler. `PROJECT_SPEC.md` sırası korunur. Önceki bölümler kendi kabul tarihindeki snapshot'tır; güncel **altı servisli** topoloji ve çalıştırma talimatları son **Grafana — YAML datasource provisioning** bölümündedir. Dashboard henüz eklenmedi; Module 10 bütünü devam ediyor.
 
 **Sonuç: 2 Ekim 2026 tarihinde ilk adım PASS. Module 10 bütünü devam ediyor.**
 
@@ -406,4 +406,118 @@ Başlangıçta stack yoktu. Test Task'ları ve test liste key'i temizlendi; mevc
 
 Kaydedilmiş başlangıç/bitiş envanteri **12 ilişkisiz container / 7 network / 19 volume** için aynı çıktı. İlk Engine erişim kontrolünde görülen built-in bridge ID `f015…`, stack başlamadan kaydedilen snapshot ve cleanup'ta `7f52…` idi. Neden doğrulanmadı; Docker configuration değiştirilmedi. Snapshot ile bitiş arasında network ID farkı yok. Geçici kanıt dosyaları repository dışında tutulup temizlendi.
 
-Module 10 tamamlanmadı. Sonraki küçük adım, yalnız açık talep üzerine **Grafana servisi ve YAML ile Prometheus datasource provisioning**; dashboard/alerting/tracing bu görevde uygulanmadı.
+Bu Prometheus kabulünden sonraki Grafana datasource adımı aşağıda belgelenir. Prometheus adımında dashboard/alerting/tracing uygulanmadı.
+
+## Grafana — YAML datasource provisioning
+
+**PASS — 3 Ekim 2026.** Yalnız Grafana servisi, datasource provisioning ve bunların güvenli local onboarding/kabul kontrolleri eklendi. Dashboard/provider, alert rule, tracing veya merkezi log servisi eklenmedi. Backend/frontend kaynakları, instrumentation, API/cache contract ve PostgreSQL schema değişmedi.
+
+### Image ve Compose kararı
+
+[Resmî OSS Docker indirme sayfasında](https://grafana.com/grafana/download/13.2.3?edition=oss&platform=docker) doğrulanan **29 Eylül 2026 tarihli 13.2.3** bakım sürümü seçildi: `grafana/grafana:13.2.3` (Alpine). İlk arama cache'i 13.2.2 gösterdi; canlı resmî sayfa kontrolüyle 13.2.3 seçildi. Yalnız bu görevde çekilmiş kullanılmayan 13.2.2 tag'i sonunda kaldırıldı; önceden bulunan başka Grafana image/volume'larına dokunulmadı.
+
+- Gerçek digest: `sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572`.
+- Image içindeki `grafana --version`: **13.2.3**; `wget`: **/usr/bin/wget**; kullanıcı UID **472**.
+- UI, stack çalışırken: **http://127.0.0.1:3000**. 3000 başlangıçta boştu. Binding yalnız **127.0.0.1:3000:3000**; API/PG/Redis host portları kapalı kalır.
+- Grafana mevcut `app` ağına katılır. Prometheus adresi **http://prometheus:9090**; Grafana container'ındaki `localhost`, Grafana'nın kendisidir.
+- Healthcheck image içinde doğrulanmış `wget` ile **/api/health** HTTP başarısını kontrol eder. Kabulde HTTP **200**, `database=ok` ve altı Docker health durumu **healthy** oldu.
+- Kaynak sınırı **512 MiB / 1 CPU**; inspect **536870912 byte / 1000000000 NanoCPUs** gösterdi. Bu bir production kapasite hesabı değildir.
+
+### Datasource YAML ve kalıcılık
+
+`monitoring/grafana/provisioning/datasources/prometheus.yml`, `/etc/grafana/provisioning/datasources` klasörüne **read-only** bağlanır. [Provisioning belgesine](https://grafana.com/docs/grafana/latest/administration/provisioning/) uygun alanlar:
+
+| Alan | Değer / amaç |
+| --- | --- |
+| `apiVersion` | 1; provisioning dosyası formatı. |
+| `name` / `type` | Prometheus / prometheus. |
+| `uid` | **fullstack-ops-prometheus**; ileride dashboard'lar aynı sabit UID'yi kullanabilir. |
+| `url` / `access` | `http://prometheus:9090` / proxy; sorguyu Grafana server'ı Compose ağı üzerinden yapar. |
+| `isDefault` / `editable` | true / false; varsayılan datasource, UI'da read-only. |
+| `version` | 1; sonraki provisioning güncellemelerinde bilinçli artırılabilir. |
+| `httpMethod` / `timeInterval` | POST / 15s; mevcut Prometheus scrape interval'iyle uyumlu. Bu ayar Prometheus scrape interval'ini değiştirmez. |
+
+UI üzerinden datasource eklenmedi. İlk açılış, restart ve down/up sonrasında **tek** datasource, aynı UID/URL/default/read-only özellikleriyle bulundu. Authenticated datasource health **OK** döndü.
+
+Compose-managed **grafana_data** volume'u `/var/lib/grafana` yolundadır; varsayılan proje adıyla **fullstack-ops-lab_grafana_data** olur. Grafana'nın SQLite çalışma verisi, hesap ve datasource metadata'sı burada kalır. Prometheus metric geçmişi ayrı **prometheus_data** volume'undadır; Grafana bunların yerine zaman serisi deposu değildir. Normal `down` volume'ları korur; `down -v` monitoring verisini silebilir. Volume silmek normal kurulum/credential düzeltme adımı değildir.
+
+### Admin credential ve güvenli local kurulum
+
+Zorunlu anahtarlar **GF_SECURITY_ADMIN_USER** ve **GF_SECURITY_ADMIN_PASSWORD**. `.env.example` yalnız `<set-outside-git>` placeholder'ları içerir. Anonymous access kapalıdır; anonim `/api/datasources` **401** döndü. User-secrets Compose tarafından otomatik okunmaz.
+
+İlk implementation kabulünde mevcut `.env` dosyası değiştirilmedi. O sırada iki yeni anahtar bulunmadığı için yalnız mevcut `.env` ile preflight bu iki **anahtar adını** gösterip exit 1 verdi. Runtime kabulü, mevcut `.env` üzerine yalnız iki Grafana anahtarı sağlayan ayrı, ignored, geçici env dosyasıyla yapıldı. Bu dosya sonunda silindi; test credential'ları raporlanmadı veya local kullanım için bırakılmadı.
+
+Commit öncesi kullanıcı gerçek `.env` dosyasına iki Grafana admin anahtarını kendisi ekledi. Son incelemede **normal `.env` preflight, sessiz Compose config, external volume kontrolü, secret leakage kontrolü ve `git diff --check` PASS** aldı; `.env` ignored ve untracked kaldı. Kullanıcı yerel Grafana girişinin ve datasource testinin **Successfully queried the Prometheus API** sonucunu verdiğini, ardından stack'i `docker compose down` ile kapattığını bildirdi. Bu kullanıcı kabulü önceki otomatik browser/restart/down-up sonuçlarından ayrı kaydedilir; son incelemede runtime deneyleri yeniden çalıştırılmadı. Credential değerleri okunup raporlanmadı veya dosya üzerine yazılmadı.
+
+Sonraki kullanımda iki seçeneğin var:
+
+1. Kendi Git-ignored `.env` dosyana iki alanı güvenli biçimde ekle; mevcut PostgreSQL değerlerini ve dosyanın tamamını değiştirme/ezme.
+2. Mevcut `.env` dosyasını koruyup yalnız bu iki alan için **.env.grafana.local** gibi ayrı bir ignored dosya kullan. Dosya mevcutsa üzerine yazma. Placeholder şablonu:
+
+```dotenv
+GF_SECURITY_ADMIN_USER=<set-outside-git>
+GF_SECURITY_ADMIN_PASSWORD=<set-outside-git>
+```
+
+Dosyayı editörde yerel değerlerle doldur; değeri terminal çıktısına, komut argümanına veya Git'e yazma. Compose quoting/interpolation kuralları ve PostgreSQL volume/migration önkoşulları için [Module 9 rehberini](../09-environment-configuration/README.md) izle. İlk clone/eksik `.env` durumunda örnekten hazırlama mevcut dosyayı ezmeden yapılmalıdır.
+
+Grafana admin environment değerleri **boş Grafana veritabanındaki ilk hesabı oluşturur**. Initialized `grafana_data` volume'unda env parolasını değiştirmek mevcut hesabın parolasını otomatik rotate etmez. Bu görev rotation yapmadı; mevcut volume'u silerek parola düzeltmeyi önermiyoruz. Preflight bir authentication veya database readiness testi değildir.
+
+Preflight artık iki Grafana alanını da eksik/boş/placeholder kontrolüne alır. Opsiyonel `-GrafanaEnvFile` primary `.env` dosyasından sonra okunur; Compose'a aynı sıra ile iki `--env-file` verilir, son dosya çakışan key'lerde önceliklidir. İkinci dosyayı yalnız Grafana alanlarına ayır. Her iki dosya repository içinde, ignored ve untracked olmalıdır. Script shell environment'ın eksik dosya değerlerini gizlemesini engeller; Compose'un kendi parser'ını kullanır, dosyayı kod olarak çalıştırmaz ve çözümlenmiş JSON'u yazdırmaz.
+
+İki dosyalı akış (repository kökünden, dosyalar senin tarafından hazırlanmışken):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.EnvPreflight.ps1 -GrafanaEnvFile .env.grafana.local
+docker compose --env-file .env --env-file .env.grafana.local config -q
+docker compose --env-file .env --env-file .env.grafana.local build api frontend
+docker compose --env-file .env --env-file .env.grafana.local up -d --wait --wait-timeout 240
+docker compose --env-file .env --env-file .env.grafana.local ps
+```
+
+Tarayıcıda **http://127.0.0.1:3000/login** aç; hazırladığın kullanıcı/parolayla giriş yap. **Connections → Data sources → Prometheus** altında datasource zaten vardır; manuel Add data source gerekmez. Prometheus UI'sı http://127.0.0.1:9090, uygulama http://127.0.0.1:18081 adresindedir. Tek `.env` seçeneğinde `-GrafanaEnvFile` ve ikinci `--env-file` argümanını kaldır.
+
+### Gerçek kabul testleri ve sonuçlar
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.EnvPreflight.Smoke.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module10.Grafana.Smoke.ps1 -GrafanaEnvFile .env.grafana.local
+python tests/Module10.Grafana.Browser.Smoke.py --seed-test-metrics
+docker compose --env-file .env --env-file .env.grafana.local restart grafana
+docker compose --env-file .env --env-file .env.grafana.local up -d --wait --wait-timeout 240
+```
+
+Browser testi yalnız test araçları olarak **Python + Playwright + Microsoft Edge** gerektirir; uygulamayı Docker'da çalıştırmak için bu host araçları gerekli değildir. Kabulde **Playwright 1.63.0**, Edge **154.0.4258.48** headless gerçek tarayıcı kullanıldı. Playwright görev geçici klasörüne `pip --target` ile kuruldu ve temizlendi; frontend package/lock dosyaları veya kalıcı Python bağımlılık dosyası değişmedi. Komutları yeniden çalıştırmadan önce Playwright'ı proje bağımlılığına eklemeden ayrı test ortamında hazırla.
+
+`--seed-test-metrics` izole trafik ve başlangıçta liste cache key'inin yokluğunu bekler. İki GET ile miss/hit üretir, benzersiz bir Task oluşturup silerek invalidation üretir; sonraki scrape için bekler. Yalnız kendi Task'ını ve sahip olduğu cache key'ini temizler. Mevcut kullanıcı cache'i varsa testi durdurur. Script login için container environment'ını yalnız bellekte okur; credentials CLI argümanına/stdout'a yazılmaz. Playwright context/browser sonunda kapatılır; screenshot/trace/profile repository'ye kaydedilmez.
+
+| Kabul | Gerçek sonuç |
+| --- | --- |
+| TDD | Eski preflight eksik Grafana parolasını kabul ettiği için yeni fixture FAIL; düzeltme sonrası PASS. Yeni runtime test servisin yokluğu için FAIL, implementation sonrası PASS. |
+| Preflight fixtures | **19/19 PASS**; iki Grafana key'inin missing/empty/placeholder halleri, shell shadow, ayrı ignored dosya, eski PostgreSQL/TTL/override/volume kontrolleri; canary gizli ve gerçek `.env` hash'i aynı. |
+| Build/config | Sessiz Compose config ve combined-file preflight PASS; API Docker publish gerçekten çalışıp geçti, frontend build layer'ları cache'ten geçti. App kaynakları değişmedi. |
+| Health/network | Altı servis healthy; Grafana `/api/health` **200/database=ok**, API/PG/Redis host binding yok, Grafana yalnız localhost 3000. Read-only datasource mount ve named data mount inspect ile doğrulandı. |
+| Gerçek browser | Login formundan authenticated admin girişi; datasource UI'da hazır. Credentials girilen ekranın görüntüsü/logu paylaşılmadı. |
+| Native Grafana plugin sorgusu | Browser session'ıyla **POST /api/ds/query**: HTTP histogram count **3 numeric column**, working set **1**, cache hit/miss/invalidation **birer** numeric column; finite değerler gerçekten döndü. |
+| Datasource proxy sorgusu | `/api/datasources/proxy/uid/fullstack-ops-prometheus/api/v1/query` üzerinden `up` **1 series**, HTTP count **3**, memory **1**, cache sayaçları birer series. Boş sonuç başarı sayılmadı. |
+| Restart | Grafana restart sonrası aynı hesapla browser login ve native/plugin/proxy sorguları PASS; tek datasource ve aynı UID korundu. |
+| Down/up | Container kaldırılıp yenisi oluşturuldu; aynı named volume kaldı. Aynı hesapla browser login, tek datasource, plugin/proxy sorguları ve altı healthy servis PASS. |
+| Dashboard | `/api/search?type=dash-db` boş; dashboard provider/JSON eklenmedi. |
+
+Son down/up kabul çıktıları **3 Ekim 2026, 11:04:31–11:04:32 UTC / 14:04:31–14:04:32 Türkiye saati** ile kaydedildi. Bunlar stdout dosyalarının yazılma zamanlarıdır; test süresi veya benchmark değildir.
+
+Browser ilk koşuda sayfa geçişinin iptal ettiği `sort-amount-up.svg` isteği yüzünden FAIL verdi. Teşhis sonrası yalnız **bu tam asset yolu + net::ERR_ABORTED** beklenen navigation cancellation olarak ayrılır. Yeni hesapta Grafana'nın `advisor-redirect-notice` user-storage kaydı olmadığı için gelen **404** de yalnız bu endpoint ve 404 console mesajı için dar istisnadır. Son down/up browser koşusunda **1 SVG cancellation / 1 preference 404**, **0 beklenmeyen page/console/network hatası** vardı. Bunlar datasource/metric isteği hataları değildir; bütün 404 veya bütün abort'lar görmezden gelinmez.
+
+PowerShell REST helper'ı ilk koşuda boş JSON array'i tek pipeline nesnesi olarak saydı ve dashboard assertion FAIL verdi. Response array'inin normal enumerate edilmesi düzeltildi; gerçekten boş dashboard listesi ile PASS aldı. Uygulama/datasource davranışı değiştirilmedi.
+
+### Credential log kontrolü ve cleanup
+
+İlk startup/browser deneyinde resmî image parolayı maskeledi fakat kullanıcı adını INFO loglarına yazdı; değer gösterilmeden tespit edildi. `GF_LOG_FILTERS`, yalnız gözlenen **settings / sqlstore / context / plugin.prometheus** logger'larını **warn** seviyesine alır. Böylece final startup/login/query akışlarında admin kullanıcı adı/parola logda görünmedi. WARN/ERROR korunur; bu dört logger'ın INFO teşhis bilgisi azalır. Bu bir bütün log/exception yollarının sızıntısız olduğuna dair garanti değildir; yeni hata yolları ayrıca kontrol edilmelidir.
+
+Secret scanner kuralları gevşetilmedi. Regex/çalışma anında okunan credential referanslarının yanlış pozitifleri, testte açık key/value parsing ve regex key escaping ile çözüldü; gerçek literal değerler allowlist'e alınmadı. Final repository taraması, güncel altı servis logları ve kaydedilmiş browser/API test çıktıları gerçek PostgreSQL parola/connection string ve geçici Grafana user/parola değerlerine karşı **değer göstermeden** kontrol edildi; bulunmadı. `git diff --check` geçti. Git geçmişi taranmadı.
+
+Başlangıçta stack yoktu. Test Task'ları ve test liste cache'i temizlendi. Mevcut `tasks`, Module 3B `lab_tasks` ve migration history satır hash'leri aynı kaldı; identity sequence test INSERT'leri nedeniyle ilerleyebilir. `.env`/user-secrets hash'leri korundu. Normal down/up persistence kanıtından sonra altı test container'ı/network `down` ile kaldırıldı. Yalnız bu görev öncesinde bulunmayan ve Compose ownership label'ları doğrulanan iki **test** volume'u (`fullstack-ops-lab_grafana_data`, `fullstack-ops-lab_prometheus_data`) açık adlarıyla kaldırıldı. Mevcut named volume'lara dokunulmadı; external PostgreSQL volume'u korundu. Normal kullanımda bu monitoring volume'larını kaldırma; `down -v`/prune kullanılmadı.
+
+Orijinal **12 container ID/state / 19 volume adı** aynı kaldı; **7 network adı** korundu. Built-in bridge ID başlangıç snapshot'ındaki `9b3d…` yerine sonunda `bf562…` idi; neden doğrulanmadı, Docker configuration değiştirilmedi. Diğer network ID'leri aynıydı. Geçici credential/env, Playwright araçları, browser screenshot probe ve kanıt dosyaları temizlendi. Seçilen Grafana 13.2.3 image'ı localde bırakıldı.
+
+**Module 10 bütünü devam ediyor.** Sıradaki küçük adım yalnız açık talep üzerine dashboard provider YAML ve sabit datasource UID'sini kullanan `FullStack Ops Lab Overview` dashboard JSON'udur. Bu görevde uygulanmadı.

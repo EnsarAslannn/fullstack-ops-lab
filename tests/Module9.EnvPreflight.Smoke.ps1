@@ -10,6 +10,7 @@ $realEnv = Join-Path $root '.env'
 $realEnvHash = if (Test-Path -LiteralPath $realEnv) { (Get-FileHash -Algorithm SHA256 -LiteralPath $realEnv).Hash } else { $null }
 $originalFakePassword = [Environment]::GetEnvironmentVariable('MODULE9_FAKE_PASSWORD', 'Process')
 $originalPostgresPassword = [Environment]::GetEnvironmentVariable('POSTGRES_PASSWORD', 'Process')
+$originalGrafanaPassword = [Environment]::GetEnvironmentVariable('GF_SECURITY_ADMIN_PASSWORD', 'Process')
 $canary = 'module9-fixture-' + [guid]::NewGuid().ToString('N')
 $fixtures = [System.Collections.Generic.List[string]]::new()
 
@@ -43,10 +44,29 @@ function Invoke-Case([string]$Name, [AllowNull()][string]$Contents,
     Write-Output "PASS $Name (exit=$code, canary hidden, fixture unchanged)"
 }
 
-$base = "POSTGRES_USER=fixture_user`nPOSTGRES_DB=fixture_db`nASPNETCORE_ENVIRONMENT=Development`nCache__TasksTtlSeconds=60`n"
+$grafana = "GF_SECURITY_ADMIN_USER=fixture_admin`nGF_SECURITY_ADMIN_PASSWORD=$canary`n"
+$grafanaPasswordPattern = '(?m)^' + [regex]::Escape('GF_SECURITY_ADMIN_PASSWORD') + '=.*\n'
+$base = "POSTGRES_USER=fixture_user`nPOSTGRES_DB=fixture_db`nASPNETCORE_ENVIRONMENT=Development`nCache__TasksTtlSeconds=60`n" + $grafana
 try {
     [Environment]::SetEnvironmentVariable('MODULE9_FAKE_PASSWORD', $canary, 'Process')
     [Environment]::SetEnvironmentVariable('POSTGRES_PASSWORD', $canary, 'Process')
+    [Environment]::SetEnvironmentVariable('GF_SECURITY_ADMIN_PASSWORD', $canary, 'Process')
+    Invoke-Case 'missing Grafana password' (($base -replace $grafanaPasswordPattern, '') + "POSTGRES_PASSWORD=$canary`n") $false 'GF_SECURITY_ADMIN_PASSWORD'
+    Invoke-Case 'empty Grafana password' (($base -replace $grafanaPasswordPattern, "GF_SECURITY_ADMIN_PASSWORD=`n") + "POSTGRES_PASSWORD=$canary`n") $false 'GF_SECURITY_ADMIN_PASSWORD'
+    Invoke-Case 'placeholder Grafana password' (($base -replace $grafanaPasswordPattern, "GF_SECURITY_ADMIN_PASSWORD=<set-outside-git>`n") + "POSTGRES_PASSWORD=$canary`n") $false 'GF_SECURITY_ADMIN_PASSWORD'
+    Invoke-Case 'missing Grafana user' (($base -replace '(?m)^GF_SECURITY_ADMIN_USER=.*\n', '') + "POSTGRES_PASSWORD=$canary`n") $false 'GF_SECURITY_ADMIN_USER'
+    Invoke-Case 'empty Grafana user' (($base -replace '(?m)^GF_SECURITY_ADMIN_USER=.*\n', "GF_SECURITY_ADMIN_USER=`n") + "POSTGRES_PASSWORD=$canary`n") $false 'GF_SECURITY_ADMIN_USER'
+    Invoke-Case 'placeholder Grafana user' (($base -replace '(?m)^GF_SECURITY_ADMIN_USER=.*\n', "GF_SECURITY_ADMIN_USER=<set-outside-git>`n") + "POSTGRES_PASSWORD=$canary`n") $false 'GF_SECURITY_ADMIN_USER'
+    $overlay = Join-Path $root ('.env.module9-fixture-' + [guid]::NewGuid().ToString('N'))
+    $fixtures.Add($overlay)
+    [IO.File]::WriteAllText($overlay, $grafana, [Text.UTF8Encoding]::new($false))
+    $overlayHash = (Get-FileHash -LiteralPath $overlay -Algorithm SHA256).Hash
+    $withoutGrafana = ($base -replace '(?m)^GF_SECURITY_ADMIN_(USER|PASSWORD)=.*\n', '') + "POSTGRES_PASSWORD=$canary`n"
+    Invoke-Case 'separate ignored Grafana env' $withoutGrafana $true '' @('-GrafanaEnvFile', $overlay)
+    if ($overlayHash -ne (Get-FileHash -LiteralPath $overlay -Algorithm SHA256).Hash) { throw 'Grafana overlay was modified' }
+    [IO.File]::WriteAllText($overlay, "GF_SECURITY_ADMIN_USER=fixture_admin`nGF_SECURITY_ADMIN_PASSWORD=<set-outside-git>`n", [Text.UTF8Encoding]::new($false))
+    Invoke-Case 'placeholder in Grafana overlay' $withoutGrafana $false 'GF_SECURITY_ADMIN_PASSWORD' @('-GrafanaEnvFile', $overlay)
+    Invoke-Case 'missing Grafana env file' ($base + "POSTGRES_PASSWORD=$canary`n") $false '.env' @('-GrafanaEnvFile', '.env.module9-missing')
     # Reject an unavailable override before consulting any volume.
     Invoke-Case 'missing Compose override' ($base + "POSTGRES_PASSWORD=$canary`n") $false 'ComposeOverrideFile' @('-ComposeOverrideFile', 'missing-module9-override.yaml')
     Invoke-Case 'invalid volume name' ($base + "POSTGRES_PASSWORD=$canary`n") $false 'VolumeName' @('-VolumeName', 'invalid volume name')
@@ -58,11 +78,12 @@ try {
     Invoke-Case 'example placeholder' ($base + "POSTGRES_PASSWORD=<set-outside-git>`n") $false 'POSTGRES_PASSWORD'
     Invoke-Case 'valid fake values' ($base + "POSTGRES_PASSWORD=$canary`n") $true ''
     Invoke-Case 'Compose double-quoted interpolation' ($base + 'POSTGRES_PASSWORD="${MODULE9_FAKE_PASSWORD}"' + "`n") $true ''
-    Invoke-Case 'optional empty TTL' ("POSTGRES_USER=fixture_user`nPOSTGRES_DB=fixture_db`nASPNETCORE_ENVIRONMENT=Development`nPOSTGRES_PASSWORD=$canary`nCache__TasksTtlSeconds=`n") $false 'Cache__TasksTtlSeconds'
+    Invoke-Case 'optional empty TTL' (($base -replace 'Cache__TasksTtlSeconds=60', 'Cache__TasksTtlSeconds=') + "POSTGRES_PASSWORD=$canary`n") $false 'Cache__TasksTtlSeconds'
     Write-Output 'Module 9 env preflight smoke passed'
 } finally {
     [Environment]::SetEnvironmentVariable('MODULE9_FAKE_PASSWORD', $originalFakePassword, 'Process')
     [Environment]::SetEnvironmentVariable('POSTGRES_PASSWORD', $originalPostgresPassword, 'Process')
+    [Environment]::SetEnvironmentVariable('GF_SECURITY_ADMIN_PASSWORD', $originalGrafanaPassword, 'Process')
     foreach ($path in $fixtures) {
         if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
     }

@@ -1,12 +1,14 @@
 param(
     [string]$EnvFile = '.env',
     [string]$VolumeName = 'fullstack-ops-postgres-data',
-    [string]$ComposeOverrideFile
+    [string]$ComposeOverrideFile,
+    [string]$GrafanaEnvFile
 )
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$requiredKeys = @('POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'ASPNETCORE_ENVIRONMENT')
+$requiredKeys = @('POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'ASPNETCORE_ENVIRONMENT',
+    'GF_SECURITY_ADMIN_USER', 'GF_SECURITY_ADMIN_PASSWORD')
 
 function Fail([string]$Message) {
     Write-Output $Message
@@ -65,22 +67,29 @@ try {
         }
         $composeArguments += ' -f "' + $override.Replace('"', '\"') + '"'
     }
-    $candidate = if ([System.IO.Path]::IsPathRooted($EnvFile)) { $EnvFile } else { Join-Path $root $EnvFile }
-    $file = [System.IO.Path]::GetFullPath($candidate)
-    $rootPrefix = $root.TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
-    if (-not $file.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        Fail 'EnvFile must be inside the repository.'
-    }
-    $relative = $file.Substring($rootPrefix.Length).Replace('\', '/')
-    if (-not [System.IO.File]::Exists($file)) {
-        Fail 'Missing .env file. Copy .env.example to a Git-ignored .env, set local values, and do not commit or share it.'
-    }
+    $envFiles = @($EnvFile)
+    if ($GrafanaEnvFile) { $envFiles += $GrafanaEnvFile }
+    $envArguments = @()
+    foreach ($envCandidate in $envFiles) {
+        $candidate = if ([System.IO.Path]::IsPathRooted($envCandidate)) { $envCandidate } else { Join-Path $root $envCandidate }
+        $file = [System.IO.Path]::GetFullPath($candidate)
+        $rootPrefix = $root.TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $file.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Fail 'EnvFile must be inside the repository.'
+        }
+        $relative = $file.Substring($rootPrefix.Length).Replace('\', '/')
+        if (-not [System.IO.File]::Exists($file)) {
+            Fail 'Missing .env file. Copy .env.example to a Git-ignored .env, set local values, and do not commit or share it.'
+        }
 
-    & git -C $root check-ignore -q -- $relative 2>$null
-    if ($LASTEXITCODE -ne 0) { Fail 'EnvFile is not ignored by Git.' }
-    $tracked = & git -C $root ls-files --cached -- $relative 2>$null
-    if ($LASTEXITCODE -ne 0) { Fail 'Git could not verify the EnvFile tracking state.' }
-    if ($tracked) { Fail 'EnvFile is tracked by Git.' }
+        & git -C $root check-ignore -q -- $relative 2>$null
+        if ($LASTEXITCODE -ne 0) { Fail 'EnvFile is not ignored by Git.' }
+        $tracked = & git -C $root ls-files --cached -- $relative 2>$null
+        if ($LASTEXITCODE -ne 0) { Fail 'Git could not verify the EnvFile tracking state.' }
+        if ($tracked) { Fail 'EnvFile is tracked by Git.' }
+        $envArguments += '--env-file "' + $file.Replace('"', '\"') + '"'
+    }
+    $envArguments = $envArguments -join ' '
 
     # Compose itself parses .env quoting/interpolation. The resolved JSON stays in memory.
     $probe = @'
@@ -92,11 +101,12 @@ services:
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD-}"
       POSTGRES_DB: "${POSTGRES_DB-}"
       ASPNETCORE_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT-}"
+      GF_SECURITY_ADMIN_USER: "${GF_SECURITY_ADMIN_USER-}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GF_SECURITY_ADMIN_PASSWORD-}"
       Cache__TasksTtlSeconds: "${Cache__TasksTtlSeconds-}"
       Cache__TasksTtlSeconds_IsSet: "${Cache__TasksTtlSeconds+true}"
 '@
-    $quotedFile = '"' + $file.Replace('"', '\"') + '"'
-    $resolved = Invoke-Docker "compose --env-file $quotedFile -f - config --format json" $probe
+    $resolved = Invoke-Docker "compose $envArguments -f - config --format json" $probe
     if ($resolved.ExitCode -ne 0) {
         Fail 'Compose could not parse EnvFile. Check its syntax and interpolation without printing resolved config.'
     }
@@ -121,7 +131,7 @@ services:
     }
     Write-Output 'Required Compose keys: present and non-placeholder.'
 
-    $config = Invoke-Docker "compose --env-file $quotedFile $composeArguments config -q" $null
+    $config = Invoke-Docker "compose $envArguments $composeArguments config -q" $null
     if ($config.ExitCode -ne 0) {
         Fail 'docker compose config -q failed. Check compose.yaml and local environment; resolved values were not displayed.'
     }

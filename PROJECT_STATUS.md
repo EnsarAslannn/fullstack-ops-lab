@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 10 — Docker-native inspection, backend metrics and Prometheus internal scrape completed; Grafana not started
+Module 10 — Docker-native inspection, backend metrics, Prometheus and Grafana datasource completed; dashboards not started; module in progress
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 10 — Observability: Logs, Prometheus & Grafana
 
 ## Current Step
 
-Prometheus service, named TSDB volume and internal metrics scrape acceptance completed
+Grafana service and YAML Prometheus datasource provisioning acceptance completed
 
 ## Completed
 
@@ -193,9 +193,19 @@ Prometheus service, named TSDB volume and internal metrics scrape acceptance com
 
 - Module 10 TSDB historical sample survived down/up; test rows/cache and newly created monitoring test volume cleaned, original 12 containers/7 networks/19 volumes and external PostgreSQL/secret sources preserved; initial Engine versus pre-stack bridge ID differed for an unconfirmed reason, saved snapshot and cleanup IDs matched
 
+- Module 10 Grafana 13.2.3 added with localhost-only UI, verified image health tooling, read-only YAML Prometheus datasource UID fullstack-ops-prometheus and Compose-managed grafana_data; six services healthy, anonymous datasource access 401, no dashboard added
+
+- Module 10 Grafana admin placeholders/preflight updated; 19 isolated fixtures passed including separate ignored Grafana env support, original .env/user-secrets untouched; scoped INFO logger filters stopped observed admin-username logging without disabling WARN/ERROR
+
+- Module 10 real Edge login, finite HTTP/runtime/cache queries through Grafana plugin and datasource proxy, restart and down/up provisioning/account persistence passed; only observed SVG cancellation and missing advisor-preference 404 were classified as expected browser behavior
+
+- Module 10 Grafana test rows/cache/containers/network and newly created monitoring test volumes cleaned; existing PostgreSQL data/volume and original 12 containers/19 volumes preserved; only built-in bridge ID changed for an unconfirmed reason
+
+- Module 10 Grafana local admin keys subsequently prepared by the user outside Git; normal .env preflight and silent Compose config passed at final review. User reported successful local login and datasource API test, then shut down the stack with compose down; secret scan and diff check passed
+
 ## Next Goal
 
-On explicit request: add Grafana and provision its Prometheus datasource through YAML using http://prometheus:9090; do not treat Module 10 as completed yet.
+On explicit request: add a dashboard provider YAML and FullStack Ops Lab Overview dashboard JSON using the stable fullstack-ops-prometheus datasource UID. Module 10 remains in progress.
 
 ## Blockers
 
