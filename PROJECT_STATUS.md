@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 10 — Completed; Module 11A baseline CI implemented, hosted acceptance pending
+Module 10 — Completed; Module 11A baseline CI completed and verified; Module 11 in progress
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 11 — GitHub Actions CI
 
 ## Current Step
 
-Baseline CI local validation passed; first real GitHub Actions run pending
+Baseline CI completed: Linux build/config and Windows configuration/secret jobs passed on GitHub-hosted runners
 
 ## Completed
 
@@ -233,10 +233,12 @@ Baseline CI local validation passed; first real GitHub Actions run pending
 
 - Module 11 planning completed: specification minimum mapped to Linux backend/frontend/Docker/config checks and Windows configuration/secret fixture checks; test portability, isolated future Compose smoke prerequisites, permissions, tools and cache decisions documented. No CI workflow created or executed; Module 11 implementation and hosted-runner acceptance not started
 
+- Module 11A baseline workflow added with push/pull_request, contents:read and full official action SHAs. Run 37196281851 on commit 4b81604db117fd7adf80c637126e79f0ea475655 succeeded: Linux backend/frontend/Docker/config/promtool and Windows repository secret check, 19 secret fixtures and 20 configuration cases; both Release builds 0 warnings/errors. Module 11 overall remains in progress; no Compose runtime integration started
+
 ## Next Goal
 
-Verify both jobs of the first real Module 11A GitHub Actions push run, record the run evidence, then verify the documentation push run. Do not start isolated Compose runtime CI yet.
+On explicit request: add isolated Compose runtime CI, starting with CI-owned database/volume and existing migration preparation plus portable smoke selection. Do not use development secrets/data or blindly run the four-service Module 8 script.
 
 ## Blockers
 
-Hosted baseline execution is pending; no CI success is claimed yet. Local Release/frontend/Docker builds, 20 configuration cases, 19 secret fixtures, fake-env Compose config, promtool and actionlint passed. Actions enabled and official action release SHAs verified. Future runtime CI still requires isolated services/migration and portability work; no unit-test coverage is claimed.
+None for Module 11A baseline acceptance: both real hosted jobs passed and evidence is linked in the Module 11 README. Fork PR execution, branch protection and Compose runtime acceptance remain unverified/outside this step. Future runtime CI requires isolated services/migration and portability work; no unit-test coverage is claimed.

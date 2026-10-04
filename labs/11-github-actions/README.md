@@ -153,11 +153,11 @@ Bu bölüm ideal pipeline için planlanan **ayrı adım**; ilk workflow'un geçm
 
 Database initialization ile credential eşleşmesi yeni boş CI volume'unda yönetilir. Mevcut initialized development volume'unda env parolasını değiştirmenin rol parolasını değiştirmediği kural aynen geçerlidir; CI için gerçek local kaynaklar kopyalanmaz.
 
-## Belirsizlikler ve kabul sınırı
+## Planlama sırasında belirlenen belirsizlikler
 
-- GitHub-hosted runner'da hiçbir komut bu görevde çalıştırılmadı; Linux PowerShell script uyumluluğu, network/image pull erişimi ve CI süreleri **NOT VERIFIED**.
-- Tam action SHA'ları ilk uygulama sırasında resmî release üzerinden doğrulanacak. SDK/Node patch ailesi ve Docker image tag'leri mutable olabilir; çözülmüş sürümler/image ID'leri gerçek run'da kaydedilir. Dockerfile/paket pin politikası bu dokümantasyon görevinde değiştirilmez.
-- Actions'ın repository'de etkin olup olmadığı, organizasyon action politikası ve branch protection required-check ayarları henüz doğrulanmadı. İlk CI için kullanıcı development secret'ı veya GHCR yetkisi gerekmez.
+- Planlama evresinde GitHub-hosted runner çalışması yoktu; baseline run kanıtı aşağıda eklendi. İlk job'lara alınmayan Linux PowerShell scriptleri hâlâ **NOT VERIFIED**.
+- Action release SHA doğrulaması aşağıdaki 11A implementasyonunda tamamlandı. SDK/Node patch ailesi ve Docker image tag'leri mutable olabilir. Dockerfile/paket pin politikası değişmedi.
+- Repository Actions erişimi ve politikası 11A öncesinde doğrulandı; branch protection required-check ayarı ve fork PR kabulü doğrulanmadı. İlk CI için kullanıcı development secret'ı veya GHCR yetkisi gerekmez.
 - Mevcut Windows bağımlılıkları nedeniyle iki job, scriptleri yeniden tasarlamadan kullanılabilecek küçük başlangıçtır. Linux-only hedeflenirse önce portability değişiklikleri ve fixture kabulü gerekir; bu görevde yapılmadı.
 - Minimum CI green olması gerçek Compose CRUD/cache/health/provisioning, browser, load test veya production deploy kanıtı değildir. Module 11'in tüm ideal akışı ve final kabulü ayrı değerlendirilecek.
 
@@ -169,15 +169,15 @@ Planlama evresinde kaynak dosyaları/komut yolları incelendi, mevcut testlerin 
 
 **Öğrenme:** runner temiz ve geçici bir makinedir; local bilgisayarındaki hazır volume/secret otomatik taşınmaz. Job'lar kendi process ve kaynaklarına sahiptir. Cache indirmeyi hızlandırır, testin yerini tutmaz. Build kodun derlenmesini, smoke belirli davranışları, config validation yapılandırmanın okunmasını doğrular; bunları aynı kapsam gibi raporlamamalıyız.
 
-Önerilen dokümantasyon commit mesajı: `docs(ci): plan GitHub Actions build and smoke checks`. Bu görevde commit/push yok.
+Plan ayrı olarak `94963e2f85de5187e6ec22e4aefb5509e2e6bde6` commit'iyle kaydedildi; mesajı `docs(ci): plan GitHub Actions baseline workflow`.
 
 ## 11A baseline kabulü
 
-**İlk implementasyon durumu: yerel kontroller PASS; gerçek hosted run henüz bekleniyor.** Bu bölüm gerçek GitHub sonucu alındıktan sonra güncellenecek. Module 11 bütünü tamamlanmış değildir.
+**11A baseline CI: Completed — yerel kontroller ve ilk gerçek hosted run PASS.** Module 11 bütünü tamamlanmış değildir; Compose runtime entegrasyonu başlamadı.
 
 ### Gerçek workflow kapsamı
 
-[Baseline CI](../../.github/workflows/ci.yml) iki bağımsız job içerir. Ubuntu 24.04 backend/frontend build, iki Linux Docker image build, sahte değerlerle sessiz Compose model kontrolü ve promtool çalıştırır. Windows 2025 repository scanner, 19 secret fixture, Release build ve 20 izole configuration senaryosunu çalıştırır. Her native PowerShell komutunun exit code'u açıkça kontrol edilir; Bash step'leri GitHub'ın `bash --noprofile --norc -e -o pipefail` davranışıyla hata verir. `dotnet test` yoktur; unit-test coverage iddiası yoktur.
+[Baseline CI](../../.github/workflows/ci.yml) iki bağımsız job içerir. Ubuntu 24.04 backend/frontend build, iki Linux Docker image build, sahte değerlerle sessiz Compose model kontrolü ve promtool çalıştırır. Windows 2025 repository scanner, 19 secret fixture, Release build ve 20 izole configuration senaryosunu çalıştırır. Her native PowerShell komutunun exit code'u açıkça kontrol edilir; Bash step'leri [GitHub'ın shell davranışı](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepsshell) gereği `-e` ve `-o pipefail` kullanır. `dotnet test` yoktur; unit-test coverage iddiası yoktur.
 
 `push` ve `pull_request` branch/path filtresi olmadan tanımlıdır. İzin yalnız `contents: read`, checkout `persist-credentials: false`; secret input, registry login/push veya `pull_request_target` kullanılmaz. Fork PR kontrolleri gerçek development secret'ı istemez; GitHub'ın fork run approval politikası ayrıca uygulanabilir. İki job'da setup-dotnet çıktısının tam SDK sürümü geçici `global.json` ile seçilir, gerçekten aynı 10.0 SDK kullanıldığı doğrulanır.
 
@@ -191,7 +191,7 @@ Compose için sahte credential çalışma anında üretilir; fixture `RUNNER_TEM
 | setup-dotnet | [v6.0.0](https://github.com/actions/setup-dotnet/releases/tag/v6.0.0) | `a98b56852c35b8e3190ac28c8c2271da59106c68` |
 | setup-node | [v7.0.0](https://github.com/actions/setup-node/releases/tag/v7.0.0) | `820762786026740c76f36085b0efc47a31fe5020` |
 
-Resmî release sayfaları ve `git ls-remote` ile doğrulandı; workflow bu SHA'ları kullanır. [Hosted runner listesi](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) Ubuntu 24.04/Windows 2025 etiketlerini, [Microsoft download sayfası](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) .NET 10 SDK ailesini ve [Node release tablosu](https://nodejs.org/en/about/previous-releases) Node 24 LTS ailesini doğrular. Job'lar kararlı `10.0.x` / `24.x` seçer; çözümlenen patch sürümleri gerçek run kanıtında ayrıca kaydedilecek. SHA pinning SDK/image tag'lerini immutable yapmaz.
+Resmî release sayfaları ve `git ls-remote` ile doğrulandı; workflow bu SHA'ları kullanır. [Hosted runner listesi](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) Ubuntu 24.04/Windows 2025 etiketlerini, [Microsoft download sayfası](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) .NET 10 SDK ailesini ve [Node release tablosu](https://nodejs.org/en/about/previous-releases) Node 24 LTS ailesini doğrular. Job'lar kararlı `10.0.x` / `24.x` seçer; çözümlenen patch sürümleri aşağıdaki gerçek run kanıtında kaydedildi. SHA pinning SDK/image tag'lerini immutable yapmaz.
 
 ### Yerel kontroller — 4 Ekim 2026
 
@@ -209,6 +209,32 @@ Resmî release sayfaları ve `git ls-remote` ile doğrulandı; workflow bu SHA'l
 
 İlk yerel Vite denemesi sandbox child-process EPERM nedeniyle başarısızdı; aynı build normal yetkide geçti. İlk Docker build context metadata dosyası başka process tarafından kilitli olduğu için başarısızdı; aynı komutun tekrarı geçti, Docker ayarı değiştirilmedi. PowerShell 5.1 boş JSON key içeren npm lock dosyasını okuyamadı; salt okunur lock incelemesi Node ile yapıldı. Bu başarısız denemeler PASS olarak sayılmadı. GitHub CLI keyring erişimi sandbox dışında doğrulandı; repository Actions etkin ve erişilebilir.
 
-### Açık kalan kabul
+### İlk gerçek GitHub Actions run'ı
 
-İlk gerçek push run'ının URL/commit/job/step sonuçları bekleniyor. Fork PR run'ı, cache-hit hosted run ve sonraki izole Compose CRUD/cache/migration/browser/kesinti kabulü bu yerel sonuçlarla doğrulanmış sayılmaz. Development volume, `.env`, user-secrets ve uygulama davranışı korunur.
+- Workflow commit'i: `4b81604db117fd7adf80c637126e79f0ea475655` — `ci: add baseline GitHub Actions workflow`.
+- [Run 37196281851](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37196281851): `push`, `main`, **completed / success**. Run SHA'sı workflow commit'iyle aynı; yalnız yerel sonuçlardan başarı çıkarılmadı.
+- [Linux job](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37196281851/job/111418726621): **success**, UTC 10:43:20–10:44:20 (**1m00s**).
+- [Windows job](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37196281851/job/111418726727): **success**, UTC 10:43:21–10:45:17 (**1m56s**), 4 Ekim 2026.
+
+| Gerçek hosted kontrol | Sonuç / kanıt |
+| --- | --- |
+| SDK seçimi ve backend build | İki job'da **10.0.401**; restore/Release build PASS, ikisinde 0 warning / 0 error |
+| Frontend kurulumu/build | Node **24.21.0**, npm **11.19.0**; lock tabanlı install ve TypeScript/Vite build step'leri success |
+| Docker image build | API ve frontend build step'leri success; Docker Engine **28.0.4**, Compose **v2.38.2** |
+| Compose statik kontrol | Sahte geçici fixture ile `config -q` step'i success; stack/volume/database başlatılmadı |
+| Prometheus config | promtool SUCCESS ve step success; `api:8080/metrics` config korunur, canlı scrape bu adımın kapsamı değildir |
+| Repository secret check | Windows step success; mevcut ignored env/user-secrets gerekmez |
+| Secret fixture smoke | Logdan **19 PASS** sayıldı ve final `19 cases` mesajı doğrulandı |
+| Configuration startup smoke | Logdan **20 PASS** sayıldı ve final başarı mesajı doğrulandı; 16 güvenli negatif / 4 geçerli senaryo |
+| Canary/connection string | Smoke child'ları stdout/stderr'yi denetledi; hosted loglar ayrıca gerçek canary biçimi ve tam test connection string deseni için bellekte kontrol edildi, bulgu yok |
+| Cache | İlk run npm download cache **miss**; bütün zorunlu step'ler çalıştı. Node toolcache kullanımı npm dependency cache hit anlamına gelmez |
+
+Gerçek hosted run'da düzeltme/retry gerekmedi; yerel sandbox/context başarısızlıkları yukarıda ayrı kaydedildi. Süreler bu run'a ait gözlemlerdir; CI hız veya performans garantisi değildir.
+
+### Cleanup ve açık kalan kabul
+
+Yerelde fixture/lint geçici dosyaları ve promtool container'ı temizlendi. Başlangıçtaki 12 ilişkisiz container ID'si korundu, hiçbir container running değildi ve görev sonunda da running container yok. Local `fullstack-ops-api:ci` / `fullstack-ops-frontend:ci` build tag'leri kaldı; başka image silinmedi. External PostgreSQL volume, `.env`, user-secrets ve uygulama kaynakları değiştirilmedi. Hosted kaynaklar GitHub'ın geçici job ortamına aittir.
+
+Fork PR run'ı ve uzun Compose CRUD/cache/migration/browser/kesinti kabulü **NOT VERIFIED**; bu görevde çalıştırılmadı. Branch protection ve GHCR publishing eklenmedi. İlk başarılı run kaydı bu dokümantasyon commit'inde sabit tutulur; dokümantasyon push'u aynı workflow'u tekrar tetikler ve sonucu görev raporunda verilir. Her yeni run kimliği için tekrar dokümantasyon commit'i oluşturulmaz.
+
+**Sonraki küçük adım yalnız öneridir:** CI'a ait izole database/volume ve mevcut migration hazırlığıyla uygun Compose runtime smoke'u eklemek. Bu adım veya Module 8 uyarlaması uygulanmadı.
