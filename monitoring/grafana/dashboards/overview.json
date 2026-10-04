@@ -64,11 +64,11 @@
               "type": "value",
               "options": {
                 "0": {
-                "text": "Scrape başarısız",
+                  "text": "Scrape başarısız",
                   "color": "red"
                 },
                 "1": {
-                "text": "Scrape başarılı",
+                  "text": "Scrape başarılı",
                   "color": "green"
                 }
               }
@@ -585,6 +585,222 @@
         "tooltip": {
           "mode": "single"
         }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Cache hit toplamı",
+      "description": "API süreci başlangıcından beri biriken toplam olay sayısıdır. API yeniden başlayınca reset olabilir; kalıcı veritabanı toplamı veya olay/s değildir. İlk olay öncesi seri bulunmayabilir.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 24
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(fullstackops_cache_hits_total{job=\"fullstack-ops-api\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 11,
+      "title": "Cache miss toplamı",
+      "description": "API süreci başlangıcından beri biriken toplam olay sayısıdır. API yeniden başlayınca reset olabilir; kalıcı veritabanı toplamı veya olay/s değildir. İlk olay öncesi seri bulunmayabilir.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 24
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(fullstackops_cache_misses_total{job=\"fullstack-ops-api\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 12,
+      "title": "Cache invalidation toplamı",
+      "description": "API süreci başlangıcından beri biriken toplam olay sayısıdır. API yeniden başlayınca reset olabilir; kalıcı veritabanı toplamı veya olay/s değildir. İlk olay öncesi seri bulunmayabilir.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fullstack-ops-prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 24
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Veri yok",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(fullstackops_cache_invalidations_total{job=\"fullstack-ops-api\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fullstack-ops-prometheus"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
       }
     }
   ]

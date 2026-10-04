@@ -1,8 +1,8 @@
 # Modül 10 — Docker-native gözlem, backend metrics, Prometheus ve Grafana
 
-Bu README sırasıyla Docker-native gözlem, backend metrics, Prometheus internal scrape, Grafana datasource ve Overview dashboard adımlarını belgeler. `PROJECT_SPEC.md` sırası korunur. Önceki bölümler kendi kabul tarihindeki snapshot'tır; güncel **altı servisli** topoloji datasource bölümünde, dashboard kurulumu ve sorguları son **Overview dashboard provisioning** bölümündedir. Module 10 final kabulü henüz yapılmadı.
+Bu README sırasıyla Docker-native gözlem, backend metrics, Prometheus internal scrape, Grafana datasource ve Overview dashboard adımlarını belgeler. Önceki bölümler kendi kabul tarihindeki snapshot'tır; güncel **altı servisli** topoloji datasource bölümünde, dashboard sorguları **Overview dashboard provisioning** bölümündedir. **4 Ekim 2026 güncel sonuç: COMPLETE.** 3 Ekim final incelemesinde belirlenen dört eksik aşağıdaki **Şartname farklarının kapatılması** bölümünde gerçek kanıtlarla kapatıldı. Kabul matrisi güncellendi; önceki tarihli deneylerin sonuçları tarihsel kayıt olarak korunur.
 
-**Sonuç: 2 Ekim 2026 tarihinde ilk adım PASS. Module 10 bütünü devam ediyor.**
+**İlk adım: 2 Ekim 2026 PASS. Module 10 final kabulü: 4 Ekim 2026 COMPLETE.**
 
 ## Amaç ve sınırlar
 
@@ -635,3 +635,275 @@ Aynı son koşunun kesinti snapshot'ında 5xx **%22.4331729788** idi; farklı so
 - Sabit 2m pencere hızlı değişimleri yumuşatır; küçük örneklem, scrape başlangıcı, process reset ve histogram bucket çözünürlüğü sonuçları etkiler. Yeni API prosesinde henüz event almayan serilerin boş olması query hatası değildir. Dashboard/API durumu readiness yerine geçmez.
 
 Sıradaki önerilen küçük adım, yalnız açık talep üzerine **Module 10 final acceptance ve öğrenme değerlendirmesi**. Bu görev final kabulü, dashboard dışı yeni özellik veya başka modül uygulaması yapmadı. Commit/push yapılmadı.
+
+## Module 10 final kabulü ve öğrenme değerlendirmesi — 3 Ekim 2026
+
+**3 Ekim ilk incelemesinin tarihsel sonucu: INCOMPLETE; dört açık madde 4 Ekimde kapatıldı (K7).** Release/configuration, altı servis, metrics/scrape, gerçek tarayıcı, CRUD/cache, bağımlılık recovery ve counter reset kontrolleri PASS. Ancak çalışan sistem ile şartnamenin her maddesini karşılamak aynı sonuç değildir. Toplam cache sayı panelleri, backend request log bilgisi ve kalıcı ekran görüntüsü kanıtı eksik; service-name/port/path hatası oluşturup düzeltme deneyi ayrıca doğrulanmadı. Bu inceleme bunları otomatik uygulamadı; backend, Compose, dashboard ve secret akışları değişmedi.
+
+### Kanıt anahtarı
+
+- **K1 — Statik inceleme:** `Program.cs`, `TaskCacheMetrics.cs`, proje/appsettings dosyaları, Compose, Prometheus YAML, datasource/provider YAML ve dashboard JSON; başlangıç Git temiz, son commit `4eaf46e`.
+- **K2 — Bu koşunun kontrolleri:** Release build, configuration smoke **20/20**, normal preflight, preflight fixture **19/19**, secret fixture **15/15**, repository secret check, `config -q`, `promtool check config`.
+- **K3 — Bu koşunun gerçek runtime/browse kanıtı:** altı healthy servis; metrics/Prometheus endpoint smoke; tam dashboard smoke ve datasource smoke; Edge login, dokuz panel ve Grafana plugin sorguları; Prometheus Targets/Query UI.
+- **K4 — Bu koşunun kontrollü deneyleri:** tek PostgreSQL kesintisi, 150 saniye trafiksiz pencere, API stop/start ve ham counter örnekleriyle reset düzeltmesi. Geçici yardımcılar repository dışında tutuldu.
+- **K5 — Önceki değişmeyen kabul:** yukarıdaki Prometheus TSDB, Grafana datasource/account ve Overview restart/down-up sonuçları. Bunlar bu final koşusunda yeniden yapılmış testler olarak raporlanmaz.
+- **K7 — 4 Ekim eksik kapatma kabulü:** üç toplam panelinin gerçek counter/plugin/browser sonuçları, güvenli CRUD/400/404/500 logları, ayrı geçici Prometheus DNS/port/path DOWN→UP deneyleri ve üç kalıcı tarayıcı görüntüsü; yeni güvenlik/build/cleanup sonuçları aşağıda. K1–K6 önceki incelemenin kanıtlarıdır.
+- **K6 — Bu koşunun güvenlik/temizlik:** gerçek credential değerlerine karşı bellekte karşılaştırma; PostgreSQL satır hash'leri, protected-file hash'leri ve Docker envanteri. Değerler yayınlanmadı.
+
+`PASS` kanıtı olan şartı; `FAIL` mevcut implementasyondaki eksiği; `NOT VERIFIED` çalıştırılmamış özel senaryoyu gösterir. K5 belgelenmiş önceki kabul kanıtıdır; mevcut koşunun bağımsız yeniden ölçümü değildir.
+
+### PROJECT_SPEC.md Module 10 eşleştirmesi — 4 Ekim 2026 güncellemesi
+
+| Şartname maddesi | Sonuç | Kanıt ve sınır |
+| --- | --- | --- |
+| Monitoring eklenmeden Docker logs/compose logs incelemesi | PASS | K5: Docker-native adımının zamanlı log kayıtları ve komut tablosu. |
+| Docker inspect/stats/compose ps incelemesi | PASS | K5 ilk adım; K3/K4 güncel güvenli inspect, altı servis ps ve stats örneği. |
+| Backend application startup logu | PASS | K3: `Application started`/dinleme kategorisi mevcut. |
+| Backend database connection status | PASS | K4: PostgreSQL unavailable/DB connection failure logları ve gerçek SQL recovery. Her başarılı bağlantı için ayrı connection logu yok. |
+| Backend Redis cache hit/miss logu | PASS | K3: gerçek hit/miss ve invalidation olayları mevcut. |
+| Backend exception logu | PASS | K4: kontrollü DB kesintisinin exception kayıtları. Ham exception/connection string yayınlanmadı. |
+| Backend request bilgisi | PASS | K7: mevcut ILogger ile method, sabit route template/unmatched, final status ve ms; gerçek CRUD/400/404/500, private canary yokluğu ve probe istisnaları. |
+| Log/metric/trace ayrımı ve rollerin öğretilmesi | PASS | Bu bölümde örneklerle açıklanır; tracing uygulanmış sayılmaz. |
+| System.Diagnostics.Metrics ve OpenTelemetry Metrics | PASS | K1: meter factory/custom counters ve `AddOpenTelemetry().WithMetrics`. |
+| ASP.NET Core request metrikleri | PASS | K3/K4: gerçek histogram count/sum/bucket, Task route/method/status serileri. |
+| Kestrel/runtime anlamlı hazır metrikler | PASS | K1/K3: Kestrel/runtime meter, CPU counter ve working-set gauge. Thread-pool tip sınırlaması açık; onlara rate yok. |
+| Uygulamaya özel cache metrikleri | PASS | K3: hit/miss/invalidation counter'ları Prometheus ve Grafana'dan gerçekten okunabildi. |
+| Internal GET /metrics | PASS | K3: 200 Prometheus text; API host binding boş. Nginx `/metrics` yalnız 200 HTML fallback. |
+| Cache hit count ölçülebilir | PASS | K1/K3: `fullstackops_cache_hits_total`, counter. |
+| Cache miss count ölçülebilir | PASS | K1/K3: `fullstackops_cache_misses_total`, counter. |
+| Cache invalidation count ölçülebilir | PASS | K1/K3: `fullstackops_cache_invalidations_total`, counter. Fiziksel silinen key sayısı değil. |
+| Metric/label adlarının README ve dashboard ile eşleşmesi | PASS | K3: canlı TYPE/route ve gerçek Grafana plugin sorguları; JSON'daki adlar doğru. |
+| Task/user/request ID, raw URL, exception message gibi sınırsız label yok | PASS | K1/K3: HTTP whitelist method/template/status; cache custom label yok; canlı forbidden-label/raw-ID kontrolü temiz. Sabit OpenAPI route template'i de oluşabilir. |
+| Resmî Prometheus image'ı ve Compose servisi | PASS | K1: `prom/prometheus:v3.13.4`; yukarıdaki resmî referans/digest kayıtları. Sürüm değişmedi. |
+| 15s scrape, gerçek service/port/path ve version-controlled config | PASS | K1/K3: `api:8080/metrics`, 15s/10s timeout, promtool SUCCESS ve target API. |
+| Prometheus Targets UI backend UP | PASS | K4: gerçek Edge'de endpoint ve UP; durdurulunca DOWN. |
+| Prometheus UI up sorgusu 1 | PASS | K4: Query table'da `up{instance="api:8080",job="fullstack-ops-api"}=1`. |
+| Request/cache metrikleri Prometheus UI'da sorgulanabilir | PASS | K3/K4: gerçek Query UI'da HTTP count ve cache hit serisi; ilk scrape beklenerek doğrulandı. |
+| Instant vector/range vector uygulaması | PASS | K3/K4: instant query ve aynı evaluation timestamp'te `[2m]` ham range vector. |
+| rate/sum/label filter ve counter/gauge farkı uygulaması | PASS | K3/K4: dashboard ve reset deneyi; working set doğrudan gauge olarak sorgulanır. |
+| Resmî Grafana image'ı ve Compose servisi | PASS | K1/K3: `grafana/grafana:13.2.3`; health ve gerçek browser. |
+| Datasource YAML provisioning | PASS | K3: tek default/read-only datasource; UID `fullstack-ops-prometheus`; manuel ekleme yok. |
+| Dashboard provider YAML provisioning | PASS | K1/K3: dosya provider'ı ve API `meta.provisioned=true`. |
+| Dashboard JSON repository'de | PASS | K3/K7: sabit UID fullstack-ops-overview; mevcut dokuz panel korunarak üç toplam paneli eklendi, gerçek tarayıcıda 12 panel. |
+| Grafana datasource URL service DNS kullanıyor | PASS | K1/K3: `http://prometheus:9090`, container localhost'u değil. |
+| Admin environment ile yönetiliyor, gerçek parola Git dışında | PASS | K1/K2/K6: service env referansları, placeholder example, ignored/untracked `.env`, değer göstermeyen tarama. |
+| Dashboard adı FullStack Ops Lab Overview | PASS | K3: API ve gerçek tarayıcıda aynı başlık. |
+| Dashboard API target up paneli | PASS | K3/K4: panel 1, scrape durumu; readiness etiketi kullanılmaz. |
+| Dashboard HTTP request/s paneli | PASS | K3: panel 2, `sum(rate(...count[2m]))`, gerçek trafik artışı. |
+| Dashboard HTTP 5xx oranı paneli | PASS | K3/K4: panel 3, yalnız 5xx; 400/404 sıfır payı, DB outage pozitif oran. |
+| Dashboard p95 paneli | PASS | K3: panel 4, histogram bucket rate ve `sum by(le)`; birim saniye. |
+| Dashboard cache hit sayısı paneli | PASS | K7: panel 10, sum(fullstackops_cache_hits_total{job="fullstack-ops-api"}); gerçek toplam 6, birim sayı. |
+| Dashboard cache miss sayısı paneli | PASS | K7: panel 11, sum(fullstackops_cache_misses_total{job="fullstack-ops-api"}); gerçek toplam 5, birim sayı. |
+| Dashboard cache hit ratio paneli | PASS | K3: panel 8, `100*H/(H+M)`; trafiksiz NaN korunuyor. |
+| Dashboard cache invalidation sayısı paneli | PASS | K7: panel 12, sum(fullstackops_cache_invalidations_total{job="fullstack-ops-api"}); gerçek toplam 6, birim sayı. |
+| Trafiksiz sonuçların açıklanması ve kontrollü trafik | PASS | K3/K4: CRUD/cache trafiği; 150s idle, rate 0, ratio/p95 NaN; sahte sıfır yok. |
+| Prometheus named volume prometheus_data | PASS | K1/K3: `/prometheus` volume inspect; 7d/256MB retention ve 512MiB/1CPU limit. |
+| Grafana datasource/dashboard dosyadan, veri grafana_data'da | PASS | K1/K3/K5: üç bind mount RW=false; data named volume; önceki restart/down-up kabulü. |
+| Makul local retention/kaynak sınırları | PASS | K1/K3: explicit sınırlar ve tek stats örneği. Retention süre/kapasite baskısı testi yapılmadı. |
+| down -v monitoring verisi kaybı uyarısı | PASS | README açıklaması mevcut; tehlikeli komut bu görevde çalıştırılmadı. |
+| API metrics internal; monitoring localhost; DB/Redis host portu yok | PASS | K3: API/PG/Redis `{}`; frontend 127.0.0.1:18081, Prometheus 9090, Grafana 3000. |
+| Prometheus /-/ready healthcheck, image içi araç | PASS | K1/K3: gerçek wget probe başarılı, container healthy; promtool çalıştı. |
+| Grafana /api/health healthcheck, image içi araç | PASS | K1/K3: gerçek wget probe, 200/database=ok, container healthy. |
+| Grafana anonymous access kapalı | PASS | K3: authenticated olmayan datasource API isteği 401. |
+| Metrics secret/kişisel veri/user-input label içermez | PASS | K1/K3/K6: whitelist/template; gerçek credential ve canary kontrolleri temiz. Bütün olası secret biçimleri garantisi değil. |
+| Güncel resmî kaynaklara dayalı yaklaşım | PASS | Önceki sürüm seçimi referansları; bu incelemede resmî Prometheus functions ve Grafana provisioning belgeleri tekrar okundu. |
+| Lab 1–7: gözlem, internal scrape, up UI, cache olayları, panel güncellemesi | PASS | K3/K4; K5 Docker-native inceleme. |
+| Lab 8–9: hedefi erişilemez yapma, DOWN/veri kesilmesi | PASS | K4: API stop/start, UI DOWN/up=0; eski counter anlık seri yok/absent. Tarihsel grafik tamamen silinmez. |
+| Lab 10: yanlış service-name/port/path ayarını düzeltme | PASS | K7: ayrı geçici Prometheus yapılandırmasında üç hata, DOWN/up=0/lastError ve her seferinde api:8080/metrics UP/up=1; API aynı container ve live200. |
+| Completion: metrics endpoint, scrape UP, monitoring readiness/health | PASS | K3/K4: gerçek 200, UP ve altı healthy servis. |
+| Completion: otomatik datasource/dashboard ve gerçek trafik | PASS | K3/K7: sabit UID, provisioning metadata, 12 panel gerçek Edge/plugin sorguları ve CRUD/cache trafiği. |
+| Completion: monitoring hata teşhis/recovery | PASS | K4/K7: bağımlılık-ready ayrımı, API DOWN/recovery ve ayrı DNS/port/path misconfiguration düzeltmeleri. |
+| Completion: README ve PromQL güncel | PASS | Bu kabul matrisi ve gerçek ölçümler; sorgular gerçek adları kullanıyor. |
+| Completion: ekran görüntüleri güncel | PASS | K7: repository images klasöründe gerçek Targets, HTTP counter sorgusu ve 12 panelli Overview PNG; aşağıda göreli bağlantılar. |
+
+Opsiyonel task create/update counter'ları zorunlu değildir; yeni metric eklenmedi. CPU/memory panelleri faydalıdır ama zorunlu cache **sayı** panellerinin yerine geçmez. 3 Ekimde rate/count farkı açık bırakılmıştı; 4 Ekimde mevcut rate panellerini değiştirmeden ayrı toplam panelleri eklendi (K7).
+
+### Gerçek komutlar ve sonuçlar
+
+```powershell
+dotnet build src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj -c Release
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.Configuration.Smoke.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.EnvPreflight.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.EnvPreflight.Smoke.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.SecretLeakage.Smoke.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.SecretLeakage.Check.ps1
+docker compose --env-file .env config -q
+docker compose --env-file .env up -d --wait --wait-timeout 240
+docker compose --env-file .env exec -T prometheus promtool check config /etc/prometheus/prometheus.yml
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module10.Metrics.Smoke.ps1 -EndpointOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module10.Prometheus.Smoke.ps1 -EndpointOnly
+python -u tests/Module10.Dashboard.Smoke.py
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module10.Grafana.Smoke.ps1
+docker compose --env-file .env ps --format '{{.Service}}|{{.State}}|{{.Health}}'
+docker compose --env-file .env down
+git diff --check
+git status --short
+```
+
+Dashboard tam koşusunda ek `--results-file` yalnız repository dışındaki geçici kanıt dosyasını seçti. Ayrı geçici reset/Prometheus UI yardımcıları, yalnız kabulün bu özel kısmını doğruladı; kalıcı test script'i veya dependency eklenmedi. Python test ortamında Playwright **1.63.0**, gerçek kurulu Edge kullanıldı. `dotnet test` çalıştırılmadı; boş test keşfi başarı kanıtı sayılmadı. Mevcut PowerShell/Python smoke sonuçları gerçek test kanıtıdır.
+
+Başlangıç Git temizdi. Engine ilk erişimde kapalıydı; `docker desktop start --detach --timeout 60` sonrası **29.6.1**, Compose **v5.3.0** erişildi. Kaynak envanteri Engine açıldıktan sonra, Compose başlamadan kaydedildi; kapalı Engine'in önceki kaynak durumunu ölçmüş sayılmıyoruz. Configuration negatif testlerinde **0xE0434352** yanında beklenen güvenli stderr mesajı ve canary/tam test connection string yokluğu da doğrulandı. Error-mode yalnız test process kapsamındadır.
+
+Altı servis **running/healthy** oldu; Prometheus config SUCCESS. Internal health/live/ready/OpenAPI/metrics **200**; Grafana health **200/database=ok**; anonymous API **401**. Datasource smoke HTTP için **7**, working set/cache counter'ları için birer gerçek series döndürdü. Prometheus Query UI'da `up=1`, HTTP count ve cache hit görünür; ilk scrape öncesi boş counter başarı diye kabul edilmedi.
+
+| Dashboard ölçümü | Kontrollü trafik | 150s trafiksiz pencere |
+| --- | ---: | ---: |
+| Scrape up | 1 | 1 |
+| Task request rate, istek/s | 0.0925144278 | 0 |
+| HTTP 5xx, % | 0 | NaN |
+| p95, saniye | 0.3458038238 | NaN |
+| Process CPU, tek çekirdek karşılığı % | 2.1643808871 | 0.4994647313 |
+| Working set, byte | 160890880 | 180244480 |
+| Cache hit/miss, olay/s | 0.052575 / 0.0278133459 | 0 / 0 |
+| Cache hit, % | 65.4269584012 | NaN |
+| Invalidation, işlem/s | 0.0260711111 | 0 |
+
+Bunlar aynı testin farklı sorgu anlarıdır, tek atomik sistem snapshot'ı değildir. DB kesinti snapshot'ında 5xx **%20.5671548356** idi. POST **201** ve doğru Location, PUT **200**, DELETE **204**, GET **200**, boş başlık **400**, bulunmayan ID **404** geçti. Tek kontrollü PostgreSQL kesintisinde doğrudan DB okuyan üç GET **500** verdi; API aynı ID'de **running/unhealthy**, live **200**, ready **503**, Prometheus **up=1** kaldı. PostgreSQL geri geldiğinde aynı API healthy ve DB GET **404** oldu.
+
+API counter reset kontrolü **14:56:42 UTC / 17:56:42 Türkiye saati**: aynı API container'ını stop/start etmek target DOWN/up=0, sonra healthy/UP yaptı. POST/400 histogram count **21 → 7** oldu. Aynı 2m evaluation penceresinde **6 ham sample**, `resets(...[2m])=1`, reset düzeltmeli olay artışı **27**; `rate()` **0.2369056122772931 istek/s**, ham sample/extrapolation hesabı **0.23690540956025546** çıktı (bağıl tolerans 1e-6). Pencere restart öncesi ve sonrası olayları kapsar; 27 yalnız restart sonrası istek sayısı değildir. Negatif basit fark yerine reset düzeltmesi doğrulandı. Rate önce tekil seriye, sonra sum'a uygulanır ([resmî rate belgesi](https://prometheus.io/docs/prometheus/latest/querying/functions/#rate)).
+
+Tarayıcıda dokuz panel ve bütün `/api/ds/query` ifadeleri trafik ve idle koşullarında geçti; beklenmeyen console/page/datasource hatası yok. Önceki testteki dar advisor preference 404 istisnası korundu. Prometheus'un polling UI'sinde `networkidle` timeout verdi; gerçek rendered target/result öğeleri beklenince UI kontrolü geçti. Yeni cache counter'ının ilk scrape öncesi yokluğu da geçici testte bekleme ile düzeltildi. Reset testi absent sample'ı ilk başta erken failure saydı; yalnız geçici yardımcı düzeltildikten sonra tam reset testi geçti. Bu başarısız araç denemeleri uygulama hatası veya başarılı test olarak sunulmadı.
+
+### Kalıcılık, güvenlik ve cleanup
+
+Önceki Prometheus tarihsel sample down/up, Grafana hesap/datasource restart/down-up ve dashboard yeniden provisioning sonuçları değerlendirildi; aynı kesinti deneyi farklı script'lerde tekrarlanmadı. `Module8.Readiness.Smoke.ps1` tam dört servis beklediğinden altı serviste körlemesine çalıştırılmadı; aynı live/ready/Docker health koşulları dashboard testiyle doğrulandı. Metrics/Prometheus tam smoke'larının ilave Redis kesintileri de gereksiz tekrar edilmedi; endpoint modları kullanıldı.
+
+Son cache UI kontrolündeki scrape zamanlamasını düzeltmek için stack kısa süre yeniden açıldı; yalnız iki salt okunur GET üretildi, scrape beklendi, UI HTTP/cache sorguları geçti, altı servis yeniden healthy görüldü. Yeni kesinti veya ikinci CRUD deneyi yapılmadı. Bu GET çifti sonrası test key'inin kalan TTL'si **60 saniye**ydi; testin oluşturduğu key açık adıyla DEL edildi, EXISTS **0** doğrulandı.
+
+İlk down öncesinde mevcut `tasks`, `lab_tasks`, `__EFMigrationsHistory` satır sayıları/içerik hash'leri başlangıçla aynıydı; yalnız test Task'ı silindi. Son kısa açılış yalnız GET kullandı. Sequence INSERT nedeniyle ilerleyebilir, reset edilmedi. `.env`/user-secrets hash'leri aynı kaldı; credential veya çözülmüş connection string terminal/dokümana yazılmadı. Mevcut servis logları, metrics ve repository dosyaları gerçek credential değerlerine karşı bellekte karşılaştırıldı; sızıntı yok. Configuration/preflight fixture'ları canary çıktısı yokluğunu doğruladı. Git geçmişi ve bütün production hata yolları taranmış değildir.
+
+Son `down` sonrası Compose container/ağı yok; **12 ilişkisiz container ID/state, 7 network ID ve 21 volume adı** başlangıçla aynı. Default bridge ID bu görevde değişmedi. External PostgreSQL, Grafana ve Prometheus volume'ları korundu; image, volume silme/prune/down -v kullanılmadı. Docker Desktop açık bırakıldı; uygulama stack'i kapalı. Geçici browser/test araçları, screenshot ve sonuç dosyaları temizlendi. Yalnız bu README ve `PROJECT_STATUS.md` değişti.
+
+### 3 Ekimde belirlenen eksikler — 4 Ekimde tamamı kapatıldı
+
+1. Şartnamenin toplam cache hit/miss/invalidation panelleri yok; mevcut rate panelleri bunların eşdeğeri değil. Counters/exporter doğru çalışıyor.
+2. Backend başarılı request method/path/status log bilgisi gözlemlenemiyor; Nginx access logu mevcut. Logging düzeyi veya middleware bu incelemede değiştirilmedi.
+3. Kalıcı, güncel Module 10 screenshot yok. Metin odaklı mevcut secret scanner binary dosyada SCAN_ERROR üretir; PNG ekleme ve uygun dar tarama kapsamı ayrı gözden geçirilmeli. Bu incelemede scanner kuralı gevşetilmedi veya görsel eklenmiş sayılmadı.
+4. Yanlış Prometheus service-name/port/path oluşturup düzeltme senaryosu **NOT VERIFIED**. API stop/start erişim kesintisi ve bağımlılık kesintisi bunun yerine yanlış configuration kanıtı olarak sunulmadı.
+
+Thread-pool runtime tip sınırlaması, health probe timeout/readiness zamanlaması ve normal log kaynaklarının sınırları önceki bölümlerde geçerlidir. Histogram yaklaşımı, 2m smoothing ve düşük örnek sayısı nedeniyle performans/kapasite garantisi yok. Load test, production hardening, alerting, tracing, merkezi log ve yedi günlük retention sınırı deneyi yapılmadı; şartname kapsamı dışındaki özellikler eklenmedi.
+
+### Kısa öğrenme değerlendirmesi
+
+| Kavram | Bu projede nasıl yorumlamalısın? |
+| --- | --- |
+| Log / metric | `[CACHE MISS]` belirli olayın kaydıdır. `rate(...misses_total[2m])` zaman penceresindeki olay/s davranışıdır. Yakın log saatleri tek isteğin servisler arası trace'ı değildir. |
+| Counter / gauge / histogram | Hit counter birikir ve restart'ta reset olur; working set gauge anlık artıp azalır; request histogram süreleri bucket/count/sum olarak toplar. Gauge'a rate uygulama. |
+| Scrape interval / rate penceresi | Prometheus 15s'de bir örnek alır; 2m rate yaklaşık sekiz aralık içerir, en az iki sample ister. Dashboard refresh15s yeni olayın hemen görünmesini garanti etmez. |
+| Request rate / 5xx / p95 | rate istek/s; 5xx oranı yalnız 500–599'un tüm Task isteklerine oranı; 400/404 dahil değil. p95 bucket'lardan yaklaşık değer, browser/Nginx uçtan uca gecikmesi değil. Trafiksiz 0/0 NaN anlamlı bir sıfır değildir. |
+| Cache hit/miss/invalidation | Cache value okunup deserialize edilirse hit; başarılı Redis read'de key yoksa miss; başarılı DB mutation sonrası remove tamamlanırsa invalidation. Hit oranı yüksek olması tek başına doğru cache/veri garantisi değildir. |
+| up / readiness | PostgreSQL kesintisinde API metrics scrape çalıştığı için up=1, DB ile iş yapamadığı için ready503 oldu. API kapatılınca up=0. Docker health kendi periyodik probe zamanını yansıtır. |
+| Label cardinality | Her yeni label kombinasyonu yeni series üretir. `/api/tasks/{id:int}` sınırlı template; gerçek Task ID/başlık/request ID eklemek sınırsız maliyet ve veri sızıntısı riski yaratır. |
+| Provisioning / kalıcılık | YAML/JSON tanımı Git'ten tekrar yüklenir; Prometheus TSDB ve Grafana çalışma verisi named volume'da kalır. Normal down volume'u bırakır, down -v monitoring verisini silebilir. Dosyadan tanım geri gelmesi eski metric geçmişinin geri gelmesi değildir. |
+
+Kendi kelimelerinle cevapla: **up=1 iken kullanıcı niçin 500 alabilir?** **Gauge'a rate uygulamak hangi yanlış yorumu doğurur?** **Cache rate paneli ile cache toplam sayısı neden farklıdır?** **Restart'tan önce ve sonra counter'ı doğrudan çıkarmak yerine rate neden kullanılır?** **Provision edilmiş dashboard ile saklanan TSDB verisi arasında ne fark var?**
+
+İki küçük öğrenme alıştırması (bu incelemede uygulanmadı): (1) Aynı hit counter için instant toplam ve 2m rate sorgularının birim/anlam farkını kâğıt üzerinde açıkla. (2) Bir DB kesintisi için live/ready/Docker health/up beklenen değerlerini yaz; hangi gözlemin hangi soruyu cevapladığını belirt.
+
+3 Ekim önerisi bu dört eksiği küçük bir adımda kapatmaktı; 4 Ekimde aşağıdaki kabul ile tamamlandı. Şartnameye göre sonraki modül **Module 11 — GitHub Actions CI**; ilk plan, backend/frontend build, image build, Compose/promtool validation içeren minimum workflow kapsamını belirlemektir. Module 11 veya yeni observability uygulaması başlatılmadı. Önerilen dokümantasyon commit mesajı: `docs(observability): record final acceptance evidence and gaps`. Commit/push yapılmadı.
+
+## Şartname farklarının kapatılması — 4 Ekim 2026
+
+**K7 / Genel sonuç: PASS; Module 10 COMPLETE.** Önceki final kabulden kalan README/PROJECT_STATUS değişiklikleri korundu. Yeni özellik veya Module 11 uygulaması yapılmadı; backend API/cache/instrumentation sözleşmesi, Compose, datasource/provider ve ana Prometheus YAML değiştirilmedi. Yalnız dört eksik ve bunların test/dokümantasyon gereksinimleri tamamlandı.
+
+### 1. Cache toplam sayı panelleri
+
+Mevcut paneller 1–9 ve dashboard ayarları önceki Git sürümüyle JSON olarak eşit; rate panelleri korunuyor. Sabit datasource UID `fullstack-ops-prometheus`, dashboard UID `fullstack-ops-overview`, 15s refresh ve read-only provisioning aynı. Eklenen paneller:
+
+| ID / panel | Gerçek PromQL | Grafana birimi | Kontrollü trafik sonucunda |
+| --- | --- | --- | ---: |
+| 10 / Cache hit toplamı | `sum(fullstackops_cache_hits_total{job="fullstack-ops-api"})` | `short`: olay sayısı | 6 |
+| 11 / Cache miss toplamı | `sum(fullstackops_cache_misses_total{job="fullstack-ops-api"})` | `short`: olay sayısı | 5 |
+| 12 / Cache invalidation toplamı | `sum(fullstackops_cache_invalidations_total{job="fullstack-ops-api"})` | `short`: tamamlanan invalidation sayısı | 6 |
+
+Bunlar **API prosesinin başlangıcından beri biriken counter toplamlarıdır**; API yeniden başlayınca reset olabilir. Invalidation silinen fiziksel key veya Task sayısı değildir. Rate panelleri `ops` (olay/s), toplam panelleri `short` (sayı) kullanır. İlk event henüz yoksa seri boş olabilir; sahte sıfır eklenmedi. Cache oranı/p95'in boş/NaN davranışı ve diğer dokuz panel değişmedi. Önceki reset/150s idle kanıtı tekrar edilmeden korundu; yeni toplam sorgularına rate uygulanmaz.
+
+`Module10.Dashboard.Smoke.py --traffic-only` gerçek CRUD/cache trafiği, yeni panellerin counter sorgularıyla eşitliği, 12 panelin Edge'de görünmesi ve tüm Grafana native plugin sorgularını doğruladı. Beklenmeyen console/page/datasource hatası yok; mevcut dar advisor-preference 404 istisnası aynı. Trafik snapshot'ında request rate **0.1417814351 istek/s**, p95 **0.1393155323 s**, cache hit oranı **%60.6967316945** idi. Farklı sorgu anlarının kısa örnekleridir; benchmark/kapasite veya gecikme garantisi değildir.
+
+### 2. Güvenli backend request logu
+
+`Microsoft.AspNetCore=Warning` filtresini genel olarak Information'a açmak Hosting request-start satırlarında raw URL/query görünmesine yol açabilir. Yerleşik [HTTP logging](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/http-logging/?view=aspnetcore-10.0) değerlendirildi; güvenli template seçimi ve mevcut dış exception handling sonrası final status gereksinimi için mevcut `ILogger` altyapısında tek küçük middleware tercih edildi. Yeni paket veya ikinci log pipeline yok.
+
+`UseRouting` sonrasında endpoint'in sabit template'i alınır; eşleşmeyen yol `unmatched`, standart olmayan method `OTHER` olur. `FullStackOpsLab.Api.Requests` Information kategorisi şu alanları yazdırır:
+
+```text
+HTTP <method> <route-template-or-unmatched> -> <final-status> in <duration> ms
+```
+
+Süre Stopwatch ile middleware girişinden response completion'a kadar ölçülür; network roundtrip veya histogram p95 ile aynı ölçüm değildir. [OnCompleted](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.httpresponse.oncompleted?view=aspnetcore-10.0) response tamamlandıktan sonra final status'u gözler; dışarıda ele alınan exception'ın 500 sonucu yanlış 200 diye yazılmaz. Kesilmiş/hiç tamamlanmayan request için log garantisi verilmez.
+
+| Gerçek request senaryosu | HTTP sonucu / güvenli template | Sonuç |
+| --- | --- | --- |
+| Liste/tek kayıt GET | 200; `/api/tasks/`, `/api/tasks/{id:int}` | PASS |
+| POST | 201; `/api/tasks/`; Location ve altı JSON alanı korundu | PASS |
+| PUT / DELETE | 200 / 204; `/api/tasks/{id:int}` | PASS |
+| Boş başlık / olmayan ID | 400 / 404; aynı sabit template'ler | PASS |
+| Bilinmeyen private yol / standart dışı method | `unmatched` / `OTHER`; 404 | PASS |
+| PostgreSQL geçici kapalıyken gerçek ID GET | 500; `/api/tasks/{id:int}`; final status logu | PASS |
+| PostgreSQL geri geldikten sonra readiness | 200, aynı API container'ı healthy | PASS |
+
+`Module10.RequestLogs.Smoke.py` her beklenen method/template/status logunu, negatif olmayan ms değerini ve private canary yokluğunu kontrol etti. Body, query, Authorization/Cookie ve raw private path içeren sahte istekler API'ye internal yoldan gönderildi; bu değerler backend loglarında yok. Bu deney Nginx'in mevcut access loguna private query göndermedi; Nginx formatı değiştirilmedi. Gerçek connection string'in loglarda bulunmadığı değer göstermeden kontrol edildi.
+
+`/health`, `/health/live`, `/health/ready`, `/metrics` normal request özetlerinden hariçtir; dört probe HTTP200 ile ayrıca doğrulandı. Mevcut health/DB/exception hata logları filtrelenmez. Bu endpoint'lerin HTTP **metrikleri** de zaten `DisableHttpMetrics` ile hariçti; instrumentation değişmedi.
+
+### 3. Yanlış service-name / port / path deneyleri
+
+`Module10.ScrapeTargets.Smoke.py` mevcut internal ağ ve mevcut Prometheus image ID'siyle **ayrı, geçici** bir Prometheus çalıştırır. Host portu, named volume veya custom network oluşturmaz. Ana config/kalıcı TSDB değiştirilmez; geçici YAML read-only bağlanır. Her değişimde promtool kontrolü ve yalnız bu geçici instance'a HUP reload kullanılır; scrape 15s, timeout10s, bekleme en fazla75s.
+
+| Hata | Gerçek hedef | Target / up | Last scrape error özeti | Düzeltilen hedef ve toparlanma |
+| --- | --- | --- | --- | --- |
+| Service-name | `module10-api-missing-f503ba95:8080/metrics` | DOWN / 0 | `lookup ... on 127.0.0.11:53: no such host` | `api:8080/metrics`, UP / 1 |
+| Port | `api:18080/metrics` | DOWN / 0 | `connect: connection refused` | `api:8080/metrics`, UP / 1 |
+| Metrics path | `api:8080/module10-metrics-missing` | DOWN / 0 | `server returned HTTP status 404 Not Found` | `api:8080/metrics`, UP / 1 |
+
+Başarısız scrape UTC zamanları sırasıyla **09:40:11**, **09:40:31**, **09:40:44**; ilk doğru toparlanma scrape'ları **09:40:20**, **09:40:35**, **09:40:50**. Her hata sırasında aynı API container'ı **running**, liveness **200** idi. Böylece `up=0` API prosesinin mutlaka durduğu anlamına gelmez; hedef konfigürasyonu da yanlış olabilir. Ana Prometheus target'ı doğru kaldı ve endpoint kabulü PASS verdi.
+
+İlk yardımcı denemeleri başarı sayılmadı: diagnostic container'ın DNS label'ı 63 karakteri aştığı için kısa benzersiz ad kullanıldı. Reload sonrası eski/yeni target serileri kısa süre birlikte bulunabildiğinden `up` doğrulaması yalnız job yerine ilgili `instance` etiketiyle yapılır. Böylece başka hedefin eski başarılı sample'ı yanlış sonuca yol açmaz. Düzeltilen test üç ayrı DOWN/recovery için exit0 verdi.
+
+### 4. Güncel gerçek tarayıcı görüntüleri
+
+4 Ekimde gerçek Edge/Playwright üzerinden alındı; manuel import yok. Login formu, profil/credential, Task başlığı veya kişisel veri gösterilmez. Prometheus sorgusu aşağıdaki gerçek histogram count serilerini gösterir; 200/201/204/400/404/500 ayrımı ve sınırlı template label'ları görünür.
+
+```promql
+http_server_request_duration_seconds_count{job="fullstack-ops-api",http_route=~"/api/tasks.*"}
+```
+
+- [Prometheus Targets — doğru hedef UP](images/prometheus-targets.png)
+- [Prometheus Query — gerçek HTTP counter sonuçları](images/prometheus-query.png)
+- [Grafana Overview — 12 provision edilmiş panel](images/grafana-overview.png)
+
+Görsellerin içeriği görsel olarak kontrol edildi. Secret scanner yalnız bu **üç açık PNG yolu** için imza/chunk sınırı/IEND kontrolüyle dar dokümantasyon istisnası kullanır; metin/EXIF/unknown metadata chunk ve trailing payload kabul edilmez. Diğer binary dosyalar hâlâ SCAN_ERROR'dır. PNG pikselleri OCR/secret taramasından geçirilmez; CRC veya kapsamlı PNG doğrulaması iddia edilmez. Görsel kontrol şarttır; bu bütün secret biçimlerini yakalayan bir garanti değildir. Scanner fixture'ları approved PNG, farklı konumdaki PNG, PNG kılığında credential metni ve sonuna credential eklenmiş PNG'yi ayrıca sınar.
+
+### Çalıştırılan kontroller ve cleanup
+
+Komutlar repository kökünde çalıştırıldı. Playwright yalnız repository dışındaki geçici Python dizininde kullanıldı; dependency/lock değişmedi.
+
+| Komut / kontrol | Gerçek sonuç |
+| --- | --- |
+| `dotnet build src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj -c Release` | PASS; 0 warning, 0 error |
+| `docker compose --env-file .env build api` ve `up -d` | Güncel backend image; altı servis running/healthy |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.EnvPreflight.ps1` | PASS; `.env` ignored/untracked; external PG volume mevcut |
+| `docker compose --env-file .env config -q` | PASS; çözümlenmiş değerler yazdırılmadı |
+| `docker compose --env-file .env exec -T prometheus promtool check config /etc/prometheus/prometheus.yml` | SUCCESS; nihai `api:8080/metrics` config aynı |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.Configuration.Smoke.ps1` | 20/20 PASS; negatif exit yanında güvenli stderr ve canary/connection-string yokluğu |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.EnvPreflight.Smoke.ps1` | 19/19 PASS; gerçek env değiştirilmedi |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.SecretLeakage.Smoke.ps1` | 19/19 PASS; dört yeni dar PNG fixture'ı dahil, canary çıktıya sızmadı |
+| `python tests/Module10.RequestLogs.Smoke.py` | CRUD/six-field/null/Location, 400/404/500 ve safe logging PASS |
+| `python tests/Module10.Dashboard.Smoke.py --traffic-only --screenshots-directory labs/10-prometheus-grafana/images` | 12 panel, gerçek counter eşitliği, plugin/browser/trafik PASS |
+| `python tests/Module10.ScrapeTargets.Smoke.py` | Üç ayrı hatalı hedef ve üç doğru hedef recovery PASS |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module10.Metrics.Smoke.ps1 -EndpointOnly` | Internal `/metrics` HTTP200, histogram/secret kontrolü PASS |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module10.Prometheus.Smoke.ps1 -EndpointOnly` | Doğru target endpoint PASS |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module10.Grafana.Smoke.ps1 -EndpointOnly` | Grafana service/health PASS |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.SecretLeakage.Check.ps1` | Repository text taraması PASS; üç görsel ayrıca kontrol edildi |
+| `git diff`, `git diff --check`, `git status --short` | Kapsam incelemesi ve diff check PASS; stage/commit/push yok |
+| `docker compose --env-file .env down` | Yalnız görevde başlatılan stack kapatıldı; volume'lar silinmedi |
+
+İlk eksik log/panel/PNG testi beklenen başarısızlığı gösterdi, değişiklikten sonra geçti. Prometheus UI helper'ının ilk metin locator'ı timeout verdi; API/rendered DOM doğrulamasıyla düzeltilip görüntüler başarıyla alındı. Python envanter yardımcısı Windows snapshot encoding'ini okuyamadı; başlangıç/bitiş aynı PowerShell JSON okuyucusuyla karşılaştırılıp PASS doğrulandı. Bunlar başarılı runtime sonucu gibi raporlanmadı veya Docker ayarı değiştirilerek örtülmedi.
+
+Yalnız kendi Task kayıtları temizlendi; başlangıç/bitiş `tasks`, Module 3B `lab_tasks`, `__EFMigrationsHistory` satır sayısı/içerik hash'leri aynı. Test cache key'i EXISTS0; `.env` ve user-secrets hash'leri aynı. Gerçek credential/tam connection string repository text, tüm servis logları ve metrics içinde bulunmadı (karşılaştırma yalnız bellekte, değer göstermeden). Geçici Python araçları/YAML/sonuçlar temizlendi. Başlangıçtaki **12 ilişkisiz container ID/state, 7 network ID, 21 volume adı** aynen korundu; default bridge ID değişmedi. PostgreSQL/Grafana/Prometheus named volume'ları bırakıldı; stack kapalı, prune/volume silme/down-v yok.
+
+Önceki geçerli counter-reset, trafiksiz NaN, Docker unhealthy/readiness ayrımı ve restart/down-up kalıcılık kanıtları yeniden tüm script'lerde tekrarlanmadı. Bu koşuda request logunun 500 doğruluğu için tek PostgreSQL kesintisi yapıldı ve geri getirildi. Thread-pool runtime sınırlaması, küçük örneklem, histogram yaklaşımı, production hardening ve secret scanner sınırlamaları aynı; benchmark, load test, alerting/tracing/merkezi log eklenmedi.
+
+**Öğrenme:** toplam sayı proses ömründeki counter değeridir; rate resetleri dikkate alan olay/s hızıdır. Güvenli request template'i gerçek kullanıcı yolu/query'sinden farklıdır. Response completion final500'ü doğru kaydetmeyi sağlar. Prometheus `up` yalnız scrape başarısını söyler; yanlış DNS/port/path API çalışırken de up0 üretebilir. Provisioning tanımı yeniden yükler, volume geçmiş veriyi korur; bunlar farklı sorumluluklardır.
+
+Şartnameye göre sonraki modül **Module 11 — GitHub Actions CI**. Yalnız öneri: açık talep üzerine mevcut build/smoke/config doğrulamalarını kapsayacak minimum CI planını hazırlamak. Bu görev Module 11'e geçmedi. Önerilen commit mesajı: `fix(observability): close Module 10 acceptance gaps`; commit/push yapılmadı.

@@ -167,4 +167,25 @@ Test-Case 'invalid UTF-8 read failure' {
 } 2
 
 Test-Case 'invalid repository' { param($repo) } 2
+
+$pngPath = 'labs/10-prometheus-grafana/images/prometheus-targets.png'
+$pngBytes = [Convert]::FromBase64String('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jT1kAAAAASUVORK5CYII=')
+Test-Case 'approved documentation PNG' {
+    param($repo)
+    Write-Fixture $repo $pngPath ''
+    [IO.File]::WriteAllBytes((Join-Path $repo $pngPath), $pngBytes)
+} 0
+Test-Case 'PNG outside exact documentation paths' {
+    param($repo)
+    [IO.File]::WriteAllBytes((Join-Path $repo 'unexpected.png'), $pngBytes)
+} 2
+Test-Case 'text credential disguised as approved PNG' {
+    param($repo)
+    Write-Fixture $repo $pngPath ("TOKEN=$canary")
+} 2
+Test-Case 'approved PNG with trailing credential' {
+    param($repo)
+    Write-Fixture $repo $pngPath ''
+    [IO.File]::WriteAllBytes((Join-Path $repo $pngPath), ($pngBytes + $utf8.GetBytes("TOKEN=$canary")))
+} 2
 Write-Output "Module 9 secret leakage smoke passed: $passed cases"

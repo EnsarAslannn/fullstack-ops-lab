@@ -54,6 +54,40 @@ function Add-Finding([string]$Path, [int]$Line, [string]$Rule) {
     $script:findings.Add(('{0}:{1}:{2}' -f $Path, $Line, $Rule))
 }
 
+# Only these visually reviewed screenshots are outside the TEXT scan. No folder-wide skip.
+$documentationPngs = @(
+    'labs/10-prometheus-grafana/images/prometheus-targets.png',
+    'labs/10-prometheus-grafana/images/prometheus-query.png',
+    'labs/10-prometheus-grafana/images/grafana-overview.png'
+)
+function Assert-DocumentationPng([byte[]]$Bytes) {
+    $signature = [byte[]]@(137, 80, 78, 71, 13, 10, 26, 10)
+    if ($Bytes.Length -lt 33) { throw 'Invalid documentation image' }
+    for ($i = 0; $i -lt 8; $i++) {
+        if ($Bytes[$i] -ne $signature[$i]) { throw 'Invalid documentation image' }
+    }
+    $offset = 8
+    $hasData = $false
+    while ($offset + 12 -le $Bytes.Length) {
+        $length = [uint64]$Bytes[$offset] * 16777216 + [uint64]$Bytes[$offset + 1] * 65536 +
+            [uint64]$Bytes[$offset + 2] * 256 + [uint64]$Bytes[$offset + 3]
+        $kind = [Text.Encoding]::ASCII.GetString($Bytes, $offset + 4, 4)
+        $end = $offset + 12 + $length
+        # Text/comment/EXIF and unknown chunks are rejected, not silently excluded.
+        if ($end -gt $Bytes.Length -or $kind -notin @('IHDR','IDAT','IEND','PLTE','tRNS','sRGB','gAMA','cHRM','pHYs')) {
+            throw 'Invalid or metadata-bearing documentation image'
+        }
+        if ($offset -eq 8 -and ($kind -ne 'IHDR' -or $length -ne 13)) { throw 'Invalid image header' }
+        if ($kind -eq 'IDAT') { $hasData = $true }
+        if ($kind -eq 'IEND') {
+            if ($length -ne 0 -or $end -ne $Bytes.Length -or -not $hasData) { throw 'Invalid image ending' }
+            return
+        }
+        $offset = [int]$end
+    }
+    throw 'Incomplete documentation image'
+}
+
 try {
     $root = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/')
     if (-not [System.IO.Directory]::Exists($root)) { throw 'Repository missing' }
@@ -82,6 +116,10 @@ try {
             throw 'Symbolic link is outside the text scanner scope'
         }
         $bytes = [System.IO.File]::ReadAllBytes($fullPath)
+        if ($relative.Replace('\', '/') -cin $documentationPngs) {
+            Assert-DocumentationPng $bytes
+            continue # Pixels require visual review; this is not OCR or comprehensive secret detection.
+        }
         if ([Array]::IndexOf($bytes, [byte]0) -ge 0) { throw 'Binary file is outside the text scanner scope' }
         $content = $utf8.GetString($bytes).TrimStart([char]0xFEFF)
         $lines = $content -split "`r`n|`n|`r"

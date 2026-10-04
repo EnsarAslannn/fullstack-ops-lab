@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 10 — Docker-native inspection, backend metrics, Prometheus, Grafana datasource and Overview dashboard completed; module final acceptance not started
+Module 10 — Completed; final acceptance specification gaps closed and verified
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 10 — Observability: Logs, Prometheus & Grafana
 
 ## Current Step
 
-Overview dashboard provider YAML and dashboard JSON acceptance completed
+Final acceptance and learning review completed; all Module 10 specification criteria verified
 
 ## Completed
 
@@ -211,10 +211,30 @@ Overview dashboard provider YAML and dashboard JSON acceptance completed
 
 - Module 10 dashboard test Tasks/cache cleaned; original Task/lab/migration rows, .env/user-secrets hashes, 12 unrelated containers, seven network IDs and 21 existing volumes preserved; stack returned to its initially stopped state, no pruning or volume deletion
 
+- Module 10 final review: Release build 0 warnings/errors, configuration 20/20, env preflight 19/19, secret fixtures 15/15, silent Compose config and promtool passed; six-service health, internal metrics, real Edge dashboard/plugin queries and controlled CRUD/cache traffic verified
+
+- Final review PostgreSQL outage: three HTTP 500s, live 200, ready 503, API running/unhealthy and Prometheus up=1; same API recovered. Idle rates were zero while ratios/p95 remained NaN; observed HTTP counter reset 21 to 7 with resets=1 and rate matched raw-sample reset correction
+
+- The 3 October final review identified four gaps; the 4 October acceptance below closed them without changing API/cache/metrics contracts or moving to Module 11
+
+- Module 10 cumulative hit/miss/invalidation count panels added without changing the original nine panels; actual counters 6/5/6 and all twelve Grafana browser/plugin queries passed
+
+- Safe request summaries use the existing ILogger pipeline: standard method, route template/unmatched, final status and duration; real CRUD, 400/404/500, private canary absence and probe exclusions verified
+
+- Separate temporary Prometheus tests verified wrong service-name, port and metrics path DOWN/up=0 while the same API stayed running/live200; each correct api:8080/metrics target recovered UP/up=1
+
+- Three visually reviewed real browser PNGs retained as Module 10 documentation evidence; exact-path PNG safety checks and four fixtures added without weakening credential rules
+
+- Gap closure Release build 0 warnings/errors, configuration 20/20, preflight 19/19, secret fixtures 19/19, normal preflight/config/promtool/internal metrics and six-service health passed
+
+- Test Task/cache and temporary resources cleaned; original Task/lab/migration rows and .env/user-secrets hashes preserved; initially absent stack removed, all original 12 unrelated container states, 7 network IDs and 21 volume names unchanged
+
+- Module 10 completed; known runtime/short-sample/secret-scanner limitations documented, no Module 11 implementation started
+
 ## Next Goal
 
-On explicit request: Module 10 final acceptance and learning review of existing logs, metrics, Prometheus scraping, datasource/dashboard provisioning and recovery. No new implementation planned in this step; Module 10 remains in progress.
+On explicit request: plan the smallest Module 11 — GitHub Actions CI step using existing backend/frontend build, smoke and configuration checks. Current phase remains Module 10; no CI workflow or Module 11 implementation started.
 
 ## Blockers
 
-None
+None for Module 10 acceptance. Known runtime, short-window and secret-scanner limitations remain documented; they are not hidden production guarantees.

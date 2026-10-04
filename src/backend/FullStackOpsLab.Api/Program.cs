@@ -8,6 +8,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using OpenTelemetry.Metrics;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +35,35 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(apiConf
 builder.Services.AddStackExchangeRedisCache(options => options.Configuration = apiConfiguration.RedisConnectionString);
 
 var app = builder.Build();
+
+// Hosting request-start logs include raw URLs. Record only safe route metadata instead.
+var requestLogger = app.Services.GetRequiredService<ILoggerFactory>()
+    .CreateLogger("FullStackOpsLab.Api.Requests");
+app.UseRouting();
+app.Use((HttpContext context, RequestDelegate next) =>
+{
+    var route = (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? "unmatched";
+    if (route is "/health" or "/health/live" or "/health/ready" or "/metrics")
+    {
+        return next(context);
+    }
+
+    var method = context.Request.Method switch
+    {
+        "GET" or "POST" or "PUT" or "DELETE" or "PATCH" or "HEAD" or "OPTIONS" or "TRACE" or "CONNECT"
+            => context.Request.Method,
+        _ => "OTHER"
+    };
+    var started = Stopwatch.GetTimestamp();
+    // OnCompleted observes the final status, including errors handled outside this middleware.
+    context.Response.OnCompleted(() =>
+    {
+        requestLogger.LogInformation("HTTP {Method} {Route} -> {StatusCode} in {ElapsedMilliseconds:F3} ms",
+            method, route, context.Response.StatusCode, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+        return Task.CompletedTask;
+    });
+    return next(context);
+});
 
 if (app.Environment.IsDevelopment())
 {

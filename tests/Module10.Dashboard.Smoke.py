@@ -79,10 +79,10 @@ def run(options):
     dashboard = response["dashboard"]
     panels = {panel["id"]: panel for panel in dashboard["panels"]}
     check(dashboard["title"] == TITLE and response["meta"]["provisioned"], "Dashboard provisioning contract failed")
-    check(len(panels) == 9 and dashboard["refresh"] == "15s", "Expected nine panels and scrape-aware refresh")
+    check(len(panels) == 12 and dashboard["refresh"] == "15s", "Expected rates plus three cumulative cache count panels")
     check(all(target["datasource"]["uid"] == DS_UID for panel in panels.values()
               for target in panel["targets"]), "Panel datasource binding failed")
-    print("PASS: automatic Overview dashboard, fixed UID, nine panels, datasource binding")
+    print("PASS: automatic Overview dashboard, fixed UID, twelve panels, datasource binding")
     if options.provisioning_only:
         return
 
@@ -105,7 +105,7 @@ def run(options):
         rendered_panels = graf("/api/dashboards/uid/" + UID)["dashboard"]["panels"]
         with sync_playwright() as playwright:
             browser_instance = playwright.chromium.launch(channel="msedge", headless=True)
-            context = browser_instance.new_context()
+            context = browser_instance.new_context(viewport={"width": 1800, "height": 2100})
             page = context.new_page()
             errors, bad_responses, consoles = [], [], []
             page.on("pageerror", lambda error: errors.append(str(error)))
@@ -148,7 +148,17 @@ def run(options):
                           "/user-storage/advisor-redirect-notice:" in url) for kind, text, url in consoles),
                       "Unexpected browser console error")
                 check(all(admin_credential not in text for _, text, _ in consoles), "Credential in browser console")
-                print("PASS: real Edge login, all nine rendered panels and all Grafana plugin queries")
+                if options.screenshots_directory and require_traffic:
+                    # Capture only the main content; no login form, profile menu or account sidebar.
+                    content = page.locator("main").first
+                    check(user not in content.inner_text() and admin_credential not in content.inner_text(),
+                          "Account information in screenshot area (values withheld)")
+                    folder = Path(options.screenshots_directory).resolve()
+                    expected = Path(__file__).resolve().parents[1] / "labs/10-prometheus-grafana/images"
+                    check(folder == expected, "Screenshot directory must be the documentation image directory")
+                    folder.mkdir(parents=True, exist_ok=True)
+                    content.screenshot(path=str(folder / "grafana-overview.png"))
+                print("PASS: real Edge login, all twelve rendered panels and all Grafana plugin queries")
             finally:
                 context.close()
                 browser_instance.close()
@@ -188,13 +198,25 @@ def run(options):
         created_id = None
         check(request(frontend, "/api/tasks", "POST", {"title": " "})[0] == 400, "Validation changed")
         check(request(frontend, "/api/tasks/2147483647")[0] == 404, "Missing-ID contract changed")
-        wait_for(lambda: all(positive(panel_id) for panel_id in (2, 4, 5, 6, 7, 8, 9)),
+        wait_for(lambda: all(positive(panel_id) for panel_id in (2, 4, 5, 6, 7, 8, 9, 10, 11, 12)),
                  "Traffic did not reach dashboard query results")
+        for panel_id, metric in ((10, "fullstackops_cache_hits_total"),
+                                 (11, "fullstackops_cache_misses_total"),
+                                 (12, "fullstackops_cache_invalidations_total")):
+            check(panel_values(panel_id) == query('sum(' + metric + '{job="fullstack-ops-api"})'),
+                  "Cumulative cache panel differs from real counter")
+            check(panels[panel_id]["fieldConfig"]["defaults"]["unit"] == "short",
+                  "Cumulative counts must use a unit distinct from events/second")
         check(panel_values(1) == [1.0], "API scrape is not UP")
         check(panel_values(3) == [0.0], "400/404 should not count as 5xx")
         results["traffic"] = {str(panel_id): panel_values(panel_id) for panel_id in panels}
         print("PASS: CRUD/400/404, request/p95/CPU/memory/cache rates positive, 5xx=0")
         browser(require_traffic=True)
+        if options.traffic_only:
+            check(json.loads(request(frontend, "/api/tasks")[1]) == original_tasks, "Existing Task records changed")
+            if options.results_file:
+                Path(options.results_file).write_text(json.dumps(results, indent=2, allow_nan=False), encoding="utf-8")
+            return
 
         docker(*COMPOSE, "stop", "postgres")
         postgres_stopped = True
@@ -233,6 +255,8 @@ def run(options):
             check(not values or all(not math.isfinite(value) for value in values),
                   "Idle ratio/p95 must remain missing/NaN rather than false zero")
         check(panel_values(2) == [0.0], "Idle request rate must be zero; probes must be excluded")
+        check(all(positive(panel_id) for panel_id in (10, 11, 12)),
+              "Cumulative cache counts must remain visible without traffic")
         results["idle"] = {str(panel_id): [value if math.isfinite(value) else None
                                            for value in panel_values(panel_id)] for panel_id in panels}
         print("PASS: idle request rate=0; 5xx/p95/cache ratio empty or NaN; no fake zero")
@@ -259,6 +283,8 @@ if __name__ == "__main__":
     parser.add_argument("--provisioning-only", action="store_true")
     parser.add_argument("--browser-only", action="store_true")
     parser.add_argument("--results-file")
+    parser.add_argument("--traffic-only", action="store_true", help="Validate changed panels without repeating unchanged outage/idle scenarios")
+    parser.add_argument("--screenshots-directory", help="Capture a credential-free main-content screenshot during successful traffic")
     try:
         run(parser.parse_args())
     except AssertionError as error:
