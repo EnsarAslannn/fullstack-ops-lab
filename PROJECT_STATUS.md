@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 10 — Completed; final acceptance specification gaps closed and verified
+Module 10 — Completed; Module 11 CI implementation plan prepared, implementation not started
 
 ## Current Phase
 
-Module 10 — Observability: Logs, Prometheus & Grafana
+Module 11 — GitHub Actions CI
 
 ## Current Step
 
-Final acceptance and learning review completed; all Module 10 specification criteria verified
+Implementation planning completed; no workflow created or executed
 
 ## Completed
 
@@ -231,10 +231,12 @@ Final acceptance and learning review completed; all Module 10 specification crit
 
 - Module 10 completed; known runtime/short-sample/secret-scanner limitations documented, no Module 11 implementation started
 
+- Module 11 planning completed: specification minimum mapped to Linux backend/frontend/Docker/config checks and Windows configuration/secret fixture checks; test portability, isolated future Compose smoke prerequisites, permissions, tools and cache decisions documented. No CI workflow created or executed; Module 11 implementation and hosted-runner acceptance not started
+
 ## Next Goal
 
-On explicit request: plan the smallest Module 11 — GitHub Actions CI step using existing backend/frontend build, smoke and configuration checks. Current phase remains Module 10; no CI workflow or Module 11 implementation started.
+On explicit request: implement Module 11A baseline CI in .github/workflows/ci.yml with Linux build/Docker/Compose/promtool checks and Windows configuration/secret smoke checks, then verify the first actual GitHub-hosted run. Isolated Compose runtime smoke is a subsequent step; no development secrets or existing volume are CI prerequisites.
 
 ## Blockers
 
-None for Module 10 acceptance. Known runtime, short-window and secret-scanner limitations remain documented; they are not hidden production guarantees.
+None for the Module 11 planning step. Hosted-runner execution, selected action release SHAs and repository Actions policies are not yet verified. Existing Windows-specific tests and the four-service Module 8 expectation require explicit handling before Linux Compose runtime CI; no CI success or unit-test coverage is claimed.
