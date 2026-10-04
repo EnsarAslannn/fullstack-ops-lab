@@ -1,7 +1,9 @@
 param(
     [string]$BaseUrl = 'http://127.0.0.1:15162',
     [string]$RedisContainer = 'fullstack-ops-redis-lab',
-    [string]$PostgresContainer = 'fullstack-ops-postgres-cache-lab'
+    [string]$PostgresContainer = 'fullstack-ops-postgres-cache-lab',
+    [string]$PostgresUser = 'fullstackops',
+    [string]$PostgresDatabase = 'fullstackops'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,6 +15,7 @@ function Send-TaskRequest {
     param([string]$Method, [string]$Path, [object]$RequestBody)
 
     $options = @{ Uri = "$BaseUrl$Path"; Method = $Method; UseBasicParsing = $true; TimeoutSec = 10 }
+    if ($PSVersionTable.PSVersion.Major -ge 7) { $options.SkipHttpErrorCheck = $true }
     if ($PSBoundParameters.ContainsKey('RequestBody')) {
         $options.Body = $RequestBody | ConvertTo-Json -Compress
         $options.ContentType = 'application/json'
@@ -71,7 +74,7 @@ try {
     $postgresStopped = $false
     $ready = $false
     for ($attempt = 0; $attempt -lt 30; $attempt++) {
-        docker exec $PostgresContainer pg_isready -U fullstackops -d fullstackops | Out-Null
+        docker exec $PostgresContainer pg_isready -U $PostgresUser -d $PostgresDatabase | Out-Null
         if ($LASTEXITCODE -eq 0) { $ready = $true; break }
         Start-Sleep -Milliseconds 500
     }

@@ -159,3 +159,51 @@ jobs:
         run: |
           & powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.Configuration.Smoke.ps1 -Configuration Release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  compose-runtime:
+    name: Linux isolated Compose runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET 10 for migration preparation
+        id: dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify runtime acceptance tools
+        env:
+          SDK_VERSION: ${{ steps.dotnet.outputs.dotnet-version }}
+        run: |
+          [[ "$SDK_VERSION" =~ ^10\.0\.[0-9]+$ ]]
+          printf '{"sdk":{"version":"%s","rollForward":"disable"}}\n' "$SDK_VERSION" > global.json
+          [[ "$(dotnet --version)" == "$SDK_VERSION" ]]
+          dotnet --version
+          python3 --version
+          pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+          docker version
+          docker compose version
+
+      - name: Prepare isolated volume and migration then build healthy stack
+        run: python3 tests/Module11.Compose.Smoke.py prepare --state "$RUNNER_TEMP/fullstackops-ci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+      - name: CRUD cache readiness and API restart persistence acceptance
+        run: python3 tests/Module11.Compose.Smoke.py test --state "$RUNNER_TEMP/fullstackops-ci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+      - name: Safe failure diagnostics
+        if: failure()
+        run: python3 tests/Module11.Compose.Smoke.py diagnostics --state "$RUNNER_TEMP/fullstackops-ci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+      - name: Remove only this run's resources and temporary files
+        if: always()
+        run: python3 tests/Module11.Compose.Smoke.py cleanup --state "$RUNNER_TEMP/fullstackops-ci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"

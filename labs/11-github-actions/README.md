@@ -139,9 +139,9 @@ Npm cache, `setup-node` üzerinden `cache: npm`, `cache-dependency-path: src/fro
 - `continue-on-error` ile build/test/config başarısızlığı gizlenmez. PowerShell native komutlarından sonra `$LASTEXITCODE` açıkça kontrol edilir. Beklenen negatif fixture'ı script doğrular; dışarıdan bütün nonzero sonuçlar başarılı sayılmaz.
 - 19 secret fixture ve 20 configuration senaryosunun gerçekten çalıştığı logdan kontrol edilir; `-Scenario` ile yanlışlıkla boş kapsam seçilmez. Repo scanner exit 1 bulgu, exit 2 tarama hatasıdır; ikisi de CI'ı durdurur. Scanner Git geçmişini taramaz ve tüm secret türleri için garanti vermez.
 
-## 11B — Sonraki izole Compose smoke hazırlığı
+## 11B — İzole Compose smoke planı
 
-Bu bölüm ideal pipeline için planlanan **ayrı adım**; ilk workflow'un geçmiş olduğuna veya bu adımın uygulandığına dair iddia değildir.
+Bu bölüm 11A sırasında hazırlanan plandır. 11B uygulaması ve gerçek kabul sonuçları aşağıdaki ayrı bölümde kaydedilir.
 
 1. Linux job'a ait benzersiz Compose project adı, geçici ignored `.env.ci` ve yalnız sahte process credential'ları kullan. Test adları parametreli hale getirilmeden sabit `fullstack-ops-lab-…` container bekleyen scriptleri çağırma. Servis DNS adları `api/postgres/redis/prometheus/grafana` ve mevcut internal portlar değişmez.
 2. CI-only override ile external PostgreSQL volume adını **job'a ait benzersiz** adla değiştir; yalnız bu boş volume'u oluştur. Development `fullstack-ops-postgres-data`, önceden migration uygulanmış database veya user-secrets'e dayanma. Preflight env dosyasının checkout içinde olması ve CI volume adına parametre verilmesi gerekir; mevcut Windows child-shell kullanımına gerekli küçük Linux uyarlaması ayrı doğrulanır.
@@ -238,3 +238,74 @@ Yerelde fixture/lint geçici dosyaları ve promtool container'ı temizlendi. Ba�
 Fork PR run'ı ve uzun Compose CRUD/cache/migration/browser/kesinti kabulü **NOT VERIFIED**; bu görevde çalıştırılmadı. Branch protection ve GHCR publishing eklenmedi. İlk başarılı run kaydı bu dokümantasyon commit'inde sabit tutulur; dokümantasyon push'u aynı workflow'u tekrar tetikler ve sonucu görev raporunda verilir. Her yeni run kimliği için tekrar dokümantasyon commit'i oluşturulmaz.
 
 **Sonraki küçük adım yalnız öneridir:** CI'a ait izole database/volume ve mevcut migration hazırlığıyla uygun Compose runtime smoke'u eklemek. Bu adım veya Module 8 uyarlaması uygulanmadı.
+
+
+## 11B runtime entegrasyonu — uygulama ve kabul
+
+**Yerel kabul PASS; GitHub-hosted kabul bekleniyor.** Module 11 final kabulü yapılmadı.
+
+### Workflow ve izolasyon
+
+Mevcut iki baseline job değiştirilmedi. Üçüncü `compose-runtime` job Ubuntu 24.04 üzerinde 25 dakika timeout ile çalışır; aynı tam checkout/setup-dotnet SHA'ları, `contents: read` ve secret istemeyen push/pull_request yaklaşımı korunur. Yeni action veya registry login yoktur. [Ubuntu runner araç listesi](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md) Python ve PowerShell Core içerir; Windows'a bağımlı testler Windows job'da kalır.
+
+[Module11.Compose.Smoke.py](../../tests/Module11.Compose.Smoke.py) her çalışmaya UUID içeren ayrı Compose project adı, yeni PostgreSQL volume'u ve `fullstackops.ci.owner` etiketi verir. State/fixture/override/SQL repository dışında, system/runner temp altında ayrılmış dizindedir. Credential'lar çalışma anında üretilir, GitHub `add-mask` ile maskelenir; Linux dosya izinleri 0600/dizin 0700 olur. Gerçek `.env`/user-secrets okunmaz; inherited Compose/connection/credential anahtarları child environment'tan çıkarılır.
+
+Geçici override yalnız CI volume adını ve host portlarını değiştirir. Nginx localhost'ta Docker'ın seçtiği geçici portu yayınlar; diğer beş servisin host portu yoktur. [Compose merge belgesindeki](https://docs.docker.com/reference/compose-file/merge/) `!override` (Compose 2.24.4+) eski frontend mapping'ini değiştirir; `!reset []` monitoring portlarını kaldırır. Ana Compose, servis DNS adları ve internal portlar korunur.
+
+Altı servis seçildi: frontend, api, postgres, redis, prometheus, grafana. Bu mevcut Module 10 topolojisini ve 11B planını korur; yeni observability özelliği eklemez. Monitoring kabulü internal metrics, bounded Prometheus target UP ve Grafana datasource/dashboard provisioning API kontrolüdür. Browser, tüm panel sorguları ve uzun Module 10 kesinti deneyleri burada tekrarlanmaz.
+
+### Hazırlık ve kabul sırası
+
+1. Compose `config -q`; mevcut olmayan benzersiz volume oluşturma. Yalnız PostgreSQL'i `up -d --wait --wait-timeout 120 postgres` ile başlatma.
+2. Host .NET 10 ile `dotnet tool restore`, solution restore ve Release build. Runtime API image'ına SDK/EF CLI eklenmez.
+3. Mevcut migration için `dotnet ef migrations script 0 InitialCreate --idempotent --project src/backend/FullStackOpsLab.Api --startup-project src/backend/FullStackOpsLab.Api --configuration Release --no-build --output <temporary-SQL>`. Yalnız komut process'inde Production ve credentialsız/erişilemeyen preview configuration; user-secrets değişmez.
+4. SQL'de tasks/history/`20260928113912_InitialCreate` incelemesi; UTF-8 byte stdin ile `psql -X -w -v ON_ERROR_STOP=1 -At -f /dev/stdin` uygulaması. Parola container environment'tan alınır, host argümanına yazılmaz. İdempotent SQL ikinci kez uygulanır: history sayısı 1, Task sayısı 0 olmalıdır. API startup otomatik migration yapmaz.
+5. Altı servisi `up -d --build --wait --wait-timeout 180` ile başlatma; tam servis kümesi ve running/healthy durumlarını ayrıca doğrulama.
+6. Mevcut CRUD/cache/readiness testleri; altı JSON alanı/nullable sözleşme ve API container restart sonrası PostgreSQL kalıcılığı.
+7. Task sayısı 0/history1; yalnız liste cache key'i temizliği, internal metrics/Prometheus/Grafana API kontrolleri.
+8. `always()` cleanup: project container/network, açık adla project-labelled Grafana/Prometheus volume'ları ve owner etiketi doğrulanmış CI PostgreSQL volume'u kaldırılır. Geçici state/env/SQL dizini silinir. `down -v`, prune ve development volume silme yoktur. CI image/cache'i disposable runner yaşam döngüsüne bırakılır; local build image'ları kalabilir.
+
+### Yeniden kullanılan testler ve taşınabilirlik
+
+| Test | CI kullanım / değişiklik |
+| --- | --- |
+| Phase0B.Tasks.Smoke.ps1 | Nginx URL parametresi; PS7 `SkipHttpErrorCheck` ile beklenen 400/404 yanıtları incelenir, PS5.1 WebException yolu korunur. Hatalarda response body yazdırılmaz; HTTP timeout 20s. |
+| Module5.Cache.Smoke.ps1 | Container ID ve PostgreSQL user/database parametreleri; eski lab default'ları korunur. PS7 negatif HTTP yanıtları uyarlanır. Empty miss/key/TTL, PostgreSQL kısa süre kapalıyken cache hit, mutation invalidation, 400/404 key korunması ve TTL expiration. CI TTL 10s yalnız fixture ayarıdır; uygulama default'u 60s kalır. |
+| Module8.Readiness.Smoke.ps1 | Project/base/override parametreli; expected service adları `config --services` ile alınır. Eski dört servisli lab sabit altı sayısına dönüştürülmez. Default iki dependency deneyi korunur; CI Redis outage seçer. Cache testindeki kısa PostgreSQL durdurması ayrı cache-hit kanıtıdır. |
+| Module11.Compose.Smoke.py | Hazırlık/cleanup ve eksik Compose-specific nullable/persistence/monitoring kabulünü bağlar; child nonzero veya timeout job'ı başarısız yapar. |
+
+Windows kernel32/process yönetimine bağlı Module9.Configuration.Smoke.ps1 Ubuntu'ya taşınmadı; 20 senaryo mevcut Windows job'da çalışır. Host API process/user-secrets bekleyen Module3E.Persistence.Smoke.ps1 doğrudan çağrılmaz; kabul kriterleri gerçek container restart ile doğrulanır. `dotnet test`/unit-test coverage iddiası yoktur.
+
+### Güvenli hata ve temizlik
+
+Native stdout/stderr bellekte yakalanır ve üretilen credential'lar için kontrol edilir. Nonzero veya timeout kabulü durdurur. Raw exception, resolved config, full inspect, HTTP error body ve raw log artifact'i paylaşılmaz. `failure()` tanısı yalnız state/health/exit/restart alanlarını ve allowlist ile cache/request olaylarını gösterir. `always()` cleanup başarı/başarısızlıkta çalışır, sahiplik/isim kontrolünden geçmeyen volume'u silmez. Runner'ın zorla kaybı/job hard timeout halinde step çalışması garanti edilemez; explicit cleanup sonucu ayrıca kabul kanıtıdır.
+
+Yerel çalıştırma (repo kökü; .NET 10, Docker/Compose, Python ve PowerShell 7):
+
+```powershell
+$ciState = Join-Path ([IO.Path]::GetTempPath()) ('fullstackops-ci-' + [guid]::NewGuid().ToString('N'))
+try {
+    python tests/Module11.Compose.Smoke.py prepare --state $ciState
+    if ($LASTEXITCODE -ne 0) { throw 'CI preparation failed' }
+    python tests/Module11.Compose.Smoke.py test --state $ciState
+    if ($LASTEXITCODE -ne 0) { throw 'CI runtime acceptance failed' }
+} finally {
+    python tests/Module11.Compose.Smoke.py cleanup --state $ciState
+    if ($LASTEXITCODE -ne 0) { throw 'CI cleanup failed' }
+}
+```
+
+### Yerel gerçek sonuçlar — 4 Ekim 2026
+
+- Git başlangıçta temiz. Docker 29.6.1, Compose v5.3.0, SDK 10.0.401, Python 3.14.7. Resmî PowerShell 7.6.6 portable ZIP checksum ile doğrulanıp yalnız geçici dizinde kullanıldı.
+- Önce eski testler: CRUD PS7'de beklenen HTTP404'ü unhandled hata olarak verdi; Module 8 altı sağlıklı servisi dört servis varsayımıyla reddetti. İkisi exit1; PASS sayılmadı. Minimal uyarlamalar sonrası aşağıdaki regresyon geçti.
+- InitialCreate SQL application/reapply ve empty DB PASS; Release build 0 warning/0 error.
+- Nginx GET200, POST201+Location, PUT200, DELETE204; empty/whitespace400 ve missing404 PASS. Altı alan, nullable description/non-null timestamps ve restart sonrası birebir JSON korunması PASS.
+- Cache miss/key, TTL **10s**, PostgreSQL kapalıyken cached GET200, sonraki hit, POST/PUT/DELETE invalidation, 400/404 key korunması ve TTL expiration PASS.
+- Redis kapalı: aynı API running, health/live200, ready503, Docker unhealthy, tasks500. Redis geri gelince aynı API ready200/healthy/tasks200 ve altı servis healthy. PASS.
+- Internal metrics, Prometheus target UP ve Grafana provisioned datasource/Overview API kontrolü PASS. Task0/history1/cache temizliği PASS.
+- Safe diagnostics ve cleanup PASS: yalnız altı test container'ı/network/üç volume ve geçici dosyalar silindi. Başlangıçtaki 12 unrelated container ID/state ve 21 volume adı korundu. Altı diğer network ID'si aynı; varsayılan bridge `a8ca947b4254` → `32d288b04c50` değişti. Nedeni doğrulanmadı; Docker configuration değiştirilmedi.
+- Scanner PASS; fixture kaynak yazımındaki iki false-positive, scanner gevşetilmeden tuple key/value biçimiyle giderildi. Secret fixture **19/19 PASS**, canary output check; diff check PASS.
+- Resmî checksum kontrollü actionlint 1.7.12: ilk indirmede yanlış `.tar.gz` uzantısı başarısızdı, doğru Windows `.zip` kullanıldı. Lint job-level `runner` context hatasını yakaladı; state yolu Bash runner env değişkenleriyle düzeltildi. Son lint PASS; shellcheck/pyflakes ayrı çalıştırılmadı.
+
+Hosted sonuç gerçek çalışmadan sonra eklenecek. Local PS7 başarısı Ubuntu kabulü yerine sayılmaz. Fork PR execution, temiz bilgisayarda developer onboarding, browser/load/production deploy ve Module 11 final kabulü bu adımda doğrulanmaz.

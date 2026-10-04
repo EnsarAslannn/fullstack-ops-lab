@@ -10,7 +10,7 @@ Module 11 — GitHub Actions CI
 
 ## Current Step
 
-Baseline CI completed: Linux build/config and Windows configuration/secret jobs passed on GitHub-hosted runners
+Module 11B isolated Compose runtime CI implemented; local acceptance passed, hosted acceptance pending
 
 ## Completed
 
@@ -237,8 +237,8 @@ Baseline CI completed: Linux build/config and Windows configuration/secret jobs 
 
 ## Next Goal
 
-On explicit request: add isolated Compose runtime CI, starting with CI-owned database/volume and existing migration preparation plus portable smoke selection. Do not use development secrets/data or blindly run the four-service Module 8 script.
+Verify the new isolated Compose runtime job on GitHub-hosted Ubuntu alongside the unchanged baseline jobs. Do not start Module 11 final acceptance or optional publishing.
 
 ## Blockers
 
-None for Module 11A baseline acceptance: both real hosted jobs passed and evidence is linked in the Module 11 README. Fork PR execution, branch protection and Compose runtime acceptance remain unverified/outside this step. Future runtime CI requires isolated services/migration and portability work; no unit-test coverage is claimed.
+Module 11B hosted acceptance pending. Local six-service runtime/migration/CRUD/cache/readiness/API restart/provisioning and owned-resource cleanup passed. Development env/user-secrets/external volume unchanged; no unit-test coverage is claimed. Fork PR execution and Module 11 final acceptance are not yet verified.

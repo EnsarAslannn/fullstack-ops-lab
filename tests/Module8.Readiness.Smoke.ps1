@@ -1,9 +1,20 @@
-param([string]$EnvFile = '.env')
+param(
+    [string]$EnvFile = '.env',
+    [string]$ProjectName = '',
+    [string]$ComposeFile = 'compose.yaml',
+    [string]$OverrideFile = '',
+    [ValidateSet('redis', 'postgres')][string[]]$Dependencies = @('redis', 'postgres')
+)
 
 $ErrorActionPreference = 'Stop'
+$composeArguments = @('compose', '--env-file', $EnvFile, '-f', $ComposeFile)
+if ($ProjectName) { $composeArguments += @('--project-name', $ProjectName) }
+if ($OverrideFile) { $composeArguments += @('-f', $OverrideFile) }
+$expectedServices = @(& docker @composeArguments config --services | Sort-Object)
+if ($LASTEXITCODE -ne 0 -or $expectedServices.Count -eq 0) { throw 'Could not resolve expected Compose service names' }
 
 function Get-ApiStatus([string]$Path) {
-    $status = docker compose --env-file $EnvFile exec -T frontend curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 12 "http://api:8080$Path"
+    $status = & docker @composeArguments exec -T frontend curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 12 "http://api:8080$Path"
     if ($LASTEXITCODE -ne 0) { throw "GET $Path failed before receiving an HTTP response" }
     return $status.Trim()
 }
@@ -14,7 +25,7 @@ function Assert-ApiStatus([string]$Path, [string]$Expected) {
 }
 
 function Wait-ForApiHealth([string]$Expected) {
-    $apiId = docker compose --env-file $EnvFile ps -q api
+    $apiId = & docker @composeArguments ps -q api
     if ($LASTEXITCODE -ne 0 -or -not $apiId) { throw 'API container is missing' }
     $deadline = (Get-Date).AddSeconds(50)
     do {
@@ -27,7 +38,7 @@ function Wait-ForApiHealth([string]$Expected) {
 }
 
 function Assert-ApiRunning {
-    $apiId = docker compose --env-file $EnvFile ps -q api
+    $apiId = & docker @composeArguments ps -q api
     if ($LASTEXITCODE -ne 0 -or $apiId -ne $script:OriginalApiId) {
         throw 'API container was replaced during the outage'
     }
@@ -38,7 +49,7 @@ function Assert-ApiRunning {
 }
 
 function Clear-TaskCache {
-    docker compose --env-file $EnvFile exec -T redis redis-cli DEL fullstack-ops:tasks:all:v1 | Out-Null
+    & docker @composeArguments exec -T redis redis-cli DEL fullstack-ops:tasks:all:v1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Could not clear the Task list cache key' }
 }
 
@@ -61,18 +72,20 @@ function Check-Ready {
 function Wait-ForAllServicesHealthy {
     $deadline = (Get-Date).AddSeconds(50)
     do {
-        $states = @(docker compose --env-file $EnvFile ps --format '{{.Service}}|{{.State}}|{{.Health}}')
+        $states = @(& docker @composeArguments ps --format '{{.Service}}|{{.State}}|{{.Health}}')
         if ($LASTEXITCODE -ne 0) { throw 'Could not inspect Compose services' }
-        $notHealthy = @($states | Where-Object { $_ -notmatch '^(api|frontend|postgres|redis)\|running\|healthy$' })
-        if ($states.Count -eq 4 -and $notHealthy.Count -eq 0) { return }
+        $notHealthy = @($states | Where-Object { $_ -notmatch '^[a-zA-Z0-9_-]+\|running\|healthy$' })
+        $actualServices = @($states | ForEach-Object { ($_ -split '\|')[0] } | Sort-Object)
+        $difference = @(Compare-Object $expectedServices $actualServices)
+        if ($difference.Count -eq 0 -and $notHealthy.Count -eq 0) { return }
         Start-Sleep -Seconds 2
     } while ((Get-Date) -lt $deadline)
-    throw "Four Compose services did not become healthy (last: $($states -join ', '))"
+    throw "Expected $($expectedServices.Count) Compose services did not become healthy (last: $($states -join ', '))"
 }
 
 function Check-Outage([string]$Service) {
     try {
-        docker compose --env-file $EnvFile stop $Service | Out-Null
+        & docker @composeArguments stop $Service | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "Could not stop $Service" }
         Assert-ApiRunning
         Assert-ApiStatus '/health' '200'
@@ -82,7 +95,7 @@ function Check-Outage([string]$Service) {
         Assert-ApiStatus '/api/tasks' '500'
         Write-Output "$Service stopped: API running, live=200, ready=503, Docker health=unhealthy, tasks=500"
     } finally {
-        docker compose --env-file $EnvFile start $Service | Out-Null
+        & docker @composeArguments start $Service | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "Could not restore $Service" }
         Wait-ForReady
         Wait-ForApiHealth 'healthy'
@@ -92,14 +105,15 @@ function Check-Outage([string]$Service) {
     Write-Output "$Service restored: same API container, ready=200, Docker health=healthy, tasks=200"
 }
 
-$script:OriginalApiId = docker compose --env-file $EnvFile ps -q api
+$script:OriginalApiId = & docker @composeArguments ps -q api
 if ($LASTEXITCODE -ne 0 -or -not $script:OriginalApiId) { throw 'API container is missing' }
 Check-Ready
 Wait-ForAllServicesHealthy
 Write-Output 'Both dependencies available: live=200, ready=200, API Docker health=healthy'
-Check-Outage 'redis'
-Clear-TaskCache
-Check-Outage 'postgres'
+foreach ($dependency in $Dependencies) {
+    if ($dependency -eq 'postgres') { Clear-TaskCache }
+    Check-Outage $dependency
+}
 Clear-TaskCache
 Wait-ForAllServicesHealthy
 Write-Output 'Module 8 readiness smoke test passed'

@@ -15,7 +15,10 @@ function Send-TaskRequest {
         Uri = "$BaseUrl$Path"
         Method = $Method
         UseBasicParsing = $true
+        TimeoutSec = 20
     }
+    # PowerShell 7 uses HttpResponseException; retain the Windows 5.1 path below.
+    if ($PSVersionTable.PSVersion.Major -ge 7) { $options.SkipHttpErrorCheck = $true }
 
     if ($PSBoundParameters.ContainsKey('RequestBody')) {
         $options.Body = $RequestBody | ConvertTo-Json -Compress
@@ -45,7 +48,7 @@ function Send-TaskRequest {
 function Assert-Status {
     param([object]$Response, [int]$Expected, [string]$Scenario)
     if ($Response.Status -ne $Expected) {
-        throw "$Scenario expected HTTP $Expected; got $($Response.Status): $($Response.Body)"
+        throw "$Scenario expected HTTP $Expected; got $($Response.Status)"
     }
 }
 
