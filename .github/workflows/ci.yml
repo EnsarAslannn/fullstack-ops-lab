@@ -1,0 +1,161 @@
+name: Baseline CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: 'true'
+
+jobs:
+  build-and-config:
+    name: Linux build and configuration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET 10
+        id: dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Select and verify SDK
+        env:
+          SDK_VERSION: ${{ steps.dotnet.outputs.dotnet-version }}
+        run: |
+          [[ "$SDK_VERSION" =~ ^10\.0\.[0-9]+$ ]]
+          printf '{"sdk":{"version":"%s","rollForward":"disable"}}\n' "$SDK_VERSION" > global.json
+          [[ "$(dotnet --version)" == "$SDK_VERSION" ]]
+          dotnet --version
+
+      - name: Setup Node 24 and npm cache
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.x'
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Verify Node and npm
+        run: |
+          node -e 'if (process.versions.node.split(".")[0] !== "24") process.exit(1)'
+          node --version
+          npm --version
+
+      - name: Backend restore
+        run: dotnet restore FullStackOpsLab.slnx
+
+      - name: Backend Release build
+        run: dotnet build FullStackOpsLab.slnx --configuration Release --no-restore
+
+      - name: Frontend locked install
+        working-directory: src/frontend
+        run: npm ci
+
+      - name: Frontend TypeScript and Vite build
+        working-directory: src/frontend
+        run: npm run build
+
+      - name: Verify Docker and Compose
+        run: |
+          docker version
+          docker compose version
+
+      - name: Build backend image
+        run: docker build --tag fullstack-ops-api:ci src/backend/FullStackOpsLab.Api
+
+      - name: Build frontend image
+        run: docker build --tag fullstack-ops-frontend:ci src/frontend
+
+      - name: Validate Compose with isolated fake settings
+        run: |
+          fixture=$(mktemp "$RUNNER_TEMP/fullstackops-ci-env.XXXXXX")
+          trap 'rm -f "$fixture"' EXIT
+          placeholder=$(node -e 'process.stdout.write("fixture-" + require("node:crypto").randomUUID())')
+          cat > "$fixture" <<EOF
+          POSTGRES_USER=ci_user
+          POSTGRES_DB=ci_db
+          POSTGRES_PASSWORD=$placeholder
+          ASPNETCORE_ENVIRONMENT=Production
+          Cache__TasksTtlSeconds=60
+          GF_SECURITY_ADMIN_USER=ci_admin
+          GF_SECURITY_ADMIN_PASSWORD=$placeholder
+          EOF
+          docker compose --env-file "$fixture" config -q
+
+      - name: Validate Prometheus configuration
+        run: |
+          docker run --rm --entrypoint /bin/promtool \
+            --mount "type=bind,source=$PWD/monitoring/prometheus/prometheus.yml,target=/etc/prometheus/prometheus.yml,readonly" \
+            prom/prometheus:v3.13.4 check config /etc/prometheus/prometheus.yml
+
+  configuration-and-secrets:
+    name: Windows configuration and secrets
+    runs-on: windows-2025
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Repository secret leakage check
+        run: |
+          & powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.SecretLeakage.Check.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Secret leakage fixtures
+        run: |
+          & powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.SecretLeakage.Smoke.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Setup .NET 10
+        id: dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Select and verify SDK
+        env:
+          SDK_VERSION: ${{ steps.dotnet.outputs.dotnet-version }}
+        run: |
+          if ($env:SDK_VERSION -notmatch '^10\.0\.[0-9]+$') { throw 'Expected a stable .NET 10 SDK' }
+          $selection = @{ sdk = @{ version = $env:SDK_VERSION; rollForward = 'disable' } } | ConvertTo-Json
+          [IO.File]::WriteAllText((Join-Path $PWD 'global.json'), $selection, [Text.UTF8Encoding]::new($false))
+          $actual = & dotnet --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($actual.Trim() -ne $env:SDK_VERSION) { throw 'Unexpected selected SDK' }
+          Write-Output $actual
+
+      - name: Backend restore
+        run: |
+          & dotnet restore FullStackOpsLab.slnx
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Backend Release build
+        run: |
+          & dotnet build FullStackOpsLab.slnx --configuration Release --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Isolated configuration startup smoke
+        run: |
+          & powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.Configuration.Smoke.ps1 -Configuration Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

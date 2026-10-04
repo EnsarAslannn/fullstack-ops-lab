@@ -1,10 +1,10 @@
-# Module 11 — GitHub Actions CI: uygulama planı
+# Module 11 — GitHub Actions CI: plan ve baseline workflow
 
 ## Durum ve amaç
 
-4 Ekim 2026: **plan hazır; workflow implementasyonu ve GitHub-hosted runner kabulü başlamadı.** Başlangıç çalışma alanı temizdi (`main`, `origin/main` ile aynı). Module 10'un yerel kabul kanıtları mevcut; bunlar CI üzerinde çalıştırılmış testler değildir.
+4 Ekim 2026: ilk plan dokümante edildi ve commit edildi. Aşağıdaki planlama bölümleri ilk kararları korur; güncel implementasyon ve kabul sonuçları sondaki **11A baseline kabulü** bölümündedir. Module 10'un yerel kabul kanıtları CI üzerinde çalıştırılmış testler değildir.
 
-Amaç her push ve pull request için kodun derlenebilirliğini, image üretimini, yapılandırmayı ve seçilmiş smoke kontrollerini otomatik doğrulamak. Bu adım yalnız bu README ve `PROJECT_STATUS.md` dosyasını değiştirir. Uygulama, Compose, secret kaynakları ve test scriptleri korunur.
+Amaç her push ve pull request için kodun derlenebilirliğini, image üretimini, yapılandırmayı ve seçilmiş smoke kontrollerini otomatik doğrulamak. Planlama adımı yalnız bu README ve `PROJECT_STATUS.md` dosyasını değiştirdi; 11A implementasyonu `.github/workflows/ci.yml` ekler. Uygulama, Compose, secret kaynakları ve test scriptleri korunur.
 
 ## Şartname ile eşleştirme
 
@@ -66,7 +66,7 @@ Configuration smoke'taki başarılı configuration senaryolarının readiness 50
 
 ## 11A — En küçük yeterli workflow
 
-Önerilen gelecek dosya: `.github/workflows/ci.yml`. Bu plan adımında dosya oluşturulmadı.
+Planlanan dosya: `.github/workflows/ci.yml`. Planlama evresinde oluşturulmadı; sonraki 11A implementasyonunda eklendi.
 
 | Job | Runner / shell | Sıra ve sorumluluk |
 | --- | --- | --- |
@@ -163,10 +163,52 @@ Database initialization ile credential eşleşmesi yeni boş CI volume'unda yön
 
 ## Bu plan adımının doğrulanması ve ilk uygulama
 
-Kaynak dosyaları/komut yolları incelendi, mevcut testlerin platform ve veri ihtiyaçları karşılaştırıldı. Son kontroller: repository secret leakage check, `git diff --check`, status/diff kapsam incelemesi. Bu görev build, container, migration veya workflow çalıştırmaz; local `.env`/user-secrets değerleri okunmaz ya da değiştirilmez.
+Planlama evresinde kaynak dosyaları/komut yolları incelendi, mevcut testlerin platform ve veri ihtiyaçları karşılaştırıldı. Son kontroller repository secret leakage check, `git diff --check`, status/diff kapsam incelemesiydi. Planlama evresinde build/container/migration/workflow çalıştırılmadı; local `.env`/user-secrets değerleri okunmadı ya da değiştirilmedi.
 
 **İlk küçük uygulama:** 11A'daki iki job'ı `.github/workflows/ci.yml` olarak eklemek ve ilk gerçek push/PR run'ında beş minimum kapı, 19 secret fixture ve 20 configuration smoke sonucunu doğrulamak. CI green olmadan testler çalışmış sayılmaz. Bunun ardından ayrı talep ile 11B izole Compose smoke hazırlığı yapılır; GHCR yayınlama temel CI kabulünden sonra opsiyoneldir.
 
 **Öğrenme:** runner temiz ve geçici bir makinedir; local bilgisayarındaki hazır volume/secret otomatik taşınmaz. Job'lar kendi process ve kaynaklarına sahiptir. Cache indirmeyi hızlandırır, testin yerini tutmaz. Build kodun derlenmesini, smoke belirli davranışları, config validation yapılandırmanın okunmasını doğrular; bunları aynı kapsam gibi raporlamamalıyız.
 
 Önerilen dokümantasyon commit mesajı: `docs(ci): plan GitHub Actions build and smoke checks`. Bu görevde commit/push yok.
+
+## 11A baseline kabulü
+
+**İlk implementasyon durumu: yerel kontroller PASS; gerçek hosted run henüz bekleniyor.** Bu bölüm gerçek GitHub sonucu alındıktan sonra güncellenecek. Module 11 bütünü tamamlanmış değildir.
+
+### Gerçek workflow kapsamı
+
+[Baseline CI](../../.github/workflows/ci.yml) iki bağımsız job içerir. Ubuntu 24.04 backend/frontend build, iki Linux Docker image build, sahte değerlerle sessiz Compose model kontrolü ve promtool çalıştırır. Windows 2025 repository scanner, 19 secret fixture, Release build ve 20 izole configuration senaryosunu çalıştırır. Her native PowerShell komutunun exit code'u açıkça kontrol edilir; Bash step'leri GitHub'ın `bash --noprofile --norc -e -o pipefail` davranışıyla hata verir. `dotnet test` yoktur; unit-test coverage iddiası yoktur.
+
+`push` ve `pull_request` branch/path filtresi olmadan tanımlıdır. İzin yalnız `contents: read`, checkout `persist-credentials: false`; secret input, registry login/push veya `pull_request_target` kullanılmaz. Fork PR kontrolleri gerçek development secret'ı istemez; GitHub'ın fork run approval politikası ayrıca uygulanabilir. İki job'da setup-dotnet çıktısının tam SDK sürümü geçici `global.json` ile seçilir, gerçekten aynı 10.0 SDK kullanıldığı doğrulanır.
+
+Compose için sahte credential çalışma anında üretilir; fixture `RUNNER_TEMP` altında tutulur ve EXIT trap ile silinir. Bu statik kontrol normal env preflight değildir, bu nedenle preflight'in checkout içi fixture gereksinimi burada uygulanmaz. Gerçek `.env` kullanılmaz, çözümlenmiş config yazdırılmaz, external volume hazırlanmaz ve Compose stack başlatılmaz. Tek kullanımlık promtool container'ı `--rm` ile kalkar. Npm download cache yalnız hızlandırır; cache hit olsa da `npm ci` ve tüm build/config/smoke step'leri çalışır. NuGet/Docker için job'lar arası cache eklenmedi.
+
+### Doğrulanmış araç ve action seçimleri
+
+| Action | Resmî release | Tag'den doğrulanan tam commit SHA |
+| --- | --- | --- |
+| checkout | [v7.0.1](https://github.com/actions/checkout/releases/tag/v7.0.1) | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
+| setup-dotnet | [v6.0.0](https://github.com/actions/setup-dotnet/releases/tag/v6.0.0) | `a98b56852c35b8e3190ac28c8c2271da59106c68` |
+| setup-node | [v7.0.0](https://github.com/actions/setup-node/releases/tag/v7.0.0) | `820762786026740c76f36085b0efc47a31fe5020` |
+
+Resmî release sayfaları ve `git ls-remote` ile doğrulandı; workflow bu SHA'ları kullanır. [Hosted runner listesi](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) Ubuntu 24.04/Windows 2025 etiketlerini, [Microsoft download sayfası](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) .NET 10 SDK ailesini ve [Node release tablosu](https://nodejs.org/en/about/previous-releases) Node 24 LTS ailesini doğrular. Job'lar kararlı `10.0.x` / `24.x` seçer; çözümlenen patch sürümleri gerçek run kanıtında ayrıca kaydedilecek. SHA pinning SDK/image tag'lerini immutable yapmaz.
+
+### Yerel kontroller — 4 Ekim 2026
+
+| Kontrol | Gerçek sonuç |
+| --- | --- |
+| `dotnet restore FullStackOpsLab.slnx` ve Release `--no-restore` build | PASS; SDK 10.0.401, 0 uyarı / 0 hata |
+| `npm ci`, `npm run build` | PASS; Node 24.16.0, npm 11.13.0; TypeScript ve Vite 8.3.1 build |
+| Repository secret scanner | PASS, exit 0; gerçek ignored `.env` tarama dışında |
+| Secret fixture smoke | 19/19 PASS; canary stdout/stderr kontrolü |
+| Configuration smoke | 20/20 PASS; 16 negatif senaryoda güvenli stderr ve canary yokluğu, 4 geçerli senaryoda live200/health200/invalid-task400/ready503 |
+| İki `docker build ...:ci` | PASS; mevcut local layer cache kullanıldı; temiz hosted build kanıtı değildir |
+| Sahte geçici env ile Compose `config -q` | PASS; gerçek env yüklenmedi, fixture temizlendi |
+| Mevcut Prometheus image'ından `promtool check config` | SUCCESS; geçici validation container kaldırıldı |
+| Geçici actionlint 1.7.12 | PASS; resmî release checksum'u doğrulandı, araç geçici dizini kaldırıldı; shellcheck/pyflakes çalıştırılmadı |
+
+İlk yerel Vite denemesi sandbox child-process EPERM nedeniyle başarısızdı; aynı build normal yetkide geçti. İlk Docker build context metadata dosyası başka process tarafından kilitli olduğu için başarısızdı; aynı komutun tekrarı geçti, Docker ayarı değiştirilmedi. PowerShell 5.1 boş JSON key içeren npm lock dosyasını okuyamadı; salt okunur lock incelemesi Node ile yapıldı. Bu başarısız denemeler PASS olarak sayılmadı. GitHub CLI keyring erişimi sandbox dışında doğrulandı; repository Actions etkin ve erişilebilir.
+
+### Açık kalan kabul
+
+İlk gerçek push run'ının URL/commit/job/step sonuçları bekleniyor. Fork PR run'ı, cache-hit hosted run ve sonraki izole Compose CRUD/cache/migration/browser/kesinti kabulü bu yerel sonuçlarla doğrulanmış sayılmaz. Development volume, `.env`, user-secrets ve uygulama davranışı korunur.

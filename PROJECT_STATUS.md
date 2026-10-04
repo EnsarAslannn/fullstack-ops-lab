@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 10 — Completed; Module 11 CI implementation plan prepared, implementation not started
+Module 10 — Completed; Module 11A baseline CI implemented, hosted acceptance pending
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 11 — GitHub Actions CI
 
 ## Current Step
 
-Implementation planning completed; no workflow created or executed
+Baseline CI local validation passed; first real GitHub Actions run pending
 
 ## Completed
 
@@ -235,8 +235,8 @@ Implementation planning completed; no workflow created or executed
 
 ## Next Goal
 
-On explicit request: implement Module 11A baseline CI in .github/workflows/ci.yml with Linux build/Docker/Compose/promtool checks and Windows configuration/secret smoke checks, then verify the first actual GitHub-hosted run. Isolated Compose runtime smoke is a subsequent step; no development secrets or existing volume are CI prerequisites.
+Verify both jobs of the first real Module 11A GitHub Actions push run, record the run evidence, then verify the documentation push run. Do not start isolated Compose runtime CI yet.
 
 ## Blockers
 
-None for the Module 11 planning step. Hosted-runner execution, selected action release SHAs and repository Actions policies are not yet verified. Existing Windows-specific tests and the four-service Module 8 expectation require explicit handling before Linux Compose runtime CI; no CI success or unit-test coverage is claimed.
+Hosted baseline execution is pending; no CI success is claimed yet. Local Release/frontend/Docker builds, 20 configuration cases, 19 secret fixtures, fake-env Compose config, promtool and actionlint passed. Actions enabled and official action release SHAs verified. Future runtime CI still requires isolated services/migration and portability work; no unit-test coverage is claimed.
