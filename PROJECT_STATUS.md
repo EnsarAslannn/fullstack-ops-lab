@@ -2,7 +2,7 @@
 
 ## Status
 
-Module 10 — Completed; Module 11A baseline CI completed and verified; Module 11 in progress
+Module 10 — Completed; Module 11A baseline and 11B isolated Compose runtime CI completed and verified; Module 11 in progress
 
 ## Current Phase
 
@@ -10,7 +10,7 @@ Module 11 — GitHub Actions CI
 
 ## Current Step
 
-Module 11B isolated Compose runtime CI implemented; local acceptance passed, hosted acceptance pending
+Module 11B isolated Compose runtime CI completed and verified on GitHub-hosted Ubuntu; Module 11 final acceptance not started
 
 ## Completed
 
@@ -235,10 +235,12 @@ Module 11B isolated Compose runtime CI implemented; local acceptance passed, hos
 
 - Module 11A baseline workflow added with push/pull_request, contents:read and full official action SHAs. Run 37196281851 on commit 4b81604db117fd7adf80c637126e79f0ea475655 succeeded: Linux backend/frontend/Docker/config/promtool and Windows repository secret check, 19 secret fixtures and 20 configuration cases; both Release builds 0 warnings/errors. Module 11 overall remains in progress; no Compose runtime integration started
 
+- Module 11B isolated Compose runtime CI completed: run 37198834372 passed unchanged Linux/Windows baseline jobs plus Ubuntu six-service runtime. InitialCreate application/idempotent reapply, Nginx CRUD/Location/six-field nullable contract/400/404, Redis miss/hit/TTL10/invalidation, Redis outage same-container readiness recovery, API restart persistence and monitoring provisioning passed. Owned container/network/three volume/temp cleanup passed; real development config/data preserved. Module 11 final acceptance not started
+
 ## Next Goal
 
-Verify the new isolated Compose runtime job on GitHub-hosted Ubuntu alongside the unchanged baseline jobs. Do not start Module 11 final acceptance or optional publishing.
+On explicit request: Module 11 final acceptance and learning review against PROJECT_SPEC.md. Do not start optional GHCR publishing automatically.
 
 ## Blockers
 
-Module 11B hosted acceptance pending. Local six-service runtime/migration/CRUD/cache/readiness/API restart/provisioning and owned-resource cleanup passed. Development env/user-secrets/external volume unchanged; no unit-test coverage is claimed. Fork PR execution and Module 11 final acceptance are not yet verified.
+None for Module 11B acceptance: run 37198834372 on commit 1e70be45b7842f29aa47f0e9514eb6250fb171ab passed all three jobs, including real isolated runtime and cleanup. Development env/user-secrets/external volume unchanged; no unit-test coverage is claimed. Fork PR execution, forced cancellation cleanup and Module 11 final acceptance are not yet verified.

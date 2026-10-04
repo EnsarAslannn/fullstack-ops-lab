@@ -237,18 +237,20 @@ Yerelde fixture/lint geçici dosyaları ve promtool container'ı temizlendi. Ba�
 
 Fork PR run'ı ve uzun Compose CRUD/cache/migration/browser/kesinti kabulü **NOT VERIFIED**; bu görevde çalıştırılmadı. Branch protection ve GHCR publishing eklenmedi. İlk başarılı run kaydı bu dokümantasyon commit'inde sabit tutulur; dokümantasyon push'u aynı workflow'u tekrar tetikler ve sonucu görev raporunda verilir. Her yeni run kimliği için tekrar dokümantasyon commit'i oluşturulmaz.
 
-**Sonraki küçük adım yalnız öneridir:** CI'a ait izole database/volume ve mevcut migration hazırlığıyla uygun Compose runtime smoke'u eklemek. Bu adım veya Module 8 uyarlaması uygulanmadı.
+**11A sırasında önerilen sonraki küçük adım:** CI'a ait izole database/volume ve mevcut migration hazırlığıyla uygun Compose runtime smoke'u eklemek. 11A'da uygulanmadı; aşağıdaki 11B bölümünde tamamlandı.
 
 
 ## 11B runtime entegrasyonu — uygulama ve kabul
 
-**Yerel kabul PASS; GitHub-hosted kabul bekleniyor.** Module 11 final kabulü yapılmadı.
+**11B Completed — yerel ve gerçek GitHub-hosted kabul PASS.** Module 11 final kabulü yapılmadı.
 
 ### Workflow ve izolasyon
 
 Mevcut iki baseline job değiştirilmedi. Üçüncü `compose-runtime` job Ubuntu 24.04 üzerinde 25 dakika timeout ile çalışır; aynı tam checkout/setup-dotnet SHA'ları, `contents: read` ve secret istemeyen push/pull_request yaklaşımı korunur. Yeni action veya registry login yoktur. [Ubuntu runner araç listesi](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md) Python ve PowerShell Core içerir; Windows'a bağımlı testler Windows job'da kalır.
 
 [Module11.Compose.Smoke.py](../../tests/Module11.Compose.Smoke.py) her çalışmaya UUID içeren ayrı Compose project adı, yeni PostgreSQL volume'u ve `fullstackops.ci.owner` etiketi verir. State/fixture/override/SQL repository dışında, system/runner temp altında ayrılmış dizindedir. Credential'lar çalışma anında üretilir, GitHub `add-mask` ile maskelenir; Linux dosya izinleri 0600/dizin 0700 olur. Gerçek `.env`/user-secrets okunmaz; inherited Compose/connection/credential anahtarları child environment'tan çıkarılır.
+
+Planın checkout içinde env fixture önerisi yerine runner temp kullanıldı: gerçek `.env` için Git-ignore/tracked kuralları uygulayan local preflight burada körlemesine çağrılmaz. İzole harness kendi fixture'ını sessiz Compose config, benzersiz boş volume ve sahiplik kontrolleriyle doğrular; mevcut local onboarding script'i değiştirilmedi.
 
 Geçici override yalnız CI volume adını ve host portlarını değiştirir. Nginx localhost'ta Docker'ın seçtiği geçici portu yayınlar; diğer beş servisin host portu yoktur. [Compose merge belgesindeki](https://docs.docker.com/reference/compose-file/merge/) `!override` (Compose 2.24.4+) eski frontend mapping'ini değiştirir; `!reset []` monitoring portlarını kaldırır. Ana Compose, servis DNS adları ve internal portlar korunur.
 
@@ -308,4 +310,34 @@ try {
 - Scanner PASS; fixture kaynak yazımındaki iki false-positive, scanner gevşetilmeden tuple key/value biçimiyle giderildi. Secret fixture **19/19 PASS**, canary output check; diff check PASS.
 - Resmî checksum kontrollü actionlint 1.7.12: ilk indirmede yanlış `.tar.gz` uzantısı başarısızdı, doğru Windows `.zip` kullanıldı. Lint job-level `runner` context hatasını yakaladı; state yolu Bash runner env değişkenleriyle düzeltildi. Son lint PASS; shellcheck/pyflakes ayrı çalıştırılmadı.
 
-Hosted sonuç gerçek çalışmadan sonra eklenecek. Local PS7 başarısı Ubuntu kabulü yerine sayılmaz. Fork PR execution, temiz bilgisayarda developer onboarding, browser/load/production deploy ve Module 11 final kabulü bu adımda doğrulanmaz.
+### İlk gerçek hosted kabul
+
+Commit: `1e70be45b7842f29aa47f0e9514eb6250fb171ab` — `ci: add isolated Compose runtime acceptance`.
+
+[Run 37198834372](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37198834372), `push/main`, **completed / success**, 4 Ekim 2026. Run SHA'sı implementation commit'iyle eşleşir; hosted kabul local PS7 sonucundan çıkarılmadı.
+
+| Job | Gerçek sonuç | UTC başlangıç–bitiş | Süre |
+| --- | --- | --- | --- |
+| [Linux build/config](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37198834372/job/111426147665) | success; unchanged baseline | 11:28:07–11:29:19 | 1m12s |
+| [Windows configuration/secrets](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37198834372/job/111426147711) | success; gerçek 19 secret fixture + 20 configuration PASS satırı sayıldı | 11:28:09–11:29:57 | 1m48s |
+| [Linux isolated Compose runtime](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37198834372/job/111426147578) | success; preparation, acceptance ve cleanup step'leri geçti | 11:28:07–11:30:46 | 2m39s |
+
+Runtime tools: .NET **10.0.401**, Python **3.12.3**, PowerShell **7.6.6**, Compose **v2.38.2**. Runtime Release build **0 warning / 0 error**. Süreler tek run gözlemidir; performans garantisi değildir.
+
+Hosted logdaki gerçek kanıtlar ayrı ayrı kontrol edildi:
+
+- InitialCreate review/application/idempotent reapply ve empty DB; altı servis running/healthy.
+- Phase 0B GET200/POST201+Location/PUT200/DELETE204/400/404; Module 5 empty/nonempty miss-hit, Redis key ve **TTL10s**, başarılı mutation invalidation, 400/404 key korunması, TTL expiration.
+- Redis outage: aynı API running, health/live200, ready503, Docker unhealthy ve Task500; recovery: aynı API ready200/healthy/Task200.
+- Altı JSON alanı, nullable description ve non-null timestamps; API restart sonrası aynı ID ile birebir alan kalıcılığı.
+- Internal metrics, Prometheus target UP, Grafana datasource ve provisioned Overview API kontrolü.
+- Task0/history1/cache temizliği; cleanup step'i ve final PASS mesajı: owned container/network/üç volume ve temporary config/SQL kaldırıldı.
+- Runtime `fixture-` + 48 hex credential deseni hosted logda yok. Windows canary ve tam test connection string desenleri yok; child testler stdout/stderr canary denetimini yaptı. Raw config/inspect/log artifact'i yüklenmedi.
+
+İlk hosted run'da düzeltme/retry gerekmedi. Başarısız runtime step cleanup yolunun yapısal `always()` garantisi ve yerel başarısız test kanıtı var; hosted job interruption/hard timeout deneyi yapılmadı. Bu sonuçları kaydeden documentation push'u workflow'u tekrar tetikler; o run'ın sonucu görev raporunda verilir, yalnız yeni run ID'si için tekrar tekrar commit oluşturulmaz.
+
+### Öğrenme ve kalan kapsam
+
+CI runner local makinenin hazır database/secret'larını taşımaz. Boş CI volume'u ve explicit migration hazırlığı schema sorunlarını görünür yapar. Healthy olmak CRUD sözleşmesini kanıtlamaz; cache hit kanıtı DB kapalıyken de liste alınmasıdır. API restart veriyi korur çünkü PostgreSQL ayrı volume'dadır. Test başarısı ve owned-resource cleanup ayrı kapılardır.
+
+Fork PR execution, temiz bilgisayarda developer onboarding, browser/load/production deploy ve Module 11 final kabulü bu adımda doğrulanmaz. Repository secret kullanmayan trigger/permissions tasarımı korunur; GitHub fork approval politikası ayrıca uygulanabilir. Sonraki küçük adım yalnız öneri: şartnameye göre **Module 11 final kabulü ve öğrenme değerlendirmesi**; GHCR publishing opsiyoneldir ve uygulanmadı.
