@@ -10,7 +10,7 @@ Troubleshooting Labs — PROJECT_SPEC.md section 11
 
 ## Current Step
 
-Troubleshooting 4 — Nginx 502 completed for mandatory scope using existing Module 6 wrong-upstream/DNS/502 and Module 6/7 correct API routing evidence; documentation-only, no new runtime experiment
+Troubleshooting 5 — Database Not Ready completed with isolated preinitialized schema/volume, controlled PostgreSQL startup gate, early API failure/recovery and service_healthy startup ordering comparison
 
 ## Completed
 
@@ -249,11 +249,15 @@ Troubleshooting 4 — Nginx 502 completed for mandatory scope using existing Mod
 
 - Troubleshooting 4 Nginx 502 documented and mandatory scope accepted using existing Module 6 diagnostic wrong-hostname GET502/could-not-resolve log, separate backend-stop static200/API504/connecting-timeout and recovery200 evidence, plus Module 7 real api:8080 GET200/POST201 routing. Nine-section scenario separates historical container names from current Compose, status codes from causes, and historical runtime from today's static review. No repeat wrong-target or same-diagnostic-container recovery claimed; no Docker lifecycle/HTTP/Task/cache/configuration changes. Initially running six-service stack preserved
 
+- Troubleshooting 5 completed on 5 October 2026 UTC11:59:06–12:00:35: separate db-startup-da7ba6a694 project/owner-labelled temporary volume/fake credential, existing InitialCreate SQL1059 bytes reviewed/applied before API traffic, schema/history/test row true|1|1. With temporary service_started/gated PostgreSQL: real pg_isready2/no-response before/after measurements, live200/ready503/uncached single-Task GET500, API running/unhealthy, connection-refused/PostgreSQL-unavailable logs, no missing-table error. Gate release recovered same API container live/ready/GET200/healthy. Correct service_healthy kept API created while PostgreSQL not ready, then API StartedAt12:00:15.295005268 after PG success probe12:00:14.826880993; all endpoints200, same API image. All original 18 container ID/state/RestartCount, 8 network IDs, 21 volume names and 38 image/tag entries preserved, six original services running/healthy. Only owned test resources and temporary files cleaned; no development env/user-secrets/volume/cache usage, application/Compose changes or commit/push
+
 ## Next Goal
 
-On explicit request: review troubleshooting/04-nginx-502/README.md and PROJECT_STATUS.md before committing. Do not proceed to Troubleshooting 5 automatically.
+On explicit request: review troubleshooting/05-database-not-ready/README.md and PROJECT_STATUS.md before committing. Do not proceed to Troubleshooting 6 automatically.
 
 ## Blockers
+
+None for Troubleshooting 5 mandatory acceptance. Controlled startup (not an outage of a running API) and same-API recovery verified; service_healthy waits initially and does not promise automatic later outage recovery or migration readiness. Limits: deterministic entrypoint gate, not natural initialization/crash-recovery/load testing. Original stack and development sources preserved, all owned test resources removed.
 
 None for Troubleshooting 4 mandatory acceptance using existing Module 6/7 evidence. Limits: no repeated wrong-hostname experiment in today's Compose, no claim of fixing/retesting the same diagnostic Nginx container, and no tests of other possible 502/504 causes. Main config remains api:8080; existing runtime routing evidence is sufficient, and initial stack state is preserved.
 
