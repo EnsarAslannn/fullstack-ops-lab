@@ -10,7 +10,7 @@ Troubleshooting Labs — PROJECT_SPEC.md section 11
 
 ## Current Step
 
-Troubleshooting 5 — Database Not Ready completed with isolated preinitialized schema/volume, controlled PostgreSQL startup gate, early API failure/recovery and service_healthy startup ordering comparison
+Troubleshooting 6 — Environment Misconfiguration completed for mandatory scope using existing Module 9 configuration/preflight and wrong-target runtime evidence; documentation-only, no repeat experiments
 
 ## Completed
 
@@ -251,11 +251,15 @@ Troubleshooting 5 — Database Not Ready completed with isolated preinitialized 
 
 - Troubleshooting 5 completed on 5 October 2026 UTC11:59:06–12:00:35: separate db-startup-da7ba6a694 project/owner-labelled temporary volume/fake credential, existing InitialCreate SQL1059 bytes reviewed/applied before API traffic, schema/history/test row true|1|1. With temporary service_started/gated PostgreSQL: real pg_isready2/no-response before/after measurements, live200/ready503/uncached single-Task GET500, API running/unhealthy, connection-refused/PostgreSQL-unavailable logs, no missing-table error. Gate release recovered same API container live/ready/GET200/healthy. Correct service_healthy kept API created while PostgreSQL not ready, then API StartedAt12:00:15.295005268 after PG success probe12:00:14.826880993; all endpoints200, same API image. All original 18 container ID/state/RestartCount, 8 network IDs, 21 volume names and 38 image/tag entries preserved, six original services running/healthy. Only owned test resources and temporary files cleaned; no development env/user-secrets/volume/cache usage, application/Compose changes or commit/push
 
+- Troubleshooting 6 documented on 5 October 2026 using existing configuration20/20 (16 safe negative exits and 4 valid-start/readiness503 cases), updated preflight19/19, Module 9 bootstrap and Troubleshooting 1/3 wrong-target runtime evidence. Nine-section scenario separates missing/empty/placeholder/malformed from valid-but-wrong host/credential, startup validation from readiness, host user-secrets from Compose substitution/service environment, and ConnectionStrings:Postgres from its double-underscore environment key. Initialized-volume env edits do not rotate role credentials; no intentional wrong-password or production rotation test claimed. Only documentation changed; real env/user-secrets/Docker/data/cache untouched, no repeat runtime/build or commit/push
+
 ## Next Goal
 
-On explicit request: review troubleshooting/05-database-not-ready/README.md and PROJECT_STATUS.md before committing. Do not proceed to Troubleshooting 6 automatically.
+On explicit request: review troubleshooting/06-env-misconfiguration/README.md and PROJECT_STATUS.md before committing. Do not proceed to Troubleshooting 7 automatically.
 
 ## Blockers
+
+None for Troubleshooting 6 mandatory acceptance using existing Module 9 runtime and current source evidence. Limits: no new intentional wrong-password/rotation experiment, exhaustive placeholder/provider-option or all-runtime-log redaction acceptance; syntax validation and preflight cannot prove authentication/readiness. No live resources or secret sources used or changed.
 
 None for Troubleshooting 5 mandatory acceptance. Controlled startup (not an outage of a running API) and same-API recovery verified; service_healthy waits initially and does not promise automatic later outage recovery or migration readiness. Limits: deterministic entrypoint gate, not natural initialization/crash-recovery/load testing. Original stack and development sources preserved, all owned test resources removed.
 
