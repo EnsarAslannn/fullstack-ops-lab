@@ -97,6 +97,8 @@ Repository dışındaki geçici env dosyası da silindi. `fullstack-ops-postgres
 
 # Module 4 — Kritik Hata Senaryosu: Container İçindeki `localhost`
 
+5 Ekim 2026: Bu bölümdeki gerçek deney kanıtı, şartnamenin ayrı klasör/standart başlık gereksinimi için [Troubleshooting 1 — Wrong Localhost](../../troubleshooting/01-wrong-localhost/README.md) belgesinde yeniden kullanıldı. İlk Docker Engine engeli kalktıktan sonra yalnız güncel Compose doğrulaması tamamlandı: PostgreSQL hazırken geçici `localhost:5432` hedefinde live200/ready503/tekil GET500 ve API running/unhealthy; aynı image ile doğru `postgres:5432` hedefi geri yüklenince ready200/GET404/healthy ölçüldü. Yeni belge eski ve güncel sonuçları ayırır; aşağıdaki geçmiş CRUD deneyi yeniden çalıştırılmadı. Veri/cache/secret kaynakları ve eski Docker envanteri korundu.
+
 `PROJECT_SPEC.md` bu alt adımı **Kritik Hata Senaryosu** olarak adlandırır; şartnamede `Module 4B` etiketi yoktur. Amaç, API'nin aynı Docker ağındaki PostgreSQL'e neden `localhost` ile erişemediğini gerçek hata ve düzeltme sonuçlarıyla görmektir. Uygulama kodu, Dockerfile, image, migration ve şema değişmedi.
 
 ## Kurulum ve güvenli bağlantı bilgisi

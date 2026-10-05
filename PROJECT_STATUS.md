@@ -10,7 +10,7 @@ Troubleshooting Labs — PROJECT_SPEC.md section 11
 
 ## Current Step
 
-Not started — Module 11 final acceptance completed; next troubleshooting review requires an explicit request
+Troubleshooting 1 — Wrong Localhost completed; current Compose failure/fix verified with unchanged API image and preserved data/configuration/resources
 
 ## Completed
 
@@ -239,10 +239,16 @@ Not started — Module 11 final acceptance completed; next troubleshooting revie
 
 - Module 11 final acceptance completed on 5 October 2026: existing push runs matched their commit SHAs; draft same-repository PR #2 triggered pull_request run 37290500053 with all three jobs successful. Head 3749afa5c07e103ae54e3a9d7c44bb11eec00d05, actual merge checkout b25c5967f90b6c19b4ea0d4fb7f50dc67cfa43c0. Mandatory backend/frontend/Docker/config/promtool plus 20 configuration, 19 secret fixtures and isolated migration/CRUD/cache/readiness/restart/provisioning/cleanup accepted. Temporary PR closed without merge and both branches deleted; main unchanged. Only final acceptance documentation changed, no new commit/main push or local runtime experiment
 
+- Troubleshooting 1 Wrong Localhost evidence and documentation review completed: existing Module 4 connection-refused/fix/CRUD evidence mapped to the required nine-section standalone scenario; current postgres:5432 target and Module 8 liveness/readiness/cache distinctions documented. Initial runtime confirmation was blocked by unavailable Docker Engine; the continuation below resolved this blocker
+
+- Troubleshooting 1 current Compose runtime completed on 5 October 2026 UTC10:22:20–10:23:28: PostgreSQL ready/healthy, temporary localhost:5432 API running/unhealthy, health/live200, ready503, uncached single-Task GET500, loopback5432/connection-refused/safe request log verified. Restored postgres:5432 without override on identical image sha256:5730b7c36af841167b20ad1733694d6f6253da989ccef04a4179de229ca1511c: ready200/healthy/GET404. No mutations or list GET; DB row snapshots unchanged, Redis DBSIZE0/0, protected file hashes and all original 12 container states/7 network IDs/21 volume names unchanged. Initially absent stack and temporary files cleaned; no commit/push or second scenario
+
 ## Next Goal
 
-On explicit request: review existing Troubleshooting 1 — Wrong Localhost evidence against the specification's troubleshooting template and identify documentation gaps. No new module, GHCR publishing or deployment starts automatically.
+On explicit request: review the three Wrong Localhost documentation files before committing. Do not proceed to Troubleshooting 2 automatically.
 
 ## Blockers
+
+None for Troubleshooting 1 mandatory acceptance: Docker Engine/Compose and normal preflight restored; actual wrong-host and recovery evidence passed. Cache-hit masking under wrong localhost was intentionally not exercised; direct-DB single GET was used to preserve cache. Historical Module 4 DNS/CRUD evidence reused, no claim that every diagnostic command was rerun.
 
 None for mandatory Module 11 acceptance. Limits: real fork PR, main-target PR/synchronize, branch protection, deliberate failing hosted job/failure diagnostics and runner-loss/hard-timeout cleanup remain NOT VERIFIED. Same-repository temporary-base PR and cleanup after the two observed cancellations passed. No unit-test coverage, comprehensive secret detection or production CD is claimed. GHCR publishing is optional and not implemented.
