@@ -10,7 +10,7 @@ Troubleshooting Labs — PROJECT_SPEC.md section 11
 
 ## Current Step
 
-Troubleshooting 1 — Wrong Localhost completed; current Compose failure/fix verified with unchanged API image and preserved data/configuration/resources
+Troubleshooting 2 — Lost PostgreSQL Data completed for mandatory scope using existing Module 3A/3B/7 evidence; documentation-only review, no new runtime or recovery experiment
 
 ## Completed
 
@@ -243,11 +243,15 @@ Troubleshooting 1 — Wrong Localhost completed; current Compose failure/fix ver
 
 - Troubleshooting 1 current Compose runtime completed on 5 October 2026 UTC10:22:20–10:23:28: PostgreSQL ready/healthy, temporary localhost:5432 API running/unhealthy, health/live200, ready503, uncached single-Task GET500, loopback5432/connection-refused/safe request log verified. Restored postgres:5432 without override on identical image sha256:5730b7c36af841167b20ad1733694d6f6253da989ccef04a4179de229ca1511c: ready200/healthy/GET404. No mutations or list GET; DB row snapshots unchanged, Redis DBSIZE0/0, protected file hashes and all original 12 container states/7 network IDs/21 volume names unchanged. Initially absent stack and temporary files cleaned; no commit/push or second scenario
 
+- Troubleshooting 2 Lost PostgreSQL Data documented and mandatory scope accepted from existing evidence: Module 3A different anonymous mount/table absent while old volume remained, Module 3B same named mount/row preserved, Module 7 actual API Task preserved after Compose down/up. Standard nine-section scenario distinguishes wrong target, missing schema and missing record. Negative API wrong-volume, old-volume recovery/transfer and backup restore remain NOT VERIFIED extra scope. No Docker, migration, env/user-secrets or development-volume operations
+
 ## Next Goal
 
-On explicit request: review the three Wrong Localhost documentation files before committing. Do not proceed to Troubleshooting 2 automatically.
+On explicit request: review troubleshooting/02-lost-database/README.md and PROJECT_STATUS.md before committing. Do not proceed to Troubleshooting 3 automatically.
 
 ## Blockers
+
+None for Troubleshooting 2 mandatory acceptance using existing Module 3A/3B/7 evidence. Limits: negative API wrong-volume, old anonymous-volume recovery/transfer and backup restore were not tested and are not claimed as PASS; no new runtime acceptance required by this scenario's specification.
 
 None for Troubleshooting 1 mandatory acceptance: Docker Engine/Compose and normal preflight restored; actual wrong-host and recovery evidence passed. Cache-hit masking under wrong localhost was intentionally not exercised; direct-DB single GET was used to preserve cache. Historical Module 4 DNS/CRUD evidence reused, no claim that every diagnostic command was rerun.
 
