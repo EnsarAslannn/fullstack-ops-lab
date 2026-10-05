@@ -10,7 +10,7 @@ Troubleshooting Labs — PROJECT_SPEC.md section 11
 
 ## Current Step
 
-Troubleshooting 2 — Lost PostgreSQL Data completed for mandatory scope using existing Module 3A/3B/7 evidence; documentation-only review, no new runtime or recovery experiment
+Troubleshooting 3 — Redis Connection Failure completed for mandatory hostname scope; isolated diagnostic API/Redis verified DNS failure and readiness/list/cache recovery while the existing six-service stack remained running
 
 ## Completed
 
@@ -245,11 +245,15 @@ Troubleshooting 2 — Lost PostgreSQL Data completed for mandatory scope using e
 
 - Troubleshooting 2 Lost PostgreSQL Data documented and mandatory scope accepted from existing evidence: Module 3A different anonymous mount/table absent while old volume remained, Module 3B same named mount/row preserved, Module 7 actual API Task preserved after Compose down/up. Standard nine-section scenario distinguishes wrong target, missing schema and missing record. Negative API wrong-volume, old-volume recovery/transfer and backup restore remain NOT VERIFIED extra scope. No Docker, migration, env/user-secrets or development-volume operations
 
+- Troubleshooting 3 Redis Connection Failure completed on 5 October 2026 using temporary Compose inheritance/override and separate tmpfs Redis: live200/ready503/list500, running-unhealthy API, ready Redis/PONG, Redis CLI DNS exit1 and explicit name-resolution error. Recovery used redis:6379 mapped only inside the diagnostic API to the test Redis, same API image, ready200/healthy/list200 twice, CACHE MISS/HIT and TTL60. No Task writes; DB row/configuration hashes, original container ID/state/RestartCount, network IDs and volume names unchanged, main Redis DBSIZE0/0; all original six services left healthy/running. Only own cache key and diagnostic resources cleaned. Separate network/closed-port tests and supplementary final500 request-log matcher not claimed; no application/Compose edits or commit/push
+
 ## Next Goal
 
-On explicit request: review troubleshooting/02-lost-database/README.md and PROJECT_STATUS.md before committing. Do not proceed to Troubleshooting 3 automatically.
+On explicit request: review troubleshooting/03-redis-connection/README.md and PROJECT_STATUS.md before committing. Do not proceed to Troubleshooting 4 automatically.
 
 ## Blockers
+
+None for Troubleshooting 3 mandatory hostname acceptance. Wrong hostname: Redis PONG/healthy, explicit DNS failure, API running/unhealthy, live200, ready503, list500. Correct redis:6379 in diagnostic override: same image, recreated diagnostic API healthy/ready200, list200 twice, MISS/HIT and TTL60. Separate wrong-network/closed-port and an extra final500 request-log matcher remain NOT VERIFIED; the specification's hostname alternative is satisfied. Existing six services/data/cache/configuration and Docker resources preserved; temporary test resources removed.
 
 None for Troubleshooting 2 mandatory acceptance using existing Module 3A/3B/7 evidence. Limits: negative API wrong-volume, old anonymous-volume recovery/transfer and backup restore were not tested and are not claimed as PASS; no new runtime acceptance required by this scenario's specification.
 
