@@ -10,7 +10,7 @@ Troubleshooting Labs — PROJECT_SPEC.md section 11
 
 ## Current Step
 
-Troubleshooting 3 — Redis Connection Failure completed for mandatory hostname scope; isolated diagnostic API/Redis verified DNS failure and readiness/list/cache recovery while the existing six-service stack remained running
+Troubleshooting 4 — Nginx 502 completed for mandatory scope using existing Module 6 wrong-upstream/DNS/502 and Module 6/7 correct API routing evidence; documentation-only, no new runtime experiment
 
 ## Completed
 
@@ -247,11 +247,15 @@ Troubleshooting 3 — Redis Connection Failure completed for mandatory hostname 
 
 - Troubleshooting 3 Redis Connection Failure completed on 5 October 2026 using temporary Compose inheritance/override and separate tmpfs Redis: live200/ready503/list500, running-unhealthy API, ready Redis/PONG, Redis CLI DNS exit1 and explicit name-resolution error. Recovery used redis:6379 mapped only inside the diagnostic API to the test Redis, same API image, ready200/healthy/list200 twice, CACHE MISS/HIT and TTL60. No Task writes; DB row/configuration hashes, original container ID/state/RestartCount, network IDs and volume names unchanged, main Redis DBSIZE0/0; all original six services left healthy/running. Only own cache key and diagnostic resources cleaned. Separate network/closed-port tests and supplementary final500 request-log matcher not claimed; no application/Compose edits or commit/push
 
+- Troubleshooting 4 Nginx 502 documented and mandatory scope accepted using existing Module 6 diagnostic wrong-hostname GET502/could-not-resolve log, separate backend-stop static200/API504/connecting-timeout and recovery200 evidence, plus Module 7 real api:8080 GET200/POST201 routing. Nine-section scenario separates historical container names from current Compose, status codes from causes, and historical runtime from today's static review. No repeat wrong-target or same-diagnostic-container recovery claimed; no Docker lifecycle/HTTP/Task/cache/configuration changes. Initially running six-service stack preserved
+
 ## Next Goal
 
-On explicit request: review troubleshooting/03-redis-connection/README.md and PROJECT_STATUS.md before committing. Do not proceed to Troubleshooting 4 automatically.
+On explicit request: review troubleshooting/04-nginx-502/README.md and PROJECT_STATUS.md before committing. Do not proceed to Troubleshooting 5 automatically.
 
 ## Blockers
+
+None for Troubleshooting 4 mandatory acceptance using existing Module 6/7 evidence. Limits: no repeated wrong-hostname experiment in today's Compose, no claim of fixing/retesting the same diagnostic Nginx container, and no tests of other possible 502/504 causes. Main config remains api:8080; existing runtime routing evidence is sufficient, and initial stack state is preserved.
 
 None for Troubleshooting 3 mandatory hostname acceptance. Wrong hostname: Redis PONG/healthy, explicit DNS failure, API running/unhealthy, live200, ready503, list500. Correct redis:6379 in diagnostic override: same image, recreated diagnostic API healthy/ready200, list200 twice, MISS/HIT and TTL60. Separate wrong-network/closed-port and an extra final500 request-log matcher remain NOT VERIFIED; the specification's hostname alternative is satisfied. Existing six services/data/cache/configuration and Docker resources preserved; temporary test resources removed.
 
