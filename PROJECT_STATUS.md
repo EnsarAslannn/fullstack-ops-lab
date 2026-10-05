@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 10 — Completed; Module 11A baseline and 11B isolated Compose runtime CI completed and verified; Module 11 in progress
+Module 10 — Completed; Module 11 — Completed (mandatory CI acceptance verified; fork/hard-timeout/production limits documented)
 
 ## Current Phase
 
-Module 11 — GitHub Actions CI
+Troubleshooting Labs — PROJECT_SPEC.md section 11
 
 ## Current Step
 
-Module 11B isolated Compose runtime CI completed and verified on GitHub-hosted Ubuntu; Module 11 final acceptance not started
+Not started — Module 11 final acceptance completed; next troubleshooting review requires an explicit request
 
 ## Completed
 
@@ -237,10 +237,12 @@ Module 11B isolated Compose runtime CI completed and verified on GitHub-hosted U
 
 - Module 11B isolated Compose runtime CI completed: run 37198834372 passed unchanged Linux/Windows baseline jobs plus Ubuntu six-service runtime. InitialCreate application/idempotent reapply, Nginx CRUD/Location/six-field nullable contract/400/404, Redis miss/hit/TTL10/invalidation, Redis outage same-container readiness recovery, API restart persistence and monitoring provisioning passed. Owned container/network/three volume/temp cleanup passed; real development config/data preserved. Module 11 final acceptance not started
 
+- Module 11 final acceptance completed on 5 October 2026: existing push runs matched their commit SHAs; draft same-repository PR #2 triggered pull_request run 37290500053 with all three jobs successful. Head 3749afa5c07e103ae54e3a9d7c44bb11eec00d05, actual merge checkout b25c5967f90b6c19b4ea0d4fb7f50dc67cfa43c0. Mandatory backend/frontend/Docker/config/promtool plus 20 configuration, 19 secret fixtures and isolated migration/CRUD/cache/readiness/restart/provisioning/cleanup accepted. Temporary PR closed without merge and both branches deleted; main unchanged. Only final acceptance documentation changed, no new commit/main push or local runtime experiment
+
 ## Next Goal
 
-On explicit request: Module 11 final acceptance and learning review against PROJECT_SPEC.md. Do not start optional GHCR publishing automatically.
+On explicit request: review existing Troubleshooting 1 — Wrong Localhost evidence against the specification's troubleshooting template and identify documentation gaps. No new module, GHCR publishing or deployment starts automatically.
 
 ## Blockers
 
-None for Module 11B acceptance: run 37198834372 on commit 1e70be45b7842f29aa47f0e9514eb6250fb171ab passed all three jobs, including real isolated runtime and cleanup. Development env/user-secrets/external volume unchanged; no unit-test coverage is claimed. Fork PR execution, forced cancellation cleanup and Module 11 final acceptance are not yet verified.
+None for mandatory Module 11 acceptance. Limits: real fork PR, main-target PR/synchronize, branch protection, deliberate failing hosted job/failure diagnostics and runner-loss/hard-timeout cleanup remain NOT VERIFIED. Same-repository temporary-base PR and cleanup after the two observed cancellations passed. No unit-test coverage, comprehensive secret detection or production CD is claimed. GHCR publishing is optional and not implemented.

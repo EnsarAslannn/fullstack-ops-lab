@@ -341,3 +341,110 @@ Hosted logdaki gerçek kanıtlar ayrı ayrı kontrol edildi:
 CI runner local makinenin hazır database/secret'larını taşımaz. Boş CI volume'u ve explicit migration hazırlığı schema sorunlarını görünür yapar. Healthy olmak CRUD sözleşmesini kanıtlamaz; cache hit kanıtı DB kapalıyken de liste alınmasıdır. API restart veriyi korur çünkü PostgreSQL ayrı volume'dadır. Test başarısı ve owned-resource cleanup ayrı kapılardır.
 
 Fork PR execution, temiz bilgisayarda developer onboarding, browser/load/production deploy ve Module 11 final kabulü bu adımda doğrulanmaz. Repository secret kullanmayan trigger/permissions tasarımı korunur; GitHub fork approval politikası ayrıca uygulanabilir. Sonraki küçük adım yalnız öneri: şartnameye göre **Module 11 final kabulü ve öğrenme değerlendirmesi**; GHCR publishing opsiyoneldir ve uygulanmadı.
+
+## Module 11 — Final kabul ve öğrenme değerlendirmesi
+
+**Completed — zorunlu şartname kriterleri PASS (5 Ekim 2026).** Bu kabul CI kapsamındadır; production deployment veya eksiksiz test coverage anlamına gelmez. Aşağıdaki açık sınırlamalar Completed kararından ayrı gösterilir. Önceki 11A/11B bölümlerindeki NOT VERIFIED kayıtları o adımların tarihindeki durumdur; aynı-repository PR kabulü bu bölümde tamamlandı.
+
+Başlangıç `main` çalışma alanı temizdi, local/remote HEAD `3749afa5c07e103ae54e3a9d7c44bb11eec00d05` idi. Workflow/uygulama/test kodu değiştirilmedi. Önceki başarılı push run'ları ve source/step/log kanıtları incelendi; local Compose stack veya aynı eski runtime deneyi yeniden başlatılmadı. Yalnız eksik PR event kanıtını almak için mevcut workflow'un gerçek PR çalışması kullanıldı.
+
+### Kanıtlar ve commit eşleştirmesi
+
+| Kanıt | Event | Run head SHA | Sonuç |
+| --- | --- | --- | --- |
+| [E1 — ilk baseline](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37196281851) | push | `4b81604db117fd7adf80c637126e79f0ea475655` | Linux/Windows success; ilk npm cache miss |
+| [E2 — baseline kayıt commit'i](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37196642619) | push | `1d70267f2336f62fbbe397b2cdb56ae47dc1e062` | İki job success; npm cache restore olsa da npm ci/build çalıştı |
+| [E3 — runtime implementasyonu](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37198834372) | push | `1e70be45b7842f29aa47f0e9514eb6250fb171ab` | Üç job ve runtime cleanup success |
+| [E4 — son push kabulü](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37199240476) | push | `3749afa5c07e103ae54e3a9d7c44bb11eec00d05` | Üç job ve runtime cleanup success |
+| [E5 — draft PR kabulü](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37290500053) | pull_request | `3749afa5c07e103ae54e3a9d7c44bb11eec00d05` | Üç job ve runtime cleanup success |
+
+E5, [aynı-repository draft PR #2](https://github.com/EnsarAslannn/fullstack-ops-lab/pull/2) ile tetiklendi. Yeni commit üretmemek için geçici base `ci-acceptance-20261005-base-a4b921` E3 commit'ine, head `ci-acceptance-20261005-head-a4b921` E4 commit'ine bağlandı. PR farkı yalnız mevcut iki CI dokümantasyon dosyasıydı; workflow ve runtime testleri main ile aynıydı. PR hedefi geçici base dalıdır; **main'i hedefleyen gerçek bir PR veya fork testi değildir**.
+
+PR run metadata'sındaki head SHA ile checkout edilen commit ayrıdır: checkout logu ve `refs/pull/2/merge`, gerçek test merge SHA'sını **`b25c5967f90b6c19b4ea0d4fb7f50dc67cfa43c0`** olarak doğruladı. `pull_request` merge ref davranışı [GitHub event belgesinde](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request) açıklanır. Başarılı head run'ını, farklı bir checkout ağacının kanıtı gibi yorumlamamak gerekir.
+
+| E5 job | Gerçek sonuç | UTC başlangıç–bitiş | Süre |
+| --- | --- | --- | --- |
+| [Linux build/config](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37290500053/job/111699508124) | success; sekiz restore/build/config step'i tek tek doğrulandı | 09:30:40–09:31:37 | 57s |
+| [Windows configuration/secrets](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37290500053/job/111699508075) | success; logdan 19 secret fixture ve 20 configuration PASS sayıldı | 09:31:36–09:33:21 | 1m45s |
+| [Linux isolated Compose runtime](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37290500053/job/111699507788) | success; 11 kabul log işareti ve cleanup doğrulandı | 09:30:40–09:33:50 | 3m10s |
+
+### Şartname ve güvenilirlik kabul tablosu
+
+PASS bir test/inceleme kapsamında kanıtı olduğu anlamına gelir. NOT VERIFIED gerçekten çalıştırılmamış kapsamı gösterir; optional veya kapsam dışı satırları zorunlu bir başarının yerine kullanmayız.
+
+| Kriter | Sonuç | Somut kanıt / sınır |
+| --- | --- | --- |
+| Her push otomatik doğrulama | PASS | E1–E4 gerçek push run'ları; `ci.yml` branch/path filtresi olmadan push içerir. |
+| pull_request tetikleyicisi | PASS | E5 event=pull_request, draft PR #2, üç job success. Geçici base hedefiyle aynı-repository deneyidir. |
+| Backend restore ve Release build | PASS | E5 Linux restore/build step'leri success; runtime Release logunda 0 warning/0 error. Windows build de success. |
+| Frontend locked install ve build | PASS | E5 `Frontend locked install`/`Frontend TypeScript and Vite build` success; `npm ci` lock dosyasını kullanır. |
+| Backend ve frontend Docker image build | PASS | E5 iki `Build ... image` step'i success; runtime ayrı runner'da Compose `--build` ile hazırlanır. |
+| Compose configuration doğrulaması | PASS | E5 `Validate Compose with isolated fake settings` success; runtime fake env+override için ayrıca config -q. Çözümlenmiş config yazdırılmaz. |
+| Prometheus config doğrulaması | PASS | E5 `Validate Prometheus configuration` success; sabit image'dan promtool check config. |
+| Backend davranış testleri | PASS | E3–E5 gerçek CRUD/cache/readiness/restart smoke kabulü. Unit-test projesi yok; dotnet test ile coverage iddia edilmez. |
+| Configuration ve secret testleri | PASS | E5 gerçek 20/20 configuration ve 19/19 fixture; negatif startup yalnız nonzero ile kabul edilmiyor, güvenli mesaj/canary yokluğu da aranıyor. |
+| İzole Compose project/credential/volume | PASS | Harness UUID project, yeni owner-labelled PostgreSQL volume, runner-temp fake env/override; development env/user-secrets/external volume'a bağımlılık yok. E3–E5 başarı kanıtı. |
+| Açık migration hazırlığı | PASS | E5 InitialCreate SQL review/apply/reapply marker; ON_ERROR_STOP ve UTF-8 stdin; history1/tasks0 doğrulaması. API startup'a migration eklenmedi. |
+| Altı servis bounded healthy | PASS | E5 tam servis kümesi running/healthy; PostgreSQL wait120s, stack wait180s, ek health180s. |
+| Nginx CRUD/Location/JSON/400/404 | PASS | E5 Phase0B marker + exact-six-fields/nullable marker; GET200, POST201, PUT200, DELETE204, validation400/missing404. |
+| Redis miss/hit/invalidation | PASS | E5 Module5 marker; empty/nonempty cache, gerçek TTL10s/expiration, mutation invalidation ve 400/404 key korunması. PostgreSQL kısa süre kapalıyken cached GET200 hit kanıtıdır. |
+| Liveness/readiness ve aynı-container recovery | PASS | E5 Redis kapalıyken running/live200/ready503/unhealthy/tasks500; aynı API geri gelince ready200/healthy/tasks200. |
+| API restart sonrası PostgreSQL kalıcılığı | PASS | E5 aynı API container ID ve birebir altı JSON alanı; yalnız test Task'ı temizlenir, history1 korunur. |
+| Monitoring runtime kapsamı | PASS | E5 internal metrics, Prometheus api:8080/metrics UP ve Grafana datasource/Overview provisioning API marker. Browser/tüm panel sorguları bu CI kapsamına dahil değil. |
+| Başarısız komutların başarısızlık kapıları | PASS | Python nonzero/timeout → AcceptanceError → exit1; PS native LASTEXITCODE kontrolleri; Bash fail-fast. Bu kabulde yerel child exit7 gerçekten reddedildi. Kasıtlı başarısız hosted job ayrıca denenmedi. |
+| Timeout ve güvenli tanı | PASS | Job timeout30/20/25min; subprocess timeout; failure() allowlisted state/cache/request tanısı. Yerel timeout ve stdout/stderr canary deneyi güvenli hata verdi; eski yerel diagnostics kanıtı korunur. |
+| Başarı ve gözlemlenen iptalde cleanup | PASS | E3–E5 cleanup success. Bu görevde iptal edilen iki hazırlık run'ında da cleanup success/owned-resource final kontrolü. İsim/owner doğrulanmadan volume silinmez. |
+| Minimum permissions / full action SHA | PASS | contents:read, checkout persist-credentials:false; checkout/setup-dotnet/setup-node tam 40-hex SHA; yeni yetki/secrets/registry login yok. Image/SDK tag'lerinin mutable olması ayrı sınırdır. |
+| Cache zorunlu adımları atlatmıyor | PASS | E1 `npm cache is not found`; E2 cache restored successfully. E2 npm ci ve frontend build step'leri success. Cache node_modules/dist/env yerine npm download cache'tir. |
+| Fork için secret gerektirmeyen tasarım | PASS | Normal pull_request, contents:read, workflow'da secrets input'u yok; fake generated credential. Bu statik tasarım sonucu gerçek fork run'ı demek değildir. |
+| Gerçek fork PR kabulü | NOT VERIFIED | Yeni fork/hesap oluşturulmadı. Fork approval/token/cache davranışı bu deneyle kanıtlanmadı. |
+| Main-target PR / PR synchronize / branch protection | NOT VERIFIED | PR #2 geçici base'e opened olayıydı. Main-target, yeni push ile synchronize ve required-check enforcement ayrıca denenmedi. |
+| Runner kaybı/hard timeout altında her durumda cleanup | NOT VERIFIED | always() çalışan runner gerektirir; gözlemlenen cancellation başarısını runner kaybı garantisine genişletemeyiz. |
+| Kasıtlı failing hosted job / hosted failure diagnostics | NOT VERIFIED | Mevcut hosted source run'ları green. Yerel native/timeout/canary hataları ve statik failure gate incelendi; yeni kırık workflow commit'i oluşturulmadı. |
+| GHCR image publishing / production CD | NOT VERIFIED | Şartnamede opsiyonel; workflow image'ı build eder, publish/deploy etmez. Tamamlanma blocker'ı değildir. |
+
+Zorunlu minimumlar ve mevcut ideal pipeline kapsamı karşılandı; FAIL bulunmadı. GitHub başarı göstergesi yalnız bu kontroller için anlamlıdır, yukarıdaki NOT VERIFIED satırlarını PASS'a dönüştürmez.
+
+### Yerel son kontroller ve PR temizliği
+
+- Salt okunur source/run/step/log incelemesi; yeni local build/stack/migration deneyine ihtiyaç bulunmadı.
+- İzole child native exit7, kısa timeout, stdout/stderr canary ve unsafe cleanup path → exit1 kontrolleri geçti. Gerçek env/user-secrets okunmadı; bu kontrol Docker veya fixture dizini oluşturmadı.
+- PR için iki geçici dalın push'u [37290421743](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37290421743) ve [37290421830](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37290421830) yinelenen push run'larını başlattı. Yalnız bu run'lar bilinçli iptal edildi; sonuçları cancelled, PASS/FAIL kabul run'ı sayılmadı. Her ikisinde preparation cancelled fakat cleanup success ve owned-resource kontrol mesajı vardı. Başka run iptal edilmedi.
+- E5 tamamlandıktan sonra PR #2 **CLOSED**, mergedAt=null; 5 Ekim 2026 UTC09:36:57. İki geçici remote dal explicit adları/SHA'ları kontrol edilerek silindi; local dal oluşturulmamıştı. Main/remote SHA değişmedi. PR body temporary dosyası kaldırıldı.
+- Repository secret regression check ve git diff --check final dokümantasyon üzerinde çalıştırıldı. Gerçek `.env` ignored/untracked; Git geçmişi bu taramanın kapsamında değil.
+- Bu görevde yalnız Module 11 README ve PROJECT_STATUS değişti; index'e ekleme, yeni commit, main push, workflow/test/uygulama değişikliği yapılmadı. Dal push/deletion yalnız izin verilen PR test istisnasıdır.
+
+### Öğrenme değerlendirmesi
+
+**CI ve CD:** CI değişikliğin derlenmesini ve seçili testleri otomatik doğrular. Burada üç job CI yapar. Docker image üretmek tek başına CD değildir; image publishing, deployment ve production'a release adımı yoktur. GHCR şartnamede opsiyoneldir.
+
+**Workflow / job / step / runner:** `ci.yml` tüm workflow'dur. Linux build/config, Windows configuration/secrets ve Linux runtime üç ayrı job'dır; needs olmadığı için paralel ilerleyebilir. Bir job içindeki restore/build/test komutları step'tir. Runner komutları çalıştıran geçici makinedir; job'lar aynı canlı container/volume'u paylaşmaz. [GitHub job belgesi](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-jobs) bu ayrımı açıklar.
+
+**push / pull_request:** Main push E4'ü, draft PR opened E5'i tetikledi. İkisi aynı head değişikliği için ayrı run üretebilir. PR run checkout'u merge ref olabilir; head SHA/checkout SHA eşleştirmesini yap. Fork'ta development secret taşınmaz; approval ve token davranışını gerçek fork deneyi olmadan kanıtlanmış sayma.
+
+**Cache / artifact:** Npm cache daha önce indirilen paketleri tekrar indirmeyi azaltır; cache hit olsa da npm ci/build çalışır. Artifact ise rapor veya build çıktısını run sonrasında paylaşmak/saklamak içindir. Bu workflow artifact upload yapmaz; raw config/env/log artifact'i oluşturmak secret sızıntısı riski getirir. Docker'ın job içindeki layer cache'i ile job'lar arasında npm download cache'i aynı kapsam değildir.
+
+**Build / runtime:** Release/Vite/Docker build başarısı PostgreSQL schema'sını, ağ DNS'ini veya HTTP201 Location'ı kanıtlamaz. Runtime job altı servisi çalıştırıp Nginx üzerinden CRUD, Redis key ve kesinti/recovery ile gerçek davranışı kanıtlar. Buna rağmen browser UX, load/benchmark veya production güvenliği testi değildir.
+
+**Geçici ortam / migration:** CI volume'u sıfırdan oluşturulur; local fullstack-ops-postgres-data kullanılamaz. Önce PostgreSQL, sonra incelenmiş existing InitialCreate SQL, ardından API ve diğer servisler gelir. Health ready200 tek başına tasks tablosunu kanıtlamaz. Production design-time process config'i user-secrets'a bağımlılığı önler; runtime image SDK/EF CLI taşımadığı için migration ayrı bir hazırlık adımıdır.
+
+**Yeşil run'ın sınırı:** Green belirli commit/checkout, araç sürümleri ve senaryoların geçtiğini söyler. Tüm bug'ların yokluğu, unit coverage, fork davranışı, production deployment veya gelecekte mutable image tag'inin aynı kalması sonucu çıkarılmaz. Canary/scanner yalnız bilinen sızıntı biçimlerini yakalayan ek korumadır.
+
+**Başarısız run'ı inceleme:** Önce event/head SHA/checkout ref'i ve ilk başarısız step'i belirle. Build hatası, configuration negatif testi ve dependency outage farklıdır. Beklenen negatif configuration testinde güvenli mesaj + canary yokluğu gerekir; sadece nonzero yeterli değildir. Native exit/job sonucu, bounded safe diagnostics ve cleanup step'ini ayrı kontrol et. İncelemeyi `gh run view <id> --json ...` ile başlat; raw logu terminale/issue'ya taşımadan bellek içinde filtrele. [GitHub shell belgesi](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepsshell) fail-fast davranışını açıklar; PowerShell native LASTEXITCODE kontrolünü source ile eşleştir.
+
+Kendi kelimelerinle cevapla:
+
+1. E5 run head SHA'sı ile checkout SHA'sı neden farklıydı?
+2. Npm cache hit olsa bile neden npm ci gerekli?
+3. API healthy iken InitialCreate uygulanmamışsa hangi kontrol bunu yakalar?
+4. Redis kapalıyken live200/ready503 olması neyi ayırır?
+5. Green run neden fork kabulü veya production deployment kanıtı değildir?
+
+Küçük alıştırmalar (bu kabulde uygulanmadı):
+
+1. Workflow'daki bir build, bir negatif test ve cleanup step'inin hata yayılımını kağıt üzerinde çiz; hangi exit code job'ı durdurur, hangisi test tarafından beklenir?
+2. E5'in step özetinden migration → healthy → CRUD → restart → cleanup kanıtlarını bul; secret içeren raw log/config paylaşmadan kısa bir kanıt listesi yaz.
+
+### Şartnameye göre sonraki adım
+
+Şartnamede Module 11'den sonra **11. Troubleshooting Labs**, ilk senaryo **Wrong Localhost** vardır; bir Module 12 tanımlı değildir. Sonraki küçük öneri: mevcut Wrong Localhost kanıtını troubleshooting şablonundaki Scenario/Symptoms/Expected Behaviour/Investigation/Root Cause/Fix/Verification/What We Learned alanlarıyla eşleştirip belge eksiklerini çıkar. Bu görevde o inceleme/uygulama başlatılmadı; opsiyonel GHCR/CD kendiliğinden eklenmedi.
