@@ -188,4 +188,20 @@ Test-Case 'approved PNG with trailing credential' {
     Write-Fixture $repo $pngPath ''
     [IO.File]::WriteAllBytes((Join-Path $repo $pngPath), ($pngBytes + $utf8.GetBytes("TOKEN=$canary")))
 } 2
+foreach ($newPngPath in @(
+    'troubleshooting/07-monitoring-no-data/images/prometheus-target-down.png',
+    'troubleshooting/07-monitoring-no-data/images/grafana-target-down.png',
+    'troubleshooting/07-monitoring-no-data/images/grafana-target-recovered.png'
+)) {
+    Test-Case ('approved troubleshooting PNG ' + [IO.Path]::GetFileName($newPngPath)) {
+        param($repo)
+        Write-Fixture $repo $newPngPath ''
+        [IO.File]::WriteAllBytes((Join-Path $repo $newPngPath), $pngBytes)
+    } 0
+}
+Test-Case 'troubleshooting PNG with trailing credential' {
+    param($repo)
+    Write-Fixture $repo $newPngPath ''
+    [IO.File]::WriteAllBytes((Join-Path $repo $newPngPath), ($pngBytes + $utf8.GetBytes("TOKEN=$canary")))
+} 2
 Write-Output "Module 9 secret leakage smoke passed: $passed cases"

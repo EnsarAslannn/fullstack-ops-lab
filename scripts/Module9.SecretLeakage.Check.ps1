@@ -58,7 +58,10 @@ function Add-Finding([string]$Path, [int]$Line, [string]$Rule) {
 $documentationPngs = @(
     'labs/10-prometheus-grafana/images/prometheus-targets.png',
     'labs/10-prometheus-grafana/images/prometheus-query.png',
-    'labs/10-prometheus-grafana/images/grafana-overview.png'
+    'labs/10-prometheus-grafana/images/grafana-overview.png',
+    'troubleshooting/07-monitoring-no-data/images/prometheus-target-down.png',
+    'troubleshooting/07-monitoring-no-data/images/grafana-target-down.png',
+    'troubleshooting/07-monitoring-no-data/images/grafana-target-recovered.png'
 )
 function Assert-DocumentationPng([byte[]]$Bytes) {
     $signature = [byte[]]@(137, 80, 78, 71, 13, 10, 26, 10)

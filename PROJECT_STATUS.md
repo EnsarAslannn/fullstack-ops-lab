@@ -10,7 +10,7 @@ Troubleshooting Labs — PROJECT_SPEC.md section 11
 
 ## Current Step
 
-Troubleshooting 6 — Environment Misconfiguration completed for mandatory scope using existing Module 9 configuration/preflight and wrong-target runtime evidence; documentation-only, no repeat experiments
+Troubleshooting 7 — Prometheus Target Down / Grafana No Data completed using existing wrong-name/port/path evidence and isolated real Grafana scrape failure/fresh-sample recovery acceptance
 
 ## Completed
 
@@ -253,11 +253,15 @@ Troubleshooting 6 — Environment Misconfiguration completed for mandatory scope
 
 - Troubleshooting 6 documented on 5 October 2026 using existing configuration20/20 (16 safe negative exits and 4 valid-start/readiness503 cases), updated preflight19/19, Module 9 bootstrap and Troubleshooting 1/3 wrong-target runtime evidence. Nine-section scenario separates missing/empty/placeholder/malformed from valid-but-wrong host/credential, startup validation from readiness, host user-secrets from Compose substitution/service environment, and ConnectionStrings:Postgres from its double-underscore environment key. Initialized-volume env edits do not rotate role credentials; no intentional wrong-password or production rotation test claimed. Only documentation changed; real env/user-secrets/Docker/data/cache untouched, no repeat runtime/build or commit/push
 
+- Troubleshooting 7 completed on 5 October 2026 using Module 10 wrong-name/port/path evidence and isolated monitor-flow-3cb1cccc2a45 acceptance through the actual Grafana datasource: API running/healthy/live200, target DOWN/up0/HTTP404, datasource OK, historical samples retained; correct target recovered UP/up1 and new POST400 counter3→8/sample1791204947.584 verified through Grafana. Three reviewed browser PNGs retained; narrow exact-path scanner fixtures added. Only own test resources cleaned; original Docker inventory and six healthy services preserved, no development secret/data/configuration changes or general project closure
+
 ## Next Goal
 
-On explicit request: review troubleshooting/06-env-misconfiguration/README.md and PROJECT_STATUS.md before committing. Do not proceed to Troubleshooting 7 automatically.
+On explicit request: review troubleshooting/07-monitoring-no-data/README.md, its three screenshots and the narrow PNG scanner/fixture changes before committing. Do not begin general project closure automatically.
 
 ## Blockers
+
+None for Troubleshooting 7 mandatory acceptance: 5 October 2026 UTC12:54:27–12:55:56 isolated monitor-flow-3cb1cccc2a45 six-service/new-three-volume/fake-credential experiment passed. Wrong path kept same API running/healthy/live200; Prometheus DOWN/up0/HTTP404 while actual Grafana datasource OK and all12 panel queries error-free, two historical samples and old graphs/counts retained. Correct api:8080/metrics recovered at12:55:47.584503431; after12:55:34.836735 controlled POST400 counter3→8 and new sample1791204947.584 verified through Grafana. Three visually reviewed PNGs, exact-path scanner checks and fixtures; initial18 containers/8 networks/21 volumes/38 image-tag entries and six healthy services preserved, only own test resources/tooling cleaned. Limits: no separate datasource transport outage, long retention/outage/load or comprehensive OCR/secret assurance; general closure not started.
 
 None for Troubleshooting 6 mandatory acceptance using existing Module 9 runtime and current source evidence. Limits: no new intentional wrong-password/rotation experiment, exhaustive placeholder/provider-option or all-runtime-log redaction acceptance; syntax validation and preflight cannot prove authentication/readiness. No live resources or secret sources used or changed.
 
