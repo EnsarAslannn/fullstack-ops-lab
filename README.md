@@ -6,7 +6,7 @@
 
 Sandbox Tasks, görev oluşturma, listeleme, tamamlama/yeniden açma ve silme üzerinden full-stack geliştirme ve operasyon kavramlarını öğreten bir portföy projesidir. React arayüzü Nginx üzerinden ASP.NET Core API'ye ulaşır; görevler PostgreSQL'de, liste cache'i Redis'te tutulur. Prometheus metrik toplar, Grafana datasource ve Overview dashboard'u dosyalardan otomatik yükler.
 
-Phase 0, Module 1–11 ve yedi troubleshooting senaryosunun kabul kanıtları belgelerde bulunur. **Genel final kabul ve güncel temiz clone demosu henüz yapılmadı.** Production deployment, unit-test coverage veya hazırlıksız tek komut kurulum iddia edilmez. Otorite [PROJECT_SPEC.md](PROJECT_SPEC.md), ilerleme kaydı [PROJECT_STATUS.md](PROJECT_STATUS.md).
+Phase 0, Module 1–11 ve yedi troubleshooting senaryosunun kabul kanıtları belgelerde bulunur. **6 Ekim 2026 teknik final kabulü geçti:** remote main SHA92e98a1 aynı host üzerinde temiz clone, boş izole veri ortamı ve gerçek browser ile doğrulandı. [Final kabul raporu](docs/final-acceptance.md) kanıtları ve sınırları içerir; manuel öğrenme değerlendirmesi bekler. Production deployment, unit-test coverage veya hazırlıksız tek komut kurulum iddia edilmez. Otorite [PROJECT_SPEC.md](PROJECT_SPEC.md), ilerleme kaydı [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
 ## Mimari ve teknoloji
 
@@ -113,6 +113,7 @@ docs/                          Mimari, sözlük ve komut rehberi
 
 - [Mimari, kısa sözlük, DoD incelemesi ve kabul edilen final kapsamı](docs/architecture.md)
 - [Komutlar ve beklenen gözlemler](docs/commands-cheatsheet.md)
+- [Teknik final kabul, cleanup ve kalan öğrenme maddeleri](docs/final-acceptance.md)
 
 | Lab | Belge |
 | --- | --- |
@@ -142,7 +143,7 @@ docs/                          Mimari, sözlük ve komut rehberi
 
 [Workflow](.github/workflows/ci.yml) push/pull_request için Linux build/config, Windows configuration/secret ve Linux izole Compose runtime job'larını çalıştırır. Runtime kendi credential/volume/migration ortamını hazırlar ve temizler. Unit-test coverage, image publish veya CD yapmaz. Fork/main-target PR gibi denenmemiş sınırlar Module11 belgesindedir.
 
-[Başarılı run 37432761687](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37432761687), commit `2df477ccbfbc7b7e2dde8cdeb90965960c9ac0f5`, üç job success: önceki commit'in kanıtıdır; bu dokümantasyon değişikliği veya genel final demo için hosted kabul değildir.
+[Test edilen SHA'nın başarılı run'ı 37436957155](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37436957155), commit `92e98a10d072c4e53dc6223c1cde8c490cfd586d`, üç job success. Final demo ayrıca aynı SHA üzerinde yerel izole kabul yaptı; rapor sonrasında yalnız dokümantasyon değişti. Hosted run, temiz VM veya production kabulü değildir.
 
 Görseller: [Prometheus Targets](labs/10-prometheus-grafana/images/prometheus-targets.png), [metric sorgusu](labs/10-prometheus-grafana/images/prometheus-query.png), [Overview](labs/10-prometheus-grafana/images/grafana-overview.png), [yanlış target/recovery](troubleshooting/07-monitoring-no-data/README.md#verification). Kısa tarihsel trafik benchmark değildir.
 
@@ -150,4 +151,4 @@ Görseller: [Prometheus Targets](labs/10-prometheus-grafana/images/prometheus-ta
 
 Image/container ayrımını açıklayabilir; DNS → TCP → readiness → SQL/API sırasıyla teşhis yapabilir; volume kalıcılığını, cache hit/miss/TTL/invalidation ve up/readiness farkını kanıtlarla gösterebilirsin. CI build başarısıyla gerçek runtime kabulünün farkını öğrenirsin.
 
-**6 Ekim 2026 kabul edilen kapsam:** Altı servis korunur; Nginx frontend container'ında statik sunucu/reverse proxy, `api` backend rolüdür. Ayrı nginx servisi eklenmez. İlk kurulum `.env`, external PostgreSQL volume'u ve açık migration hazırlığı içerir; hazırlanmış ortam `docker compose up` ile başlar. **Sıfır hazırlıkla tek komut clean clone iddiası yoktur.** [Şartname karar kaydı](PROJECT_SPEC.md#final-kapsam-kararları--6-ekim-2026), [kanıt ve kalan runtime kabulü](docs/architecture.md#şartname-farkları-ve-final-kabul-kararları). Bu karar genel final runtime kabulünün tamamlandığı anlamına gelmez.
+**6 Ekim 2026 kabul edilen kapsam:** Altı servis korunur; Nginx frontend container'ında statik sunucu/reverse proxy, `api` backend rolüdür. Ayrı nginx servisi eklenmez. İlk kurulum `.env`, external PostgreSQL volume'u ve açık migration hazırlığı içerir; hazırlanmış ortam `docker compose up` ile başlar. **Sıfır hazırlıkla tek komut clean clone iddiası yoktur.** [Şartname karar kaydı](PROJECT_SPEC.md#final-kapsam-kararları--6-ekim-2026), [mimari kararları](docs/architecture.md#şartname-farkları-ve-final-kabul-kararları) ve [gerçek final kabul kanıtı](docs/final-acceptance.md) ayrı kayıtlardır. Teknik PASS, senin öğrenme değerlendirmene otomatik PASS vermez.

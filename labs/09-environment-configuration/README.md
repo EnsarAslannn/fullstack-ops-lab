@@ -195,6 +195,8 @@ Bu sıra, repository'yi ilk kez alan ve önceden hazırlanmış user-secrets vey
 
 **6 Ekim 2026 güncellemesi:** Bu kullanım bölümü güncel altı servisli Compose'a göre düzeltilmiştir. [Kabul edilen kapsam](../../PROJECT_SPEC.md#final-kapsam-kararları--6-ekim-2026) ilk kurulumda .env/external volume/açık migration hazırlığını, sonrasında normal up ile başlatmayı ayırır. 15. bölümdeki dört servisli bootstrap sonucu kendi tarihinin kanıtıdır; bu güncelleme altı servisli temiz clone demosu değildir. [Güncel mimari ve kalan final kabul](../../docs/architecture.md).
 
+**Sonraki 6 Ekim 2026 runtime kabulü:** Bu sıranın remote SHA92e98a1 üzerinde yeni ignored test env, boş external test volume'u, açık InitialCreate ve altı servisle gerçekten yürütülmesi [genel final kabul raporunda](../../docs/final-acceptance.md#ilk-kurulum--gerçekten-yürütülen-sıra) PASS'tır. Aynı host kabulüdür; ayrı temiz VM değildir. Önceki dört servisli kanıt yeni deneyin yerine sayılmadı.
+
 ### 1. Araçlar ve clone
 
 Docker Engine ve Compose altı container'ı çalıştırmak için gerekir. Git ve bu rehberdeki PowerShell de host araçlarıdır. Host migration SQL üretimi **.NET10 SDK** ve kökteki `dotnet-tools.json` üzerinden local `dotnet-ef` ister. API runtime image'ında SDK/EF CLI yoktur. Frontend Docker build kendi Node stage'ini kullanır; host Node/npm yalnız host geliştirme/build için gerekir.
@@ -388,7 +390,7 @@ Host `dotnet run` API'si, backend projesinin `UserSecretsId` kaynağındaki `Con
 
 ### Bu rehberin doğrulama sınırı
 
-Rehberin ilk dokümantasyon adımında yalnız statik inceleme ve sahte process configuration ile SQL üretimi yapılmıştı. Sonraki final kabulde aynı host üzerinde yeni boş volume'a SQL uygulandı ve stack doğrulandı; ayrıntılar 15. bölümde. Gerçek geliştirme `.env`, user-secrets ve PostgreSQL volume'u bu kurulumda kullanılmadı. Ayrı temiz bilgisayar/VM kabulü hâlâ yapılmadı.
+Rehberin ilk dokümantasyon adımında yalnız statik inceleme ve sahte process configuration ile SQL üretimi yapılmıştı. Module9 bootstrap kabulünde aynı host üzerinde yeni boş volume'a SQL uygulandı ve dört servisli stack doğrulandı; ayrıntılar 15. bölümde. Güncel altı servisli remote clone kabulü ayrıca [genel final raporundadır](../../docs/final-acceptance.md). Gerçek geliştirme `.env`, user-secrets ve PostgreSQL volume'u iki kurulumda da kullanılmadı. Ayrı temiz bilgisayar/VM kabulü hâlâ yapılmadı.
 
 ## 14. Production secret yaklaşımı — yalnız dokümantasyon
 

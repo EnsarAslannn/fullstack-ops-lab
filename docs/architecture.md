@@ -1,6 +1,6 @@
 # FullStack Ops Lab — Gerçek Mimari
 
-6 Ekim 2026 kaynak/dokümantasyon incelemesi; yeni runtime kabulü değildir. [Şartname](../PROJECT_SPEC.md), [Compose](../compose.yaml) ve tarihli lab kanıtları birlikte okunmalıdır.
+6 Ekim 2026 gerçek kaynak/mimari açıklaması. Aynı host temiz clone/izole veri ortamında teknik runtime kabulü ayrıca [final kabul raporunda](final-acceptance.md) bulunur; öğrenme değerlendirmesi bekler. [Şartname](../PROJECT_SPEC.md), [Compose](../compose.yaml) ve tarihli lab kanıtları birlikte okunmalıdır.
 
 ## Servisler, portlar ve ağ
 
@@ -118,10 +118,10 @@ ILogger method, güvenli route template/unmatched, final status ve süre kaydede
 | Backend adı | Backend rolü mevcut api; Nginx/metrics/CI gerçek DNS adını kullanır | 6 Ekim 2026 açık kabulüyle şartnamedeki final servis adı api; sessiz rename yapılmadı |
 | Ayrı nginx | Önce Module7 en az yedi servis sayıyordu; mevcut frontend Nginx+dist ile iki rolü bir container'da yapar | **Kabul edildi:** altı servis korunur, ayrı nginx eklenmez. Kullanıcı kararı şartname bölüm8/Module7/30/37'ye işlendi; mimari değiştirilmedi |
 | Migration | Bölüm19 manuel/startup/ayrı container seçeneklerini açıklar; burada manuel SQL | Manuel yöntem izin verilen seçenek; startup migration eklemek gerekmez |
-| Hazırlıksız ilk up | External volume, uyumlu credentials ve schema hazırlanmalı; Module9 explicit bootstrap kanıtı var | **Kabul edildi:** ilk kurulum .env/external volume/açık migration hazırlığı içerir; normal up hazırlanmış ortamı başlatır. Bölüm31 demosu bu hazırlığı da doğrulamalı; güncel final demo henüz yapılmadı |
+| Hazırlıksız ilk up | External volume, uyumlu credentials ve schema hazırlanmalı; Module9 explicit bootstrap kanıtı var | **Kabul edildi:** ilk kurulum .env/external volume/açık migration hazırlığı içerir; normal up hazırlanmış ortamı başlatır. Bölüm31 hazırlığı aynı host izole final demoda ayrıca doğrulandı; temiz VM kabulü değildir |
 | Klasör/sözlük | monitoring/scripts/mevcut lab adları ayrımı korur; kısa sözlük aşağıda | Bölüm9 sadeleştirme izni uygulanır. Glossary örnek ağaçta, bağımsız final checklist maddesi değil; ayrı kopya üretilmedi |
 
-İki kapsam farkı kullanıcı tarafından **6 Ekim 2026** tarihinde kabul edildi; önceki beklenti, kabul edilen tasarım ve gerekçe [şartname karar kaydında](../PROJECT_SPEC.md#final-kapsam-kararları--6-ekim-2026) bulunur. Şartname tutarlı biçimde güncellendi; uygulama ve Compose mimarisi korunur. Kapsam kararı runtime kanıtı değildir: güncel temiz clone/ilk kurulum/final demo ve genel kabul matrisi hâlâ bekler.
+İki kapsam farkı kullanıcı tarafından **6 Ekim 2026** tarihinde kabul edildi; önceki beklenti, kabul edilen tasarım ve gerekçe [şartname karar kaydında](../PROJECT_SPEC.md#final-kapsam-kararları--6-ekim-2026) bulunur. Şartname tutarlı biçimde güncellendi; uygulama ve Compose mimarisi korunur. Kapsam kararı runtime kanıtı değildir: sonraki [teknik final kabul](final-acceptance.md#şartname-kabul-matrisi), temiz clone/ilk kurulum/final demo kanıtını ayrıca verir.
 
 ## Dokümantasyon standardı ve Definition of Done
 
@@ -161,4 +161,4 @@ Soru/alıştırmaların bulunması geliştiricinin cevapladığını kanıtlamaz
 
 ## Kalan final kabul
 
-Kapsam kararları kabul edildi. Sonraki açık yetkiyle güncel commit'ten ayrı temiz clone/yeni config/volume üzerinden bölüm31'in ilk kurulum ve normal başlatma demosunu yürüt; development volume'una bağlanma. CRUD/cache/persistence/health/internal metrics/scrape/dashboard, wrong target/recovery ve CI SHA kanıtlarını genel matrise bağla. Bölüm30/37 checklist ve öğrenme sorularını gerçek kanıtlarla kapat. Unit-test/production/fork/backup garantisi ekleme. Bu görev bunları başlatmadı.
+Kapsam kararları kabul edildi; bölüm30/31/37'nin zorunlu teknik kabulü remote SHA92e98a1 üzerinde [aynı host izole final demoyla](final-acceptance.md) tamamlandı. Development volume'una bağlanılmadı ve bütün test kaynakları temizlendi. Kullanıcının bölüm32 soruları/alıştırma açıklamaları hâlâ NOT VERIFIED; genel öğrenme/kapanış kararını teknik PASS'tan otomatik çıkarma. Temiz VM, unit-test/production/fork/backup garantisi verilmez.

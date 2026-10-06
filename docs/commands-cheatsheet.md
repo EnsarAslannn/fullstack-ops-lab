@@ -1,6 +1,6 @@
 # FullStack Ops Lab — Komut Rehberi
 
-Repository kökünde **PowerShell** kullanımı. Komutlar mevcut kaynak ve tarihli kabul kanıtlarıyla karşılaştırıldı; bu dokümantasyon görevinde lifecycle/build/migration çalıştırılmadı. Örnekler otomatik bir script değildir; amacına göre seç. Native komut başarısı `$LASTEXITCODE` ile kontrol edilmelidir.
+Repository kökünde **PowerShell** kullanımı. Komutlar mevcut kaynak ve tarihli kabul kanıtlarıyla karşılaştırıldı; sonraki [genel final kabul](final-acceptance.md) ilk kurulum/lifecycle/build/migration sırasını aynı host izole clone'da yürüttü. Örnekler otomatik bir script değildir; amacına göre seç. Native komut başarısı `$LASTEXITCODE` ile kontrol edilmelidir.
 
 ## İlk kurulum kapısı
 

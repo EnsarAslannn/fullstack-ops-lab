@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 10 — Completed; Module 11 — Completed (mandatory CI acceptance verified; fork/hard-timeout/production limits documented). Project-wide final acceptance remains pending.
+Mandatory technical final acceptance — Completed (6 October 2026, same-host clean remote clone and isolated data); manual learning assessment — NOT VERIFIED. Module 10/11 and mandatory troubleshooting acceptance remain Completed. Overall learning/closure is not automatically Completed.
 
 ## Current Phase
 
-Final documentation — PROJECT_SPEC.md sections 12/13/25/30/37; general runtime acceptance not started
+Final acceptance — technical section30/31/37 acceptance completed; manual section32 learning review pending
 
 ## Current Step
 
-Final documentation and scope decisions accepted: six services, Nginx inside frontend, api backend role; first-install .env/external PostgreSQL volume/explicit migration separated from prepared-environment up. Clean-clone final runtime demo and project-wide acceptance pending; no new final runtime acceptance performed.
+Remote main 92e98a10d072c4e53dc6223c1cde8c490cfd586d passed the isolated six-service first-install/final demo; docs/final-acceptance.md maps new and prior evidence. Existing resources and development secrets preserved; user answers/exercises still pending. No application/config changes, commit/push/tag/release.
 
 ## Completed
 
@@ -263,15 +263,21 @@ Final documentation and scope decisions accepted: six services, Nginx inside fro
 
 Documentation checks PASS (6 October 2026): 329 local links/anchors across the current specification/docs/labs/troubleshooting; 11/11 lab canonical section12 headings, seven unchanged nine-section troubleshooting documents and unchanged original lab command blocks verified. Nineteen PowerShell blocks parsed without executing them. Repository secret scan exit0, git diff check exit0 and ignored/untracked .env verified without reading its values. Exactly sixteen documentation files changed/new. Existing module/CI evidence is historical, not a new final runtime acceptance. Latest previously observed push run 37432761687 on 2df477ccbfbc7b7e2dde8cdeb90965960c9ac0f5 had three successful jobs; the documentation push CI result is reported separately without a repeated run-link commit cycle.
 
-Remaining: isolated current-source section31 demo including documented first-install preparation, section30/37 final checklist/evidence matrix and learning review. Both scope decisions are resolved; no separate nginx service or zero-preparation installer is required. No production/coverage/fork/restore claims are added. Independent glossary file omitted using section9 repository simplification; terms preserved in architecture.md, not deleted.
+At that documentation review the runtime demo and learning review were pending. The subsequent technical final acceptance below completes the runtime/evidence matrix; learning remains pending. Both scope decisions are resolved; no separate nginx service or zero-preparation installer is required. No production/coverage/fork/restore claims are added. Independent glossary file omitted using section9 repository simplification; terms preserved in architecture.md, not deleted.
+
+## Technical Final Acceptance — 6 October 2026
+
+PASS on remote main 92e98a10d072c4e53dc6223c1cde8c490cfd586d, UTC08:48:24–09:10:34. Fresh HTTPS clone, unique Compose project and three volumes, generated fake credentials, isolated localhost ports. Real first-install env/preflight/empty external PostgreSQL/TCP auth/InitialCreate SQL review/apply/idempotent-reapply preceded six-service healthy startup. Release build0warnings/0errors; Docker builds used cache. Nginx CRUD/Location/exact-six-field nullable contract/400/404, cache miss/hit/TTL60/mutation invalidation passed; PG recreate preserved Task ID4 and all fields on the same test volume. Module8 Redis outage: same API running/live200/ready503/unhealthy/GET500, then ready200/healthy/GET200. Real Edge loading/disabled/empty/create/complete/reopen/delete/reload and API-stop504/error/retry passed. Internal metrics/OpenAPI, Prometheus multiple scrapes and actual Grafana datasource/12 panel queries passed. Wrong scrape path yielded up0/HTTP404 with API ready200 and datasourceOK; Grafana recovery count3→13/sample1791277665.516 after marker1791277652.715152 proves fresh data. One harness log-name expectation and one recovery timeout were explicitly corrected/rechecked without application/config changes.
+
+Only demo Task/cache/container/network/three-volume/two-image/temp resources cleaned. Before/after inventory exactly18containers/8networks/21volumes/38image-tag entries with identical IDs/states/ports; default bridge unchanged. Development .env/user-secrets/volume untouched; captured command/service/frontend-browser canary checks clean. Same-SHA hosted run37436957155 success for all three jobs; no repeated workflow/runtime experiments or new Git operation. Final docs:370 local links/anchors, secret check exit0 and diff check exit0; exactly six documentation files, index untouched. Full PASS/FAIL/NOT VERIFIED matrix, prior evidence links and limits: docs/final-acceptance.md. Manual knowledge answers not evaluated; technical PASS is not learning PASS.
 
 ## Next Goal
 
-Only on explicit request: prepare and run the section31 isolated clean-clone final demo using documented .env/external-volume/explicit-migration preparation, then complete the section30/37 evidence checklist and learning review. Do not begin runtime acceptance automatically.
+Manual learning review: user answers PROJECT_SPEC.md section32's46 questions in their own words and explains two existing lab exercises; evaluate answers and remaining closure items. Review final acceptance documentation before any separately authorized commit. Do not create release/tag or optional advanced labs automatically.
 
 ## Blockers
 
-No remaining architecture/setup scope-decision blocker: user acceptance on 6 October 2026 is recorded in the specification. Project-wide final acceptance is still pending because the current clean-clone first-install/final demo and section30/37 evidence matrix have not been completed. Existing same-host isolated Module9 bootstrap and hosted CI smoke are useful prior evidence, not the entire final demo. No application/Compose changes or final demo in this documentation task. Unit-test coverage, production deployment, real fork/main-target PR and backup restore are not claimed.
+None for mandatory technical final acceptance. Manual learning answers remain NOT VERIFIED. Same-host clean-clone acceptance does not establish clean VM/empty-cache/production/unit-test coverage/real fork/main-target PR/backup-restore or performance guarantees. A recovery browser timeout passed the affected recheck; its precise transient cause was not established. No application/Compose change was required.
 
 None for Troubleshooting 7 mandatory acceptance: 5 October 2026 UTC12:54:27–12:55:56 isolated monitor-flow-3cb1cccc2a45 six-service/new-three-volume/fake-credential experiment passed. Wrong path kept same API running/healthy/live200; Prometheus DOWN/up0/HTTP404 while actual Grafana datasource OK and all12 panel queries error-free, two historical samples and old graphs/counts retained. Correct api:8080/metrics recovered at12:55:47.584503431; after12:55:34.836735 controlled POST400 counter3→8 and new sample1791204947.584 verified through Grafana. Three visually reviewed PNGs, exact-path scanner checks and fixtures; initial18 containers/8 networks/21 volumes/38 image-tag entries and six healthy services preserved, only own test resources/tooling cleaned. Limits: no separate datasource transport outage, long retention/outage/load or comprehensive OCR/secret assurance; general closure not started.
 
