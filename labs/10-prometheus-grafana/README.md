@@ -907,3 +907,63 @@ Yalnız kendi Task kayıtları temizlendi; başlangıç/bitiş `tasks`, Module 3
 **Öğrenme:** toplam sayı proses ömründeki counter değeridir; rate resetleri dikkate alan olay/s hızıdır. Güvenli request template'i gerçek kullanıcı yolu/query'sinden farklıdır. Response completion final500'ü doğru kaydetmeyi sağlar. Prometheus `up` yalnız scrape başarısını söyler; yanlış DNS/port/path API çalışırken de up0 üretebilir. Provisioning tanımı yeniden yükler, volume geçmiş veriyi korur; bunlar farklı sorumluluklardır.
 
 Şartnameye göre sonraki modül **Module 11 — GitHub Actions CI**. Yalnız öneri: açık talep üzerine mevcut build/smoke/config doğrulamalarını kapsayacak minimum CI planını hazırlamak. Bu görev Module 11'e geçmedi. Önerilen commit mesajı: `fix(observability): close Module 10 acceptance gaps`; commit/push yapılmadı.
+
+---
+
+6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Goal
+
+[Amaç ve sınırlar](#amaç-ve-sınırlar).
+
+## What You Will Learn
+
+[Kavramlar ve nedenleri](#kavramlar).
+
+## Architecture
+
+[Bu aşamanın yapısı](#image-ve-compose-kararı); [güncel sistem](../../docs/architecture.md#servisler-portlar-ve-ağ).
+
+## Prerequisites
+
+Bu tarihsel deneyin kaynak/port/credential ön koşullarını kendi komut bölümünden kontrol et. Güncel normal kurulum için [Module9 rehberini](../09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izle; önceki lab komutlarını development kaynaklarında körlemesine tekrarlama.
+
+## Step 1
+
+[Hazırlık ve komutlar](#çalıştırılan-komutlar).
+
+## Step 2
+
+[Davranışı çalıştırma ve gözlemleme](#şartname-farklarının-kapatılması--4-ekim-2026).
+
+## Verification
+
+[Gerçek sonuçlar](#şartname-farklarının-kapatılması--4-ekim-2026); çalışma, cleanup ve ölçülmeyen kapsam ayrımlarını koru. Bu dizin genel final runtime kabulü değildir.
+
+## Break It
+
+[Belgelenmiş arıza veya eksik davranış](#3-yanlış-service-name--port--path-deneyleri).
+
+## Diagnose It
+
+[Teşhis ve gözlem](#3-yanlış-service-name--port--path-deneyleri).
+
+## Fix It
+
+[Doğru davranış / düzeltme açıklaması](#3-yanlış-service-name--port--path-deneyleri).
+
+## What Happened?
+
+[Ölçülen sonuç ve sınırlar](#şartname-farklarının-kapatılması--4-ekim-2026).
+
+## Key Concepts
+
+[Temel ayrımlar](#kavramlar); [kısa sözlük](../../docs/architecture.md#kısa-sözlük).
+
+## Interview Questions
+
+[Mevcut mülakat soruları](#kısa-öğrenme-değerlendirmesi).
+
+## Exercises
+
+[Mevcut alıştırma](#kısa-öğrenme-değerlendirmesi); uygulamadan önce kaynak sahipliği ve cleanup şartlarını oku.

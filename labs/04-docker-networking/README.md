@@ -248,3 +248,67 @@ Host üzerinden `/health` **200**, `/openapi/v1.json` **200**, `GET /api/tasks` 
 8. `docker port` ve `docker inspect` port bindings: host portu gerçekten gerekiyor mu? API için evet, host'tan erişim istendi; PostgreSQL için hayır.
 
 Test kaydı silindi. Tanı, API ve PostgreSQL container'ları; lab network'ü ve geçici env dosyası kaldırıldı. BusyBox image'ı bu deneyde ilk kez çekilmişti; test sonunda yalnızca bu tag kaldırıldı. Son envanter tekrar **12 container, 7 network, 19 volume, 27 image** idi. `fullstack-ops-postgres-data`, `postgres:18-alpine` ve `fullstack-ops-api:networking` korundu. Başka Docker kaynağına dokunulmadı; prune kullanılmadı.
+
+---
+
+6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Goal
+
+[Amaç ve kapsam](#amaç-ve-kapsam).
+
+## What You Will Learn
+
+[Kavramlar ve nedenleri](#temel-kavramlar).
+
+## Architecture
+
+[Bu aşamanın yapısı](#dns-ve-network-kapsamı); [güncel sistem](../../docs/architecture.md#servisler-portlar-ve-ağ).
+
+## Prerequisites
+
+Bu tarihsel deneyin kaynak/port/credential ön koşullarını kendi komut bölümünden kontrol et. Güncel normal kurulum için [Module9 rehberini](../09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izle; önceki lab komutlarını development kaynaklarında körlemesine tekrarlama.
+
+## Step 1
+
+[Hazırlık ve komutlar](#deneyde-kullanılan-komutlar).
+
+## Step 2
+
+[Davranışı çalıştırma ve gözlemleme](#gerçek-http-ve-veri-sonuçları).
+
+## Verification
+
+[Gerçek sonuçlar](#gerçek-http-ve-veri-sonuçları); çalışma, cleanup ve ölçülmeyen kapsam ayrımlarını koru. Bu dizin genel final runtime kabulü değildir.
+
+## Break It
+
+[Belgelenmiş arıza veya eksik davranış](#yanlış-hedef-ve-düzeltme).
+
+## Diagnose It
+
+[Teşhis ve gözlem](#teşhis-karar-sırası-ve-temizlik).
+
+## Fix It
+
+[Doğru davranış / düzeltme açıklaması](#yanlış-hedef-ve-düzeltme).
+
+## What Happened?
+
+[Ölçülen sonuç ve sınırlar](#gerçek-http-ve-veri-sonuçları).
+
+## Key Concepts
+
+[Temel ayrımlar](#temel-kavramlar); [kısa sözlük](../../docs/architecture.md#kısa-sözlük).
+
+## Interview Questions
+
+1. Container içindeki localhost hangi adresi gösterir?
+2. Servis DNS çözümü ile TCP bağlantısı nasıl ayrılır?
+3. Host portu ile container portu ne zaman kullanılır?
+4. TCP açıkken neden readiness veya SQL başarısız olabilir?
+5. Network inspect'teki IP neden kalıcı connection ayarı olmamalı?
+
+## Exercises
+
+Mevcut kanıtlardan DNS → TCP → pg_isready → SQL/API teşhis karar ağacını çiz; komutları development kaynaklarında yeniden çalıştırma.

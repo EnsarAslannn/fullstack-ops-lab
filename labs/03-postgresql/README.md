@@ -404,3 +404,67 @@ PostgreSQL tekrar başlatılıp `pg_isready` başarılı olduktan sonra **aynı 
 Beş benzersiz başlıkla eşzamanlı POST gönderildi: **5/5 yanıt 201**, ID'ler **13, 14, 15, 16, 17** ve hepsi farklıydı. ID artık uygulama içi sayaçtan değil PostgreSQL identity sütunundan geliyor; eski liste/sayaç lock'u gerekmiyor. Geçici PowerShell temizlik komutunda koleksiyonun yanlış sarmalanması ilk DELETE'i `404` yaptı; gerçek tablo kontrolünde hiçbir görev silinmemişti. Beş kayıt tek tek başlıkları doğrulanarak API üzerinden `204` ile silindi. Ana acceptance görevi de API üzerinden `204` ile silindi ve sonraki GET `404` oldu.
 
 Son `tasks` sayısı **0**. `lab_tasks` hâlâ `1|Module 3B persistent task`, `__EFMigrationsHistory` hâlâ `20260928113912_InitialCreate` döndürdü. Test API süreci ve yalnızca `fullstack-ops-postgres-acceptance` container'ı kaldırıldı. `fullstack-ops-postgres-data` named volume'u ile `postgres:18-alpine` image'ı kaldı. User-secrets repository dışında; gerçek parola veya tam bağlantı değeri dokümantasyona yazılmadı.
+
+---
+
+6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Goal
+
+[Amaç ve kapsam](#amaç-ve-kapsam).
+
+## What You Will Learn
+
+[Kavramlar ve nedenleri](#anonim-ve-named-volume-farkı).
+
+## Architecture
+
+[Bu aşamanın yapısı](#sürümler-ve-kod-yapısı); [güncel sistem](../../docs/architecture.md#servisler-portlar-ve-ağ).
+
+## Prerequisites
+
+Bu tarihsel deneyin kaynak/port/credential ön koşullarını kendi komut bölümünden kontrol et. Güncel normal kurulum için [Module9 rehberini](../09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izle; önceki lab komutlarını development kaynaklarında körlemesine tekrarlama.
+
+## Step 1
+
+[Hazırlık ve komutlar](#başlatma-ve-hazırlık).
+
+## Step 2
+
+[Davranışı çalıştırma ve gözlemleme](#migration-ve-temel-api-kabulü).
+
+## Verification
+
+[Gerçek sonuçlar](#migration-ve-temel-api-kabulü); çalışma, cleanup ve ölçülmeyen kapsam ayrımlarını koru. Bu dizin genel final runtime kabulü değildir.
+
+## Break It
+
+[Belgelenmiş arıza veya eksik davranış](#stopstart-ve-removerecreate-sonucu).
+
+## Diagnose It
+
+[Teşhis ve gözlem](#veritabanı-erişilemezken-davranış-ve-toparlanma).
+
+## Fix It
+
+[Doğru davranış / düzeltme açıklaması](#test-verisi-ve-removerecreate).
+
+## What Happened?
+
+[Ölçülen sonuç ve sınırlar](#migration-ve-temel-api-kabulü).
+
+## Key Concepts
+
+[Temel ayrımlar](#anonim-ve-named-volume-farkı); [kısa sözlük](../../docs/architecture.md#kısa-sözlük).
+
+## Interview Questions
+
+1. Container adı neden verinin saklandığı yeri belirlemez?
+2. Anonim volume eski veri durduğu hâlde nasıl görünmezlik yaratır?
+3. Aynı named volume'u bağlamakla backup restore arasındaki fark nedir?
+4. InitialCreate history kaydı ile gerçek tablo nasıl karşılaştırılır?
+5. Initialized volume'da env parolasını değiştirmek neden rolü rotate etmez?
+
+## Exercises
+
+Belgedeki iki Mounts sonucunu kaynakları değiştirmeden karşılaştır; container ID değişimi, volume adı ve SELECT sonucuyla kalıcılığı açıkla. Backup restore yapılmış sonucu çıkarma.

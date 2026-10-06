@@ -1,5 +1,7 @@
 # Modül 8 — Health Checks & Service Readiness
 
+Dört servisli sayımlar bu aşamanın tarihli ölçümleridir. Güncel altı servisli sistemi ve readiness/scrape ayrımını [mimari belgesinden](../../docs/architecture.md#health-log-ve-observability) izle; eski kabul tekrar ölçülmüş değildir.
+
 **Durum: 30 Eylül 2026 tarihinde gerçek Compose kesinti deneyleriyle doğrulandı.** Bu laboratuvar, çalışan bir container'ın uygulama trafiğine hazır olduğu anlamına gelmediğini gösterir. Dört servisli mevcut Compose yapısı ve Task API sözleşmesi korunmuştur.
 
 ## Başlangıç ve kapsam
@@ -81,3 +83,67 @@ Docker health yalnız tanımlanan probe kadar anlamlıdır. Liveness dış bağ�
 Test görevi silinir, `tasks=0` doğrulanır ve yalnız Task liste cache anahtarı temizlenir. `docker compose --env-file .env down` proje container ve ağını kaldırır. `fullstack-ops-postgres-data` external volume'u, yerel `.env` ve proje image'ları kalır. Volume'u veya ilişkisiz Docker kaynaklarını silmeyin.
 
 Gerçek final kontrolde dört proje container'ı ve `fullstack-ops-lab_app` ağı yoktu; external PostgreSQL volume'u yerindeydi. Başlangıç ve bitiş envanterindeki ilişkisiz container, network ve volume adları aynı kaldı. `.env` yerelde bulundu ve Git tarafından yok sayılmaya devam etti. `git diff --check` başarılıydı; commit veya push yapılmadı.
+
+---
+
+6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Goal
+
+[Başlangıç ve kapsam](#başlangıç-ve-kapsam).
+
+## What You Will Learn
+
+[Kavramlar ve nedenleri](#kavramlar).
+
+## Architecture
+
+[Bu aşamanın yapısı](#yeni-health-uçları); [güncel sistem](../../docs/architecture.md#servisler-portlar-ve-ağ).
+
+## Prerequisites
+
+Bu tarihsel deneyin kaynak/port/credential ön koşullarını kendi komut bölümünden kontrol et. Güncel normal kurulum için [Module9 rehberini](../09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izle; önceki lab komutlarını development kaynaklarında körlemesine tekrarlama.
+
+## Step 1
+
+[Hazırlık ve komutlar](#komutlar-ve-tekrar).
+
+## Step 2
+
+[Davranışı çalıştırma ve gözlemleme](#gerçek-runtime-sonuçları).
+
+## Verification
+
+[Gerçek sonuçlar](#gerçek-runtime-sonuçları); çalışma, cleanup ve ölçülmeyen kapsam ayrımlarını koru. Bu dizin genel final runtime kabulü değildir.
+
+## Break It
+
+[Belgelenmiş arıza veya eksik davranış](#kod-değişmeden-önceki-baseline).
+
+## Diagnose It
+
+[Teşhis ve gözlem](#kavramlar).
+
+## Fix It
+
+[Doğru davranış / düzeltme açıklaması](#yeni-health-uçları).
+
+## What Happened?
+
+[Ölçülen sonuç ve sınırlar](#gerçek-runtime-sonuçları).
+
+## Key Concepts
+
+[Temel ayrımlar](#kavramlar); [kısa sözlük](../../docs/architecture.md#kısa-sözlük).
+
+## Interview Questions
+
+1. API running ama unhealthy olabilir mi?
+2. Live200 ve ready503 birlikte ne anlatır?
+3. SELECT1 neden tasks şemasını doğrulamaz?
+4. service_healthy neden sonraki kesintiyi otomatik çözmez?
+5. Prometheus up1, API ready503 ile birlikte olabilir mi?
+
+## Exercises
+
+Mevcut kesinti tablosundan running/healthy/live/ready/up sinyallerini ayrı yorumla; ek kesinti başlatma.

@@ -120,3 +120,63 @@ Container IP'si yeni bir container oluşturulduğunda değişebilir; sonraki ça
 ## Uygulamalı alıştırma
 
 Bu laboratuvarı aynı ad ve portla yeniden kur. Başlangıçta `docker ps -a` ve `docker image ls` çıktısını kaydet; container'ı çalıştır, HTTP 200 ve logdaki erişimi göster, durdur, tekrar başlat, ardından kaldır. Sonunda yalnızca laboratuvar container'ının silindiğini ve image'ın kaldığını doğrula.
+
+---
+
+6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Goal
+
+[Amaç](#amaç).
+
+## What You Will Learn
+
+[Kavramlar ve nedenleri](#temel-kavramlar).
+
+## Architecture
+
+[Bu aşamanın yapısı](#seçilen-kaynaklar); [güncel sistem](../../docs/architecture.md#servisler-portlar-ve-ağ).
+
+## Prerequisites
+
+Bu tarihsel deneyin kaynak/port/credential ön koşullarını kendi komut bölümünden kontrol et. Güncel normal kurulum için [Module9 rehberini](../09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izle; önceki lab komutlarını development kaynaklarında körlemesine tekrarlama.
+
+## Step 1
+
+[Hazırlık ve komutlar](#çalıştırılan-komutlar-ve-amaçları).
+
+## Step 2
+
+[Davranışı çalıştırma ve gözlemleme](#gerçek-doğrulama-sonuçları--27-eylül-2026).
+
+## Verification
+
+[Gerçek sonuçlar](#gerçek-doğrulama-sonuçları--27-eylül-2026); çalışma, cleanup ve ölçülmeyen kapsam ayrımlarını koru. Bu dizin genel final runtime kabulü değildir.
+
+## Break It
+
+[Olası hatalar (ayrı arıza deneyi iddiası yok)](#sık-yapılan-hatalar).
+
+## Diagnose It
+
+[Teşhis ve gözlem](#sık-yapılan-hatalar).
+
+## Fix It
+
+[Doğru davranış / düzeltme açıklaması](#sık-yapılan-hatalar).
+
+## What Happened?
+
+[Ölçülen sonuç ve sınırlar](#gerçek-doğrulama-sonuçları--27-eylül-2026).
+
+## Key Concepts
+
+[Temel ayrımlar](#temel-kavramlar); [kısa sözlük](../../docs/architecture.md#kısa-sözlük).
+
+## Interview Questions
+
+[Mevcut mülakat soruları](#5-kısa-mülakat-sorusu).
+
+## Exercises
+
+[Mevcut alıştırma](#uygulamalı-alıştırma); uygulamadan önce kaynak sahipliği ve cleanup şartlarını oku.

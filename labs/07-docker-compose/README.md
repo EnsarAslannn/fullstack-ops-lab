@@ -1,5 +1,7 @@
 # Modül 7 — Docker Compose Orchestration
 
+Bu belge **30 Eylül 2026 dört servisli aşamanın tarihsel kaydıdır**; aşağıdaki “mevcut” ve “şartname” ifadeleri o aşamayı anlatır. **6 Ekim 2026 kabulü** eski ayrı nginx ve hazırlıksız tek komut beklentilerini günceller: altı servis, frontend içinde Nginx ve api backend rolü korunur; ilk kurulum .env/external volume/açık migration, normal başlatma hazırlanmış ortamda up'tır. Tarihsel eksikler bugünkü zorunluluk gibi okunmamalıdır. [Şartname karar kaydı](../../PROJECT_SPEC.md#final-kapsam-kararları--6-ekim-2026), [güncel mimari ve kalan final kabul](../../docs/architecture.md#şartname-farkları-ve-final-kabul-kararları).
+
 **Durum: dört servisli Compose runtime acceptance tamamlandı.** Kök `compose.yaml`, Modül 6'da ayrı komutlarla kurulan dört servisi tanımlar. Bu kabulde servisler başlatıldı, gerçek akışlar ve `down/up` veri kalıcılığı doğrulandı, ardından Compose container'ları ve ağı kaldırıldı. Nginx upstream'i Compose servis adını kullanır; uygulama kodu, Dockerfile ve migration değiştirilmedi. Sonuçlar 11. bölümde, önceki statik doğrulama ise 8. bölümde ayrı tutulur.
 
 `PROJECT_SPEC.md` nihai hedefte `frontend`, `backend`, `postgres`, `redis`, ayrı `nginx`, `prometheus` ve `grafana` servislerini sayar. Bu ilk adım, kullanıcının istediği **dört servisli Compose tanımıdır**. Mevcut frontend image'ı React dosyalarını zaten Nginx ile sunar. Nihai servis ayrımı ve observability sonraki açık adımlarda şartnameyle yeniden karşılaştırılmalıdır. Buradaki `api`, şartnamedeki backend rolünü yerine getirir.
@@ -157,3 +159,67 @@ Başlangıçta Git çalışma alanı temizdi. Docker Desktop Engine başlangıç
 Kullanılan temel komutlar: `docker compose --env-file .env config -q`, `build`, `up -d --wait --wait-timeout 120`, `ps`, `exec -T`, `restart api`, `restart redis`, `restart postgres`, `down`; ayrıca `docker inspect`, `docker network inspect`, `docker volume inspect`, `docker image history`, local Release ve Vite build komutları. Host HTTP istekleri yalnız frontend `18081` adresine gönderildi. `down -v`, `system prune`, `volume prune`, migration, commit ve push çalıştırılmadı.
 
 Bu kabul **hazırlanmış local volume** ile geçti. Yeni bilgisayarda external volume önceden oluşturulmalı, PostgreSQL credentials uyumlu olmalı ve boş şema için `InitialCreate` açıkça uygulanmalıdır. Bu dört servisli adım, şartnamedeki nihai ayrı Nginx/observability servislerini ve sıfırdan tek komut kurulum hedefini henüz karşılamaz.
+
+---
+
+6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Goal
+
+[1. Servis tanımı](#1-servis-tanımı).
+
+## What You Will Learn
+
+[Kavramlar ve nedenleri](#2-ağ-dns-ve-nginx-upstream-kararı).
+
+## Architecture
+
+[Bu aşamanın yapısı](#1-servis-tanımı); [güncel sistem](../../docs/architecture.md#servisler-portlar-ve-ağ).
+
+## Prerequisites
+
+Bu tarihsel deneyin kaynak/port/credential ön koşullarını kendi komut bölümünden kontrol et. Güncel normal kurulum için [Module9 rehberini](../09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izle; önceki lab komutlarını development kaynaklarında körlemesine tekrarlama.
+
+## Step 1
+
+[Hazırlık ve komutlar](#4-migration-ilk-kurulumda-açık-adım).
+
+## Step 2
+
+[Davranışı çalıştırma ve gözlemleme](#11-gerçek-runtime-acceptance--30-eylül-2026).
+
+## Verification
+
+[Gerçek sonuçlar](#11-gerçek-runtime-acceptance--30-eylül-2026); çalışma, cleanup ve ölçülmeyen kapsam ayrımlarını koru. Bu dizin genel final runtime kabulü değildir.
+
+## Break It
+
+[Belgelenmiş arıza veya eksik davranış](#7-redis-cache-davranışı).
+
+## Diagnose It
+
+[Teşhis ve gözlem](#5-healthcheck-ve-başlangıç-sırası).
+
+## Fix It
+
+[Doğru davranış / düzeltme açıklaması](#11-gerçek-runtime-acceptance--30-eylül-2026).
+
+## What Happened?
+
+[Ölçülen sonuç ve sınırlar](#11-gerçek-runtime-acceptance--30-eylül-2026).
+
+## Key Concepts
+
+[Temel ayrımlar](#2-ağ-dns-ve-nginx-upstream-kararı); [kısa sözlük](../../docs/architecture.md#kısa-sözlük).
+
+## Interview Questions
+
+1. depends_on başlangıç koşulu ile sonraki kesinti nasıl farklıdır?
+2. Yalnız project adı değiştirmek external volume'u neden izole etmez?
+3. Build, restart ve recreate arasındaki fark nedir?
+4. down ile down -v hangi veriler için farklıdır?
+5. Healthy servisler neden migration/CRUD başarısı kanıtı değildir?
+
+## Exercises
+
+compose.yaml üzerinden dışarı yayınlanan portları ve volume sahipliklerini listele; down/down-v'nin her kaynağa etkisini açıklayan bir tablo hazırla.

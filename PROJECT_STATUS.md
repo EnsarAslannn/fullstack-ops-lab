@@ -2,15 +2,15 @@
 
 ## Status
 
-Module 10 — Completed; Module 11 — Completed (mandatory CI acceptance verified; fork/hard-timeout/production limits documented)
+Module 10 — Completed; Module 11 — Completed (mandatory CI acceptance verified; fork/hard-timeout/production limits documented). Project-wide final acceptance remains pending.
 
 ## Current Phase
 
-Troubleshooting Labs — PROJECT_SPEC.md section 11
+Final documentation — PROJECT_SPEC.md sections 12/13/25/30/37; general runtime acceptance not started
 
 ## Current Step
 
-Troubleshooting 7 — Prometheus Target Down / Grafana No Data completed using existing wrong-name/port/path evidence and isolated real Grafana scrape failure/fresh-sample recovery acceptance
+Final documentation and scope decisions accepted: six services, Nginx inside frontend, api backend role; first-install .env/external PostgreSQL volume/explicit migration separated from prepared-environment up. Clean-clone final runtime demo and project-wide acceptance pending; no new final runtime acceptance performed.
 
 ## Completed
 
@@ -255,11 +255,23 @@ Troubleshooting 7 — Prometheus Target Down / Grafana No Data completed using e
 
 - Troubleshooting 7 completed on 5 October 2026 using Module 10 wrong-name/port/path evidence and isolated monitor-flow-3cb1cccc2a45 acceptance through the actual Grafana datasource: API running/healthy/live200, target DOWN/up0/HTTP404, datasource OK, historical samples retained; correct target recovered UP/up1 and new POST400 counter3→8/sample1791204947.584 verified through Grafana. Three reviewed browser PNGs retained; narrow exact-path scanner fixtures added. Only own test resources cleaned; original Docker inventory and six healthy services preserved, no development secret/data/configuration changes or general project closure
 
+- Final documentation prepared on 6 October 2026: root README now describes the actual six-service system, staged first-install requirements, local URLs, CI badge and lab/troubleshooting links. docs/architecture.md adds real topology/cache/health/metrics/volume flows, Mermaid diagrams, DoD review and an inline glossary; docs/commands-cheatsheet.md separates routine lifecycle from destructive operations. All eleven lab READMEs map the fourteen section12 headings and include interview/exercise entries; original command blocks and runtime measurements retained. Module9 current onboarding updated for Grafana credentials/six services and existing monitoring-volume deletion risk. Seven troubleshooting nine-section records remain unchanged. No application/Compose/workflow/secret changes or final runtime demo.
+
+## Final Documentation Review
+
+6 October 2026 scope decisions explicitly accepted by the user and recorded in PROJECT_SPEC.md section8. Updated only affected architecture/service lists, prepared-environment startup target, Quick Start, migration preparation and section30/31/37 acceptance requirements. Existing fifteen documentation changes preserved; sixteen documentation files including the specification are in this commit scope. Application code, Compose architecture, .env, user-secrets and volume contents unchanged. Project NOT marked Completed.
+
+Documentation checks PASS (6 October 2026): 329 local links/anchors across the current specification/docs/labs/troubleshooting; 11/11 lab canonical section12 headings, seven unchanged nine-section troubleshooting documents and unchanged original lab command blocks verified. Nineteen PowerShell blocks parsed without executing them. Repository secret scan exit0, git diff check exit0 and ignored/untracked .env verified without reading its values. Exactly sixteen documentation files changed/new. Existing module/CI evidence is historical, not a new final runtime acceptance. Latest previously observed push run 37432761687 on 2df477ccbfbc7b7e2dde8cdeb90965960c9ac0f5 had three successful jobs; the documentation push CI result is reported separately without a repeated run-link commit cycle.
+
+Remaining: isolated current-source section31 demo including documented first-install preparation, section30/37 final checklist/evidence matrix and learning review. Both scope decisions are resolved; no separate nginx service or zero-preparation installer is required. No production/coverage/fork/restore claims are added. Independent glossary file omitted using section9 repository simplification; terms preserved in architecture.md, not deleted.
+
 ## Next Goal
 
-On explicit request: review troubleshooting/07-monitoring-no-data/README.md, its three screenshots and the narrow PNG scanner/fixture changes before committing. Do not begin general project closure automatically.
+Only on explicit request: prepare and run the section31 isolated clean-clone final demo using documented .env/external-volume/explicit-migration preparation, then complete the section30/37 evidence checklist and learning review. Do not begin runtime acceptance automatically.
 
 ## Blockers
+
+No remaining architecture/setup scope-decision blocker: user acceptance on 6 October 2026 is recorded in the specification. Project-wide final acceptance is still pending because the current clean-clone first-install/final demo and section30/37 evidence matrix have not been completed. Existing same-host isolated Module9 bootstrap and hosted CI smoke are useful prior evidence, not the entire final demo. No application/Compose changes or final demo in this documentation task. Unit-test coverage, production deployment, real fork/main-target PR and backup restore are not claimed.
 
 None for Troubleshooting 7 mandatory acceptance: 5 October 2026 UTC12:54:27–12:55:56 isolated monitor-flow-3cb1cccc2a45 six-service/new-three-volume/fake-credential experiment passed. Wrong path kept same API running/healthy/live200; Prometheus DOWN/up0/HTTP404 while actual Grafana datasource OK and all12 panel queries error-free, two historical samples and old graphs/counts retained. Correct api:8080/metrics recovered at12:55:47.584503431; after12:55:34.836735 controlled POST400 counter3→8 and new sample1791204947.584 verified through Grafana. Three visually reviewed PNGs, exact-path scanner checks and fixtures; initial18 containers/8 networks/21 volumes/38 image-tag entries and six healthy services preserved, only own test resources/tooling cleaned. Limits: no separate datasource transport outage, long retention/outage/load or comprehensive OCR/secret assurance; general closure not started.
 

@@ -62,3 +62,67 @@ Redis durdurulmuşken gerçek `GET /api/tasks` **500** döndü; bu sürümde GET
 `dotnet restore FullStackOpsLab.slnx` ve `dotnet build FullStackOpsLab.slnx -c Release` başarılı; Release build **0 uyarı, 0 hata**. Phase 0A/0B, Module 3D/3E ve yeni Module 5 cache smoke testleri geçti. Son SQL `tasks=0`, `lab_tasks=1:Module 3B persistent task`, migration `20260928113912_InitialCreate` gösterdi. `fullstack-ops:*` test key'leri temizlendi.
 
 Yerel API süreci ve geçici log dosyaları kapatılıp kaldırıldı. Yalnızca `fullstack-ops-redis-lab` ve `fullstack-ops-postgres-cache-lab` container'ları durdurulup kaldırıldı. `fullstack-ops-postgres-data` named volume'u, PostgreSQL ve proje image'ları korundu; Redis image'ı sonraki öğrenme adımları için kalabilir. İlişkisiz Docker kaynağına dokunulmadı. Commit veya push yapılmadı.
+
+---
+
+6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Goal
+
+[Amaç ve kararlar](#amaç-ve-kararlar).
+
+## What You Will Learn
+
+[Kavramlar ve nedenleri](#invalidation-ttl-ve-redis-kesintisi).
+
+## Architecture
+
+[Bu aşamanın yapısı](#local-redis-laboratuvarı-ve-bağlantı-ayarları); [güncel sistem](../../docs/architecture.md#servisler-portlar-ve-ağ).
+
+## Prerequisites
+
+Bu tarihsel deneyin kaynak/port/credential ön koşullarını kendi komut bölümünden kontrol et. Güncel normal kurulum için [Module9 rehberini](../09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izle; önceki lab komutlarını development kaynaklarında körlemesine tekrarlama.
+
+## Step 1
+
+[Hazırlık ve komutlar](#local-redis-laboratuvarı-ve-bağlantı-ayarları).
+
+## Step 2
+
+[Davranışı çalıştırma ve gözlemleme](#önce-başarısız-test-sonra-uygulama).
+
+## Verification
+
+[Gerçek sonuçlar](#önce-başarısız-test-sonra-uygulama); çalışma, cleanup ve ölçülmeyen kapsam ayrımlarını koru. Bu dizin genel final runtime kabulü değildir.
+
+## Break It
+
+[Belgelenmiş arıza veya eksik davranış](#invalidation-ttl-ve-redis-kesintisi).
+
+## Diagnose It
+
+[Teşhis ve gözlem](#önce-başarısız-test-sonra-uygulama).
+
+## Fix It
+
+[Doğru davranış / düzeltme açıklaması](#invalidation-ttl-ve-redis-kesintisi).
+
+## What Happened?
+
+[Ölçülen sonuç ve sınırlar](#önce-başarısız-test-sonra-uygulama).
+
+## Key Concepts
+
+[Temel ayrımlar](#invalidation-ttl-ve-redis-kesintisi); [kısa sözlük](../../docs/architecture.md#kısa-sözlük).
+
+## Interview Questions
+
+1. Boş listede cache hit ile key yokluğunda miss nasıl ayrılır?
+2. Absolute TTL neyi sınırlar?
+3. Başarılı DB yazmasından sonra neden invalidation gerekir?
+4. 400/404 neden cache'i silmez?
+5. Redis liste GET hatasıyla başarılı mutation sonrası invalidation hatası nasıl farklıdır?
+
+## Exercises
+
+Belgedeki ilk/ikinci GET, POST ve 400 sonuçlarına cache key'in varlık/TTL durumunu yaz; yeni kayıt veya toplu cache temizliği yapma.

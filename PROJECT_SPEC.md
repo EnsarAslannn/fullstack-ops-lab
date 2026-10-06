@@ -400,33 +400,19 @@ Frontend'in amacı görsel tasarım gösterisi değildir.
 Final mimari aşağıdaki gibi olacaktır:
 
 ```text
-                         Internet / Browser
-                                |
-                                v
-                         +---------------+
-                         |     Nginx     |
-                         | Reverse Proxy |
-                         +-------+-------+
-                                 |
-                  +--------------+--------------+
-                  |                             |
-                  v                             v
-          +---------------+             +---------------+
-          | React Frontend|             |   .NET API    |
-          +---------------+             +-------+-------+
-                                                |
-                               +----------------+----------------+
-                               |                                 |
-                               v                                 v
-                       +---------------+                 +---------------+
-                       |  PostgreSQL   |                 |     Redis     |
-                       +---------------+                 +---------------+
+Tarayıcı
+   |
+   v
+frontend:80 [Nginx + React statik dosyaları]
+   | /api/*
+   v
+api:8080 [.NET API / backend]
+   |                     |
+   v                     v
+postgres:5432        redis:6379
 
-                     +-------------------------------------+
-                     |        Observability Plane          |
-                     |                                     |
-                     | .NET /metrics <- Prometheus <- Grafana |
-                     +-------------------------------------+
+prometheus:9090 --scrape /metrics--> api:8080
+grafana:3000 ----PromQL-----------> prometheus:9090
 ```
 
 Observability akışı:
@@ -443,7 +429,9 @@ Observability akışı:
      Grafana
 ```
 
-Prometheus, backend'i Docker network içindeki servis adıyla scrape etmelidir. Grafana'nın Prometheus data source'u ve dashboard'u dosyalardan otomatik provision edilmelidir.
+Şemadaki React statik sunumu ve Nginx reverse proxy aynı `frontend` container'ındadır; ayrı bir `nginx` servisi gerekmez. `api` servisi backend rolünü karşılar. Final Compose servisleri `frontend`, `api`, `postgres`, `redis`, `prometheus` ve `grafana` olmak üzere altıdır.
+
+Prometheus, backend'i Docker network içindeki `api:8080` servis hedefinden scrape etmelidir. Grafana'nın Prometheus data source'u ve dashboard'u dosyalardan otomatik provision edilmelidir.
 
 Routing:
 
@@ -451,6 +439,17 @@ Routing:
 /        -> React frontend
 /api/*   -> .NET backend
 ```
+
+## Final kapsam kararları — 6 Ekim 2026
+
+Kullanıcının açık kabulüyle aşağıdaki iki karar şartnamenin servis, kurulum ve final kabul beklentilerini günceller:
+
+| Konu | Önceki beklenti | Kabul edilen tasarım | Gerekçe |
+| --- | --- | --- | --- |
+| Servis ayrımı | Module 7 ayrı frontend, backend ve nginx dahil en az yedi servis sayıyordu | Altı servis korunur; frontend içinde Nginx statik sunucu/reverse proxy, api backend rolüdür; ayrı nginx eklenmez | Mevcut tasarım iki routing görevini aynı container'da yerine getirir; ek servis oluşturmadan roller ve internal API erişimi korunur |
+| İlk kurulum | Clone/env/up demo sırası external volume ve şema hazırlığını göstermiyordu | İlk kurulumda ignored .env, external PostgreSQL volume'u ve mevcut InitialCreate migration'ının açık uygulanması hazırlanır; sonrasında normal compose up sistemi başlatır | Veri deposunun sahipliği ve migration adımı görünür kalır; hazırlanmış ortamın başlatılması, sıfır hazırlıkla kurulumla karıştırılmaz |
+
+İlk kurulum komutları [Module 9 rehberinde](labs/09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) bulunur. Bu kararlar runtime kabulü değildir; bölüm 30/31/37'nin gerçek final doğrulaması ayrıca yapılmalıdır. Diğer şartname gereksinimleri korunur.
 
 ---
 
@@ -1016,19 +1015,20 @@ Tüm servisleri tek bir deklaratif yapı ile yönetmek.
 
 ## Servisler
 
-Final compose dosyasında en az:
+Final compose dosyasında şu altı servis:
 
 ```text
 frontend
-backend
+api
 postgres
 redis
-nginx
 prometheus
 grafana
 ```
 
 bulunmalıdır.
+
+Nginx, `frontend` container'ında React statik dosyalarını sunar ve `/api/*` isteklerini `api:8080` hedefine yönlendirir. `api` backend servisidir; ayrıca `nginx` servisi eklenmesi zorunlu değildir.
 
 ## Öğretilecek Konular
 
@@ -1059,13 +1059,15 @@ docker compose pull
 
 ## Tek Komut Hedefi
 
-Final sistem:
+İlk kurulum ve normal başlatma ayrıdır. İlk kurulumda `.env` placeholder'ları güvenli biçimde doldurulmalı, external `fullstack-ops-postgres-data` volume'u hazırlanmalı ve mevcut `InitialCreate` migration'ı açıkça uygulanıp doğrulanmalıdır. Mevcut volume varsa otomatik silinmemeli veya sıfırlanmamalıdır.
+
+Bu hazırlığı tamamlanmış final sistem:
 
 ```bash
 docker compose up --build -d
 ```
 
-ile ayağa kalkmalıdır.
+ile ayağa kalkmalıdır. Bu komut ilk volume/migration hazırlığının yerine geçmez; hazırlıksız clone/env/up ile sıfırdan kurulum hedeflenmez.
 
 Kapatma:
 
@@ -1075,13 +1077,13 @@ docker compose down
 
 Veriler varsayılan olarak korunmalıdır.
 
-Verileri de silmek için:
+Normal kapatma dışında, Compose-managed volume'ları da kaldırabilen:
 
 ```bash
 docker compose down -v
 ```
 
-kullanımının sonucu özellikle açıklanmalıdır.
+kullanımının sonucu özellikle açıklanmalıdır. `-v`, Prometheus/Grafana managed volume'larını silebilir; external PostgreSQL volume'unu kaldırmaz. Volume silme rutin kurulum/cleanup adımı değildir.
 
 ---
 
@@ -1295,7 +1297,7 @@ global:
 scrape_configs:
   - job_name: fullstack-ops-api
     static_configs:
-      - targets: ["backend:<internal-port>"]
+      - targets: ["api:8080"]
 ```
 
 Gerçek internal port ve metrics path proje yapılandırmasından doğrulanmalıdır. `prometheus.yml` repository'de version control altında tutulmalıdır.
@@ -1780,6 +1782,11 @@ ASCII veya Mermaid.
 ```bash
 git clone ...
 cd fullstack-ops-lab
+```
+
+İlk kurulumda `.env`, external PostgreSQL volume'u ve mevcut migration için açık hazırlık rehberi izlenmelidir. Hazırlık tamamlandıktan sonra normal başlatma:
+
+```bash
 docker compose up --build -d
 ```
 
@@ -1911,9 +1918,8 @@ fullstack-ops-network
 Servisler:
 
 ```text
-nginx
 frontend
-backend
+api
 postgres
 redis
 prometheus
@@ -1987,6 +1993,8 @@ Container environment'ta migration'ın:
 çalıştırılabileceği açıklanabilir.
 
 İlk sürümde en sade ve anlaşılır yöntem seçilmelidir.
+
+Kabul edilen final tasarımda ilk kurulum, repository'deki mevcut `InitialCreate` migration'ından SQL üretip incelemeyi ve PostgreSQL'e açıkça uygulamayı içerir. API startup'ına otomatik migration eklenmesi gerekmez; normal `compose up` migration uygulamaz.
 
 ---
 
@@ -2357,16 +2365,18 @@ Proje tamamlandığında aşağıdakilerin tamamı sağlanmalıdır.
 
 ## Nginx
 
-- Tek giriş noktası.
+- Uygulama frontend/API trafiği için tek giriş noktası; Nginx frontend container'ında çalışır, ayrı nginx servisi gerekmez. Prometheus/Grafana'nın localhost arayüzleri bu uygulama routing'inden ayrıdır.
 - Frontend ve API routing çalışıyor.
 
 ## Compose
+
+Final servisler `frontend`, `api`, `postgres`, `redis`, `prometheus`, `grafana` olmak üzere altıdır; `api` backend rolünü karşılar. İlk kurulumda `.env`, external PostgreSQL volume'u ve mevcut migration hazırlığı açıkça uygulanıp doğrulanır. Bu hazırlığı tamamlanmış ortamda:
 
 ```bash
 docker compose up --build -d
 ```
 
-ile tüm sistem ayağa kalkıyor.
+ile tüm sistem ayağa kalkıyor. Hazırlıksız clone/env/up ile sıfırdan kurulum iddia edilmiyor.
 
 ## Health
 
@@ -2422,14 +2432,25 @@ cd fullstack-ops-lab
 Environment:
 
 ```bash
-cp .env.example .env
+if [ ! -e .env ]; then cp .env.example .env; fi
 ```
 
 Windows için uygun alternatif komut dokümante edilmelidir.
 
+Mevcut `.env` dosyası ezilmemeli; placeholder'lar yerel olarak doldurulmalı ve gerçek credential Git'e eklenmemelidir. Compose user-secrets'ı otomatik okumaz.
+
+Start adımından önce [ilk kurulum rehberi](labs/09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izlenmelidir:
+
+- External `fullstack-ops-postgres-data` volume'unun varlığı kontrol edilir; yalnız yoksa hazırlanır. Mevcut veri otomatik sıfırlanmaz.
+- Preflight/secret kontrolleri çalıştırılır; önce yalnız PostgreSQL başlatılıp bağlantı kabul ettiği doğrulanır.
+- Mevcut `InitialCreate` migration'ından idempotent SQL üretilir, incelenir ve açıkça uygulanır; `tasks` ve `__EFMigrationsHistory` doğrulanır. Yeni migration oluşturulmaz.
+- Yeni volume'un ilk credential hazırlığı ile initialized volume'daki mevcut rol/parola uyumu ayrılır.
+
+Temiz clone final demosu bu belgelenmiş ilk kurulumu da doğrulamalıdır; sıfır hazırlıkla clone/env/up demosu değildir.
+
 ## 3
 
-Start:
+Hazırlanmış ortamı başlatma (ilk kurulumun yerine geçmez):
 
 ```bash
 docker compose up --build -d
@@ -2443,7 +2464,7 @@ Status:
 docker compose ps
 ```
 
-Tüm gerekli servislerin:
+Altı servisin (`frontend`, `api`, `postgres`, `redis`, `prometheus`, `grafana`):
 
 ```text
 running / healthy
@@ -2736,9 +2757,9 @@ gelmelidir.
 [ ] Cache hit/miss implemented
 [ ] Cache TTL implemented
 [ ] Cache invalidation implemented
-[ ] Nginx reverse proxy configured
+[ ] Nginx static serving and reverse proxy configured inside frontend
 [ ] 502 troubleshooting lab completed
-[ ] Docker Compose configured
+[ ] Six-service Docker Compose configured (frontend, api, postgres, redis, prometheus, grafana)
 [ ] Health checks added
 [ ] Readiness scenario documented
 [ ] .env.example added
@@ -2762,7 +2783,9 @@ gelmelidir.
 [ ] Architecture documentation completed
 [ ] Command cheat sheet completed
 [ ] Troubleshooting labs completed
-[ ] Final demo tested from clean clone
+[ ] First-install .env, external PostgreSQL volume and explicit migration preparation documented and verified
+[ ] Prepared environment starts with docker compose up
+[ ] Final demo tested from clean clone using documented first-install preparation
 ```
 
 ---

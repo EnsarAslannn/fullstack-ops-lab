@@ -1,89 +1,153 @@
 # FullStack Ops Lab
 
-FullStack Ops Lab is a learning project built around a small task application called Sandbox Tasks. The long-term goal is to learn full-stack development and operations step by step. The main technical plan is in [PROJECT_SPEC.md](PROJECT_SPEC.md), and current progress is in [PROJECT_STATUS.md](PROJECT_STATUS.md).
+**Full-Stack Docker, Infrastructure & Observability Lab**
 
-## Current setup
+[![Baseline CI](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/workflows/ci.yml)
 
-The current four-service Compose app uses PostgreSQL for tasks and Redis for list caching. For a first clone, follow the [clean-machine setup guide](labs/09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi). The Phase 0 notes below describe the earlier host-only learning stage.
+Sandbox Tasks, görev oluşturma, listeleme, tamamlama/yeniden açma ve silme üzerinden full-stack geliştirme ve operasyon kavramlarını öğreten bir portföy projesidir. React arayüzü Nginx üzerinden ASP.NET Core API'ye ulaşır; görevler PostgreSQL'de, liste cache'i Redis'te tutulur. Prometheus metrik toplar, Grafana datasource ve Overview dashboard'u dosyalardan otomatik yükler.
 
-## Historical Phase 0C notes
+Phase 0, Module 1–11 ve yedi troubleshooting senaryosunun kabul kanıtları belgelerde bulunur. **Genel final kabul ve güncel temiz clone demosu henüz yapılmadı.** Production deployment, unit-test coverage veya hazırlıksız tek komut kurulum iddia edilmez. Otorite [PROJECT_SPEC.md](PROJECT_SPEC.md), ilerleme kaydı [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-At Phase 0C, the .NET 10 Web API and React + TypeScript + Vite frontend ran directly on the host. The frontend listed, created, completed or reopened, and deleted tasks through the then in-memory Task API. It showed loading, empty, and error states and checked the title before sending a new task.
+## Mimari ve teknoloji
+
+```mermaid
+flowchart LR
+    B[Tarayıcı] -->|127.0.0.1:18081| F[frontend:80 — Nginx + React dist]
+    F -->|/api/*| A[api:8080 — .NET 10]
+    A --> P[postgres:5432 — PostgreSQL 18]
+    A --> R[redis:6379 — Redis 8]
+    M[prometheus:9090] -->|15 s scrape /metrics| A
+    G[grafana:3000] -->|PromQL| M
+```
+
+.NET 10 / EF Core / Npgsql; React / TypeScript / Vite; PostgreSQL, Redis, Nginx; Docker/Compose; OpenTelemetry Metrics, Prometheus, Grafana ve GitHub Actions kullanılır. Gerçek sürüm tag'leri [Compose](compose.yaml), [backend Dockerfile](src/backend/FullStackOpsLab.Api/Dockerfile), [frontend Dockerfile](src/frontend/Dockerfile) ve lock/proje dosyalarındadır.
+
+## Özellikler
+
+- Altı servis, iki multi-stage uygulama image'ı ve ortak `app` bridge ağı.
+- PostgreSQL named volume ile kalıcılık; açık EF migration hazırlığı.
+- Liste GET'i için cache-aside, varsayılan 60 s TTL ve başarılı mutation sonrası invalidation.
+- Loading, empty, error/retry, başlık validation'ı ve işlem sırasında disabled butonlar.
+- Ayrı liveness/readiness, güvenli request özetleri ve cache logları.
+- Internal metrics, kalıcı Prometheus TSDB, otomatik datasource ve 12 panelli Grafana Overview.
+- Build/configuration/secret ve izole Compose runtime CI; yedi teşhis/toparlanma senaryosu.
+
+API: GET liste/tekil kayıt **200**, POST **201 + Location**, PUT **200**, DELETE **204**, boş başlık **400**, bulunmayan ID **404**. JSON: `id`, `title`, nullable `description`, `isCompleted`, `createdAt`, `updatedAt`. Redis kapalıyken liste GET'i hata verebilir; fail-open/circuit breaker yoktur. [Request örnekleri](src/backend/FullStackOpsLab.Api/Tasks.http).
+
+## Ön koşullar
+
+| Araç | Gerektiği akış |
+| --- | --- |
+| Git | Clone |
+| Docker Engine + Compose | Altı servis ve image build |
+| PowerShell | Belgelenmiş onboarding/preflight komutları |
+| .NET 10 SDK + local dotnet tool restore | İlk migration SQL'ini host üzerinde üretme; backend host build |
+| Node.js 24 / npm | Yalnız host frontend geliştirme/build; Docker build kendi Node stage'ini kullanır |
+
+Host API geliştirmesi ayrı user-secrets ve erişilebilir DB/Redis host portları gerektirir. Mevcut Compose bu portları yayınlamaz; yalnız stack'i açmak host API bağlantısını hazırlamaz.
+
+## İlk kurulum
+
+```powershell
+git clone https://github.com/EnsarAslannn/fullstack-ops-lab.git
+Set-Location fullstack-ops-lab
+```
+
+[Kurulum rehberinin 13. bölümünü](labs/09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) sırayla izle:
+
+1. Engine/Compose ve host EF araçlarını doğrula.
+2. Mevcut dosyayı ezmeden `.env.example` → ignored `.env` hazırla; PostgreSQL/Grafana placeholder'larını yerel editörde doldur.
+3. `fullstack-ops-postgres-data` external volume'unu incele; yalnız gerçekten yoksa oluştur. Mevcut volume'u sıfırlama.
+4. Env preflight ve repository secret kontrolünü çalıştır.
+5. Yalnız PostgreSQL'i başlat; readiness ve TCP credential eşleşmesini doğrula.
+6. Mevcut InitialCreate migration'ından idempotent SQL üret, **önce incele**, doğru DB'ye `psql ON_ERROR_STOP` ile uygula; tasks/history'yi doğrula.
+7. Altı servisi build edip healthy durumunu kontrol et.
+
+Compose user-secrets'ı otomatik okumaz. Initialized PostgreSQL/Grafana volume'unda env parolasını değiştirmek mevcut kullanıcı parolasını değiştirmez. Gerçek değerleri Git'e/terminale yazma. **Compose up external volume hazırlığının veya migration uygulamasının yerine geçmez.**
+
+## Normal başlatma — hazırlık tamamlandıktan sonra
+
+Repository kökünde PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.EnvPreflight.ps1
+if ($LASTEXITCODE -ne 0) { throw 'Preflight başarısız; başlatma.' }
+docker compose --env-file .env config -q
+if ($LASTEXITCODE -ne 0) { throw 'Compose config başarısız.' }
+docker compose --env-file .env up --build -d --wait --wait-timeout 180
+if ($LASTEXITCODE -ne 0) { throw 'Altı servis healthy olmadı; teşhis et.' }
+docker compose --env-file .env ps
+```
+
+| Kullanım | Yerel adres |
+| --- | --- |
+| Görev arayüzü / API | http://127.0.0.1:18081/ / http://127.0.0.1:18081/api/tasks |
+| Prometheus | http://127.0.0.1:9090/ — target job fullstack-ops-api |
+| Grafana | http://127.0.0.1:3000/ — yerel admin; FullStack Ops Lab / Overview |
+
+Yalnız bu üç port, yalnız localhost'a yayınlanır. API8080, PostgreSQL5432, Redis6379 Compose ağı içindedir. Health/OpenAPI/metrics Nginx'ten API'ye yönlendirilmez; frontend URL'sindeki SPA HTML, API health kanıtı değildir. OpenAPI yalnız Development'ta internal `/openapi/v1.json`; Swagger UI yoktur.
+
+## Güvenli kapatma
+
+```powershell
+docker compose --env-file .env stop  # Container'lar kalır; start ile devam edilebilir.
+# Alternatif: container ve proje ağını kaldır, volume'ları koru.
+docker compose --env-file .env down
+```
+
+`down -v` normal kapatma değildir: Compose-managed Prometheus/Grafana verilerini silebilir. External PostgreSQL volume'u Compose tarafından silinmez; volume silme/prune rutin cleanup değildir. [Komut rehberi](docs/commands-cheatsheet.md).
+
+## Repository ve belgeler
 
 ```text
-FullStackOpsLab.slnx                 .NET solution
-src/backend/FullStackOpsLab.Api/    ASP.NET Core API
-src/frontend/                    React application
-tests/Phase0A.Smoke.ps1           API smoke check
-tests/Phase0B.Tasks.Smoke.ps1     Task CRUD smoke check
+src/backend/FullStackOpsLab.Api/  API, migrations, Dockerfile
+src/frontend/                  React, API client, Dockerfile, nginx.conf
+monitoring/                    Prometheus/Grafana config ve provisioning
+scripts/                       Configuration/preflight/secret kontrolleri
+tests/                         Smoke ve runtime kabul scriptleri
+labs/                          Module 1–11 kanıtları
+troubleshooting/               Yedi hata/çözüm senaryosu
+docs/                          Mimari, sözlük ve komut rehberi
+.github/workflows/ci.yml        Üç job'lı CI
 ```
 
-## Prerequisites
+- [Mimari, kısa sözlük, DoD incelemesi ve kabul edilen final kapsamı](docs/architecture.md)
+- [Komutlar ve beklenen gözlemler](docs/commands-cheatsheet.md)
 
-- .NET 10 SDK
-- Node.js 24 and npm 11
-- PowerShell for the smoke check
+| Lab | Belge |
+| --- | --- |
+| 1 — Docker Fundamentals | [Image/container lifecycle](labs/01-docker-fundamentals/README.md) |
+| 2 — Dockerfiles | [Baseline ve multi-stage](labs/02-dockerfiles/README.md) |
+| 3 — PostgreSQL | [Volume, migration, persistence](labs/03-postgresql/README.md) |
+| 4 — Networking | [DNS, localhost ve teşhis](labs/04-docker-networking/README.md) |
+| 5 — Redis | [Cache, TTL ve invalidation](labs/05-redis/README.md) |
+| 6 — Nginx | [Reverse proxy](labs/06-nginx/README.md) |
+| 7 — Compose | [Tarihsel dört servis kabulü](labs/07-docker-compose/README.md) |
+| 8 — Health | [Liveness/readiness](labs/08-health-checks/README.md) |
+| 9 — Configuration | [Secret, preflight ve bootstrap](labs/09-environment-configuration/README.md) |
+| 10 — Observability | [Metrics, Prometheus, Grafana](labs/10-prometheus-grafana/README.md) |
+| 11 — CI | [Workflow ve hosted kanıtlar](labs/11-github-actions/README.md) |
 
-Docker is not needed for Phase 0.
+| Troubleshooting — şartname sırası | Belge |
+| --- | --- |
+| 1 — Wrong Localhost | [Senaryo](troubleshooting/01-wrong-localhost/README.md) |
+| 2 — Lost PostgreSQL Data | [Senaryo](troubleshooting/02-lost-database/README.md) |
+| 3 — Redis Connection Failure | [Senaryo](troubleshooting/03-redis-connection/README.md) |
+| 4 — Nginx 502 | [Senaryo](troubleshooting/04-nginx-502/README.md) |
+| 5 — Database Not Ready | [Senaryo](troubleshooting/05-database-not-ready/README.md) |
+| 6 — Environment Misconfiguration | [Senaryo](troubleshooting/06-env-misconfiguration/README.md) |
+| 7 — Prometheus Target Down / Grafana No Data | [Senaryo](troubleshooting/07-monitoring-no-data/README.md) |
 
-## Run locally
+## CI ve görseller
 
-Open a terminal in the repository root:
+[Workflow](.github/workflows/ci.yml) push/pull_request için Linux build/config, Windows configuration/secret ve Linux izole Compose runtime job'larını çalıştırır. Runtime kendi credential/volume/migration ortamını hazırlar ve temizler. Unit-test coverage, image publish veya CD yapmaz. Fork/main-target PR gibi denenmemiş sınırlar Module11 belgesindedir.
 
-```powershell
-dotnet restore FullStackOpsLab.slnx
-dotnet run --project src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj
-```
+[Başarılı run 37432761687](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37432761687), commit `2df477ccbfbc7b7e2dde8cdeb90965960c9ac0f5`, üç job success: önceki commit'in kanıtıdır; bu dokümantasyon değişikliği veya genel final demo için hosted kabul değildir.
 
-The API uses `http://localhost:5162` from its launch profile. In another terminal:
+Görseller: [Prometheus Targets](labs/10-prometheus-grafana/images/prometheus-targets.png), [metric sorgusu](labs/10-prometheus-grafana/images/prometheus-query.png), [Overview](labs/10-prometheus-grafana/images/grafana-overview.png), [yanlış target/recovery](troubleshooting/07-monitoring-no-data/README.md#verification). Kısa tarihsel trafik benchmark değildir.
 
-```powershell
-cd src/frontend
-npm ci
-npm run dev
-```
+## Öğrenme çıktıları ve açık final kapsamı
 
-Vite prints the frontend URL, normally `http://localhost:5173`.
+Image/container ayrımını açıklayabilir; DNS → TCP → readiness → SQL/API sırasıyla teşhis yapabilir; volume kalıcılığını, cache hit/miss/TTL/invalidation ve up/readiness farkını kanıtlarla gösterebilirsin. CI build başarısıyla gerçek runtime kabulünün farkını öğrenirsin.
 
-### How the applications connect during development
-
-The browser requests `/api/tasks` relative to the frontend URL. Vite's development proxy forwards `/api` requests to the backend at `127.0.0.1:5162`. The frontend code does not contain a backend host or port. Start the API before using the task page. If the API is unavailable, the page shows a connection error and a **Listeyi yenile** button.
-
-The Vite proxy works only with the development server. The planned Nginx routing in `PROJECT_SPEC.md` will later forward the same `/api/*` browser paths to the API when the built frontend is served through Nginx. Nginx is not configured in Phase 0.
-
-## Verify
-
-While the API is running in Development mode:
-
-```powershell
-./tests/Phase0A.Smoke.ps1
-./tests/Phase0B.Tasks.Smoke.ps1
-```
-
-The first check requests `GET /health` and `GET /openapi/v1.json`. The second sends real CRUD requests and checks success and error responses. You can also run individual requests in [Tasks.http](src/backend/FullStackOpsLab.Api/Tasks.http). This project uses ASP.NET Core's built-in OpenAPI endpoint; it does not include a Swagger UI page.
-
-To check the full frontend flow, open the Vite URL with both servers running. Add a task, mark it complete, reopen it, and delete it. Stop the API and reload the page to see the connection error; restart the API and use **Listeyi yenile**.
-
-## Task API
-
-| Request | Successful response | Other responses |
-| --- | --- | --- |
-| `GET /api/tasks` | `200` with a JSON array | — |
-| `GET /api/tasks/{id}` | `200` with one task | `404` when missing |
-| `POST /api/tasks` | `201` with the task and a `Location` header | `400` for an empty title |
-| `PUT /api/tasks/{id}` | `200` with the updated task | `400` for an empty title; `404` when missing |
-| `DELETE /api/tasks/{id}` | `204` with no body | `404` when missing |
-
-Tasks contain `id`, `title`, `description`, `isCompleted`, `createdAt`, and `updatedAt`. Send `title` and optional `description` when creating a task. `PUT` replaces the editable fields, so send `title`, `description`, and `isCompleted` when updating. Titles are trimmed and must contain non-whitespace text.
-
-The list lives only in the API process memory. Restarting the API creates a new empty list and resets the ID counter. This is intentional for Phase 0B: there is no database or persistent file yet.
-
-Build both applications from the repository root:
-
-```powershell
-dotnet build FullStackOpsLab.slnx
-cd src/frontend
-npm run build
-```
-
-`npm run build` checks TypeScript and produces static files in `dist/`. Generated output and local `.env` files are ignored by Git. `.env.example` is tracked and will document configuration when it is introduced.
+**6 Ekim 2026 kabul edilen kapsam:** Altı servis korunur; Nginx frontend container'ında statik sunucu/reverse proxy, `api` backend rolüdür. Ayrı nginx servisi eklenmez. İlk kurulum `.env`, external PostgreSQL volume'u ve açık migration hazırlığı içerir; hazırlanmış ortam `docker compose up` ile başlar. **Sıfır hazırlıkla tek komut clean clone iddiası yoktur.** [Şartname karar kaydı](PROJECT_SPEC.md#final-kapsam-kararları--6-ekim-2026), [kanıt ve kalan runtime kabulü](docs/architecture.md#şartname-farkları-ve-final-kabul-kararları). Bu karar genel final runtime kabulünün tamamlandığı anlamına gelmez.

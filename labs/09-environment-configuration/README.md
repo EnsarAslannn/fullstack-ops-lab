@@ -177,6 +177,8 @@ Script `.env` satırlarını kendi basit ayrıştırıcısıyla okumaz. Önce ya
 
 ## 12. Secret leakage regression check
 
+**Güncel source notu (6 Ekim 2026):** Aşağıdaki 15/15 ilk kabul tarihinin sonucudur. Module10 ve Troubleshooting7 sonrasında scanner yalnız altı görsel olarak incelenmiş açık PNG yolunu yapısal imza/chunk/sonlandırma kontrolüyle kabul eder; klasör geneli/binary istisnası yoktur. Metin credential kuralları ve diğer binary/okunamayan dosya exit2 davranışı korunur; pikseller için OCR/eksiksiz secret tespiti iddiası yoktur. [23 fixture ve üç yeni görselin kanıtı](../../troubleshooting/07-monitoring-no-data/README.md#verification). CI artık scanner/fixture'ları çalıştırır; aşağıdaki “ileride CI” ifadesi ilk adımın tarihsel planıdır.
+
 Çalıştırma: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.SecretLeakage.Check.ps1`. Başarıda çıktı yoktur ve exit code **0** döner. Potansiyel bulguda exit code **1** ve yalnız `göreli-dosya-yolu:satır-numarası:kural-adı` satırları döner. Git envanteri alınamazsa, metin okunamazsa veya desteklenmeyen binary/symlink dosyayla karşılaşılırsa sabit `SCAN_ERROR` mesajı ve ayrı exit code **2** döner; temiz sonuç sayılmaz. Exception içeriği, eşleşen satır ve secret değeri yazdırılmaz. Dosya düzeyindeki `.env` bulgusunda satır numarası **0** kullanılır.
 
 Varsayılan kapsam `git ls-files` ile **tracked** dosyalar ve `git ls-files --others --exclude-standard` ile **ignored olmayan yeni** dosyalardır. Silinmiş tracked dosyalar atlanır. Git tarafından ignored gerçek `.env`, user-secrets (repository dışındadır), `node_modules`, `bin`, `obj` ve `dist` kapsama girmez. Force-add ile takip edilen `.env` ve `.env.*` dosyaları (`.env.example` hariç) **içerikleri okunmadan** `EnvFileInGit` bulgusu verir. Bu kontrol Git geçmişini taramaz; önceki commit'lerde sızıntı olmadığını kanıtlamaz.
@@ -191,9 +193,11 @@ Doğrulama: `powershell -NoProfile -ExecutionPolicy Bypass -File tests/Module9.S
 
 Bu sıra, repository'yi ilk kez alan ve önceden hazırlanmış user-secrets veya PostgreSQL volume'u **olmayan** geliştirici içindir. Komutlar repository kökünde PowerShell için yazıldı. Akış, 15. bölümde aynı host üzerinde ayrı configuration ve yeni boş volume ile yürütüldü. Ayrı temiz bilgisayar/VM doğrulaması yapılmadı.
 
+**6 Ekim 2026 güncellemesi:** Bu kullanım bölümü güncel altı servisli Compose'a göre düzeltilmiştir. [Kabul edilen kapsam](../../PROJECT_SPEC.md#final-kapsam-kararları--6-ekim-2026) ilk kurulumda .env/external volume/açık migration hazırlığını, sonrasında normal up ile başlatmayı ayırır. 15. bölümdeki dört servisli bootstrap sonucu kendi tarihinin kanıtıdır; bu güncelleme altı servisli temiz clone demosu değildir. [Güncel mimari ve kalan final kabul](../../docs/architecture.md).
+
 ### 1. Araçlar ve clone
 
-Docker Engine ve Docker Compose dört container'ı çalıştırmak için gerekir. Host üzerinde migration SQL'i üretilecekse **.NET 10 SDK** ve repository'deki local `dotnet-ef` aracı gerekir. API final image'ında yalnız ASP.NET runtime vardır; SDK ve `dotnet-ef` yoktur. Frontend'in Compose build'i kendi Node stage'ini kullanır; host Node/npm yalnız host frontend geliştirme veya build için gerekir.
+Docker Engine ve Compose altı container'ı çalıştırmak için gerekir. Git ve bu rehberdeki PowerShell de host araçlarıdır. Host migration SQL üretimi **.NET10 SDK** ve kökteki `dotnet-tools.json` üzerinden local `dotnet-ef` ister. API runtime image'ında SDK/EF CLI yoktur. Frontend Docker build kendi Node stage'ini kullanır; host Node/npm yalnız host geliştirme/build için gerekir.
 
 ```powershell
 docker version
@@ -219,7 +223,7 @@ if (Test-Path -LiteralPath .env) { throw 'Mevcut .env üzerine yazma; önce duru
 Copy-Item -LiteralPath .env.example -Destination .env
 ```
 
-`.env` dosyasını yerel editörde doldur. `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD` ve `ASPNETCORE_ENVIRONMENT` gerekir; `<set-outside-git>` placeholder'ı kalmamalı. Parolayı Git'e, komut argümanına veya dokümana yazma. `Cache__TasksTtlSeconds` isteğe bağlı pozitif tamsayıdır. Örnekteki `ConnectionStrings__Postgres` ve `ConnectionStrings__Redis` host akışına ait yer tutuculardır; mevcut `compose.yaml` bunları kullanmaz. Compose önce `.env` ile YAML değişkenlerini çözer, sonra yalnız `environment` alanındaki değerleri container'a geçirir. Backend user-secrets dosyasını otomatik okumaz. Git ignored `.env` hâlâ düz metindir.
+`.env` dosyasını yerel editörde doldur. `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD`, `ASPNETCORE_ENVIRONMENT`, `GF_SECURITY_ADMIN_USER` ve `GF_SECURITY_ADMIN_PASSWORD` gerekir; `<set-outside-git>` kalmamalı. Gerçek credential'ı Git'e, argümana veya dokümana yazma. `Cache__TasksTtlSeconds` isteğe bağlı pozitif tamsayıdır. Örnekteki `ConnectionStrings__Postgres`/`ConnectionStrings__Redis` host placeholder'larıdır; Compose bunları kullanmaz. Compose .env ile YAML substitution, ardından açık environment aktarımı yapar; user-secrets okumaz. Ignored env düz metindir. Grafana admin değerleri yalnız yeni Grafana volume'unda ilk hesabı hazırlar; initialized database'de env parolasını değiştirmek hesabı rotate etmez.
 
 Yeni **boş** PostgreSQL volume'unda image, `POSTGRES_*` değerleriyle ilk rolü/database'i oluşturur. **Initialized** volume'da `.env` parolasını değiştirmek rol parolasını değiştirmez. Var olan volume başka veri veya role ait olabilir; uyumsuzluğu volume silerek çözme. [Docker PostgreSQL initialization açıklaması](https://docs.docker.com/guides/postgresql/) bu ilk çalıştırma sınırını açıklar.
 
@@ -343,7 +347,7 @@ Remove-Item -LiteralPath $sqlPath -Force
 
 Mevcut idempotent SQL, `START TRANSACTION` ve `COMMIT` içerir; ayrıca `psql --single-transaction` ekleme. [psql belgesi](https://www.postgresql.org/docs/18/app-psql.html) script kendi transaction komutlarını taşıyorsa bu seçeneğin beklenen etkiyi bozabileceğini söyler. Migration zaten history'de kayıtlıysa idempotent script onu yeniden uygulamaz; yine de çıktıdaki schema ve history'yi doğrula. Gelecekte yeni migration eklenirse SQL'i yeniden incele. Normal `NOTICE` stderr'e yazılabilir; özellikle `2>&1` ile yakalandığında PowerShell 5.1 bunu `Stop` altında kesebilir. Yukarıdaki dar `Continue` bölümü yalnız native komut içindir; SQL başarısı yine exit code ile zorunlu kontrol edilir. Gerçek SQL hatası final kabulde **exit 3** döndürdü.
 
-### 7. Dört servisli stack'i aç ve küçük kabul yap
+### 7. Altı servisli stack'i aç ve küçük kabul yap
 
 ```powershell
 docker compose --env-file .env up -d --build --wait --wait-timeout 180
@@ -351,7 +355,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Stack healthy olmadı.' }
 docker compose --env-file .env ps
 ```
 
-`postgres`, `redis`, `api` ve `frontend` servisleri `healthy` olmalı. Mevcut Compose'da **yalnız frontend** host'a `127.0.0.1:18081:80` olarak publish edilir; API `8080`, PostgreSQL `5432` ve Redis `6379` yalnız Compose ağı içindedir. Tarayıcı adresi **http://127.0.0.1:18081/**. Önce listeyi al; yalnız kendi deneme görevini oluştur, sayfayı yenileyip kalıcılığı gör, tamamla ve sil. İlk GET Redis miss ve liste key'i, ikinci GET hit; başarılı POST/PUT/DELETE invalidation üretmelidir. API loglarında yalnız ilgili cache olaylarını, Redis'te `TTL fullstack-ops:tasks:all:v1` sonucunu ve Task HTTP yanıtlarını yerel olarak incele; tam logları paylaşmadan önce secret açısından ayır. `/health/live` process'i, `/health/ready` PostgreSQL ile Redis'i denetler. Nginx `/api` isteklerini `api:8080` upstream'ine iletir. Bu manuel kabul bu görevde yapılmadı.
+`postgres`, `redis`, `api`, `frontend`, `prometheus`, `grafana` healthy olmalı. Host yayınları **yalnız localhost'ta** frontend18081:80, Prometheus9090:9090, Grafana3000:3000; API8080/DB5432/Redis6379 ağ içinde kalır. Arayüz **http://127.0.0.1:18081/**, Prometheus **http://127.0.0.1:9090/**, Grafana **http://127.0.0.1:3000/**. Yalnız kendi deneme görevini oluştur, yenile, tamamla ve sil. İlk GET miss (önceki cache varsa hit olabilir), ikinci GET hit; başarılı POST/PUT/DELETE invalidation üretir. Mevcut cache'i topluca temizleme; TTL/mutation sonrası kendi trafiğini izle. Cache loglarını, gerçek TTL ve HTTP yanıtlarını yerel incele. Internal live/ready, Prometheus fullstack-ops-api target UP ve otomatik Grafana Overview/datasource ayrı kontrollerdir; CRUD başarısı yerine geçmez. Bu dokümantasyon görevinde manuel kabul çalıştırılmadı. Module10/11 kanıtları altı servis kapsamını, 15. bölüm tarihsel dört servis bootstrap'ını gösterir.
 
 ### 8. Stop, start, restart ve down
 
@@ -363,7 +367,7 @@ docker compose --env-file .env down       # Compose container/ağı kalkar; exte
 docker volume inspect fullstack-ops-postgres-data --format '{{.Name}}'
 ```
 
-Bunlar alternatif lifecycle işlemleridir; her satırı art arda çalıştırman gerekmez. `down` sonrasında aynı external volume tekrar mount edildiğinde veri kalır. `down -v` normal durdurma/temizlik komutu değildir: bu projedeki external volume Compose tarafından yönetilmese de gelecekteki Compose-managed named/anonymous volume'ları silebilir. Volume silmeyi olağan kurulum veya cleanup adımı olarak önerme.
+Bunlar alternatif lifecycle işlemleridir; her satırı art arda çalıştırman gerekmez. `down` sonrasında aynı external volume tekrar mount edildiğinde veri kalır. `down -v` normal durdurma/temizlik komutu değildir: bu projedeki external volume Compose tarafından yönetilmese de mevcut Prometheus/Grafana Compose-managed volume'larını ve anonymous volume'ları silebilir. Volume silmeyi olağan kurulum veya cleanup adımı olarak önerme.
 
 ### 9. Sorun giderme
 
@@ -468,3 +472,67 @@ Gerçek `.env` ve user-secrets dosyalarının SHA256 değerleri başlangıçla a
 **2 Ekim 2026 son kontrolü:** Önceki geçici dosya temizliği otomatik onay incelemesinin kullanım limiti nedeniyle çalıştırılamamıştı; devam oturumunda klasör, sahte configuration, SQL ve yakalanan çıktılar kaldırıldı. Gerçek `.env`/user-secrets hash'leri yeniden aynı bulundu; repository secret taraması ve diff kontrolü geçti. Docker Engine bu son oturumda erişilemediğinden canlı Docker envanteri yeniden doğrulanamadı; yukarıdaki Docker kabul ve cleanup sonuçları 1 Ekim'deki gerçek çalışmaya aittir.
 
 Şartnamedeki Module 9 configuration/secrets ve Git güvenliği kriterleri karşılandı; Module 9 **Completed**. Sonraki modül **Module 10 — Observability: Logs, Prometheus & Grafana**. İlk öneri mevcut logları, health/inspect ve kaynak kullanımını Docker-native araçlarla incelemektir; bu görevde uygulanmadı.
+
+---
+
+6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Goal
+
+[1. Gerçek configuration envanteri](#1-gerçek-configuration-envanteri).
+
+## What You Will Learn
+
+[Kavramlar ve nedenleri](#2-kaynaklar-ve-öncelik).
+
+## Architecture
+
+[Bu aşamanın yapısı](#3-local-host-ve-compose-akışları); [güncel sistem](../../docs/architecture.md#servisler-portlar-ve-ağ).
+
+## Prerequisites
+
+Bu tarihsel deneyin kaynak/port/credential ön koşullarını kendi komut bölümünden kontrol et. Güncel normal kurulum için [Module9 rehberini](../09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izle; önceki lab komutlarını development kaynaklarında körlemesine tekrarlama.
+
+## Step 1
+
+[Hazırlık ve komutlar](#13-temiz-bilgisayar-kurulum-rehberi).
+
+## Step 2
+
+[Davranışı çalıştırma ve gözlemleme](#15-yeni-boş-volume-ile-izole-bootstrap-final-kabulü).
+
+## Verification
+
+[Gerçek sonuçlar](#15-yeni-boş-volume-ile-izole-bootstrap-final-kabulü); çalışma, cleanup ve ölçülmeyen kapsam ayrımlarını koru. Bu dizin genel final runtime kabulü değildir.
+
+## Break It
+
+[Belgelenmiş arıza veya eksik davranış](#10-configuration-contract-ve-başlangıç-doğrulaması).
+
+## Diagnose It
+
+[Teşhis ve gözlem](#11-güvenli-yerel-env-hazırlığı-ve-preflight).
+
+## Fix It
+
+[Doğru davranış / düzeltme açıklaması](#13-temiz-bilgisayar-kurulum-rehberi).
+
+## What Happened?
+
+[Ölçülen sonuç ve sınırlar](#15-yeni-boş-volume-ile-izole-bootstrap-final-kabulü).
+
+## Key Concepts
+
+[Temel ayrımlar](#2-kaynaklar-ve-öncelik); [kısa sözlük](../../docs/architecture.md#kısa-sözlük).
+
+## Interview Questions
+
+1. Compose substitution ile process environment arasındaki fark nedir?
+2. User-secrets neden Compose'a otomatik taşınmaz?
+3. Startup parser geçerli ama parola yanlış olabilir mi?
+4. External volume hazırlığı neden preflight'ten önce gerekir?
+5. Secret scanner exit2 neden temiz sonuç sayılamaz?
+
+## Exercises
+
+Örnek dosyadaki key'leri yalnız isimleriyle host/Compose/secret olarak sınıflandır; gerçek env veya user-secrets değerlerini açmadan onboarding sırasını anlat.

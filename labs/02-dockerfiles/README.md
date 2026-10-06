@@ -290,3 +290,63 @@ Final container'da `nginx -v` çalıştı ve statik HTML, JavaScript, CSS dosyal
 ### Standalone `/api` davranışı
 
 Frontend API client isteklerde `/api/tasks` göreli yolunu kullanır. `vite.config.ts` içindeki `/api` proxy yalnızca Vite development server çalışırken devrededir. Production build statik dosyalardan oluşur; Nginx Vite development server'ını çalıştırmaz. Bu Module 2C Nginx image'ında `/api` reverse proxy henüz yoktur. Bu nedenle standalone container `/api/tasks` için **404** döndürdü ve mevcut arayüz hata kutusunda **“Görev bulunamadı. Listeyi yenileyin.”** mesajı gösterdi. Bu, API'ye erişildiği anlamına gelmez; mesaj mevcut client'ın 404 yorumudur. Sonraki Nginx reverse proxy modülünde `/api` backend'e yönlendirilerek bu bağlantı çözülecektir. Bu adımda API sözleşmesi, frontend URL'si veya CORS ayarı değiştirilmedi.
+
+---
+
+6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Goal
+
+[Amaç](#amaç).
+
+## What You Will Learn
+
+[Kavramlar ve nedenleri](#build-context-ve-dockerignore).
+
+## Architecture
+
+[Bu aşamanın yapısı](#module-2b--backend-multi-stage-build); [güncel sistem](../../docs/architecture.md#servisler-portlar-ve-ağ).
+
+## Prerequisites
+
+Bu tarihsel deneyin kaynak/port/credential ön koşullarını kendi komut bölümünden kontrol et. Güncel normal kurulum için [Module9 rehberini](../09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izle; önceki lab komutlarını development kaynaklarında körlemesine tekrarlama.
+
+## Step 1
+
+[Hazırlık ve komutlar](#gerçek-komutlar-ve-ölçümler).
+
+## Step 2
+
+[Davranışı çalıştırma ve gözlemleme](#container-ve-http-doğrulaması).
+
+## Verification
+
+[Gerçek sonuçlar](#container-ve-http-doğrulaması); çalışma, cleanup ve ölçülmeyen kapsam ayrımlarını koru. Bu dizin genel final runtime kabulü değildir.
+
+## Break It
+
+[Belgelenmiş arıza veya eksik davranış](#standalone-api-davranışı).
+
+## Diagnose It
+
+[Teşhis ve gözlem](#sık-hatalar-ve-bu-baselineın-sınırları).
+
+## Fix It
+
+[Doğru davranış / düzeltme açıklaması](#module-2c--frontend-multi-stage-dockerfile).
+
+## What Happened?
+
+[Ölçülen sonuç ve sınırlar](#container-ve-http-doğrulaması).
+
+## Key Concepts
+
+[Temel ayrımlar](#build-context-ve-dockerignore); [kısa sözlük](../../docs/architecture.md#kısa-sözlük).
+
+## Interview Questions
+
+[Mevcut mülakat soruları](#5-kısa-kavramsal-soru).
+
+## Exercises
+
+[Mevcut alıştırma](#uygulamalı-alıştırma); uygulamadan önce kaynak sahipliği ve cleanup şartlarını oku.

@@ -105,3 +105,63 @@ Test Task kaydı API üzerinden silindi, Redis test key'i `DEL` ile kaldırıld�
 5. Yanlış hostname kaynaklı 502 ile durmuş backend kaynaklı 504 nasıl ayırt edilir?
 
 **Alıştırma:** Nginx logunu ve network inspect çıktısını kullanarak backend container adını, bağlı ağı ve yalnızca localhost'a yayınlanan host portunu belirle. Kaynakları değiştirmeden `/api/tasks` yolunun backend'e nasıl ulaştığını kendi sözlerinle çiz.
+
+---
+
+6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Goal
+
+[Amaç](#amaç).
+
+## What You Will Learn
+
+[Kavramlar ve nedenleri](#önceki-durum-ve-çözüm).
+
+## Architecture
+
+[Bu aşamanın yapısı](#önceki-durum-ve-çözüm); [güncel sistem](../../docs/architecture.md#servisler-portlar-ve-ağ).
+
+## Prerequisites
+
+Bu tarihsel deneyin kaynak/port/credential ön koşullarını kendi komut bölümünden kontrol et. Güncel normal kurulum için [Module9 rehberini](../09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izle; önceki lab komutlarını development kaynaklarında körlemesine tekrarlama.
+
+## Step 1
+
+[Hazırlık ve komutlar](#gerçek-çalıştırma-komutları).
+
+## Step 2
+
+[Davranışı çalıştırma ve gözlemleme](#gerçek-doğrulama-sonuçları).
+
+## Verification
+
+[Gerçek sonuçlar](#gerçek-doğrulama-sonuçları); çalışma, cleanup ve ölçülmeyen kapsam ayrımlarını koru. Bu dizin genel final runtime kabulü değildir.
+
+## Break It
+
+[Belgelenmiş arıza veya eksik davranış](#gerçek-doğrulama-sonuçları).
+
+## Diagnose It
+
+[Teşhis ve gözlem](#teşhis-ve-güvenli-temizlik).
+
+## Fix It
+
+[Doğru davranış / düzeltme açıklaması](#önceki-durum-ve-çözüm).
+
+## What Happened?
+
+[Ölçülen sonuç ve sınırlar](#gerçek-doğrulama-sonuçları).
+
+## Key Concepts
+
+[Temel ayrımlar](#önceki-durum-ve-çözüm); [kısa sözlük](../../docs/architecture.md#kısa-sözlük).
+
+## Interview Questions
+
+[Mevcut mülakat soruları](#kendi-kendine-kontrol).
+
+## Exercises
+
+[Mevcut alıştırma](#kendi-kendine-kontrol); uygulamadan önce kaynak sahipliği ve cleanup şartlarını oku.

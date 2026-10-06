@@ -1,5 +1,7 @@
 # Module 11 — GitHub Actions CI: plan ve baseline workflow
 
+Plan ve 11A/11B bölümleri kendi aşamalarının kaydıdır. Güncel üç job'lı CI'nin Completed kararı ve denenmemiş fork/main-target sınırları [final kabul bölümündedir](#module-11--final-kabul-ve-öğrenme-değerlendirmesi); ilk baseline başlığı tüm güncel kapsamı tek başına anlatmaz.
+
 ## Durum ve amaç
 
 4 Ekim 2026: ilk plan dokümante edildi ve commit edildi. Aşağıdaki planlama bölümleri ilk kararları korur; güncel implementasyon ve kabul sonuçları sondaki **11A baseline kabulü** bölümündedir. Module 10'un yerel kabul kanıtları CI üzerinde çalıştırılmış testler değildir.
@@ -448,3 +450,63 @@ Küçük alıştırmalar (bu kabulde uygulanmadı):
 ### Şartnameye göre sonraki adım
 
 Şartnamede Module 11'den sonra **11. Troubleshooting Labs**, ilk senaryo **Wrong Localhost** vardır; bir Module 12 tanımlı değildir. Sonraki küçük öneri: mevcut Wrong Localhost kanıtını troubleshooting şablonundaki Scenario/Symptoms/Expected Behaviour/Investigation/Root Cause/Fix/Verification/What We Learned alanlarıyla eşleştirip belge eksiklerini çıkar. Bu görevde o inceleme/uygulama başlatılmadı; opsiyonel GHCR/CD kendiliğinden eklenmedi.
+
+---
+
+6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Goal
+
+[Durum ve amaç](#durum-ve-amaç).
+
+## What You Will Learn
+
+[Kavramlar ve nedenleri](#öğrenme-değerlendirmesi).
+
+## Architecture
+
+[Bu aşamanın yapısı](#workflow-ve-izolasyon); [güncel sistem](../../docs/architecture.md#servisler-portlar-ve-ağ).
+
+## Prerequisites
+
+Bu tarihsel deneyin kaynak/port/credential ön koşullarını kendi komut bölümünden kontrol et. Güncel normal kurulum için [Module9 rehberini](../09-environment-configuration/README.md#13-temiz-bilgisayar-kurulum-rehberi) izle; önceki lab komutlarını development kaynaklarında körlemesine tekrarlama.
+
+## Step 1
+
+[Hazırlık ve komutlar](#hazırlık-ve-kabul-sırası).
+
+## Step 2
+
+[Davranışı çalıştırma ve gözlemleme](#şartname-ve-güvenilirlik-kabul-tablosu).
+
+## Verification
+
+[Gerçek sonuçlar](#şartname-ve-güvenilirlik-kabul-tablosu); çalışma, cleanup ve ölçülmeyen kapsam ayrımlarını koru. Bu dizin genel final runtime kabulü değildir.
+
+## Break It
+
+[Belgelenmiş arıza veya eksik davranış](#güvenli-hata-ve-temizlik).
+
+## Diagnose It
+
+[Teşhis ve gözlem](#öğrenme-değerlendirmesi).
+
+## Fix It
+
+[Doğru davranış / düzeltme açıklaması](#güvenli-hata-ve-temizlik).
+
+## What Happened?
+
+[Ölçülen sonuç ve sınırlar](#şartname-ve-güvenilirlik-kabul-tablosu).
+
+## Key Concepts
+
+[Temel ayrımlar](#öğrenme-değerlendirmesi); [kısa sözlük](../../docs/architecture.md#kısa-sözlük).
+
+## Interview Questions
+
+[Mevcut mülakat soruları](#öğrenme-değerlendirmesi).
+
+## Exercises
+
+[Mevcut alıştırma](#öğrenme-değerlendirmesi); uygulamadan önce kaynak sahipliği ve cleanup şartlarını oku.
