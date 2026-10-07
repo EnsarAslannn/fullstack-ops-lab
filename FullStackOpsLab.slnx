@@ -3,4 +3,7 @@
   <Folder Name="/src/backend/">
     <Project Path="src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FullStackOpsLab.Api.IntegrationTests/FullStackOpsLab.Api.IntegrationTests.csproj" />
+  </Folder>
 </Solution>

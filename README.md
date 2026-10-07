@@ -97,6 +97,16 @@ docker compose --env-file .env down
 
 `down -v` normal kapatma değildir: Compose-managed Prometheus/Grafana verilerini silebilir. External PostgreSQL volume'u Compose tarafından silinmez; volume silme/prune rutin cleanup değildir. [Komut rehberi](docs/commands-cheatsheet.md).
 
+## Backend integration testleri
+
+.NET 10 SDK ve Linux Docker Engine açıkken repository kökünde:
+
+```powershell
+dotnet test FullStackOpsLab.slnx --configuration Release --blame-hang-timeout 3m --blame-hang-dump-type none
+```
+
+21 xUnit senaryosu gerçek API pipeline'ı, geçici PostgreSQL/Redis ve mevcut migration ile CRUD/validation/JSON contract ve güvenli startup hatalarını sınar. Development `.env`, user-secrets veya volume hazırlığı gerekmez. Test kaynakları otomatik kaldırılır. [Kapsam, izolasyon, CI ve sınırlar](tests/FullStackOpsLab.Api.IntegrationTests/README.md). Bu suite tarayıcı/Nginx kabulünün veya code coverage ölçümünün yerine geçmez.
+
 ## Repository ve belgeler
 
 ```text

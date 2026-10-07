@@ -76,6 +76,10 @@ jobs:
           docker version
           docker compose version
 
+      - name: Backend integration tests with isolated PostgreSQL and Redis
+        timeout-minutes: 8
+        run: dotnet test tests/FullStackOpsLab.Api.IntegrationTests/FullStackOpsLab.Api.IntegrationTests.csproj --configuration Release --no-build --no-restore --blame-hang-timeout 3m --blame-hang-dump-type none --verbosity minimal
+
       - name: Build backend image
         run: docker build --tag fullstack-ops-api:ci src/backend/FullStackOpsLab.Api
 

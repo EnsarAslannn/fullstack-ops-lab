@@ -24,7 +24,7 @@ Otorite: [PROJECT_SPEC.md — Module 11](../../PROJECT_SPEC.md#modül-11--github
 | Docker Compose smoke, ideal pipeline | İzole boş veritabanı, mevcut migration ve kontrollü HTTP/cache testi | 11B, ayrı küçük adım |
 | GHCR image push, opsiyonel | Temel CI kabulünden sonra ayrı karar | İlk workflow dışında |
 
-**Test kapsamı:** `FullStackOpsLab.slnx` yalnız `src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj` içerir. Test projesi/test framework'ü yok. `dotnet test` bu solution'da test yürütmez; başarılı çıkışı test kanıtı olarak kullanmayacağız. Frontend'de de `npm test` scripti yok. Build, smoke ve unit test farklı doğrulama türleridir; mevcut smoke sonuçlarına unit test veya code coverage adı verilmeyecek.
+**Planlama anındaki test kapsamı (4 Ekim 2026):** `FullStackOpsLab.slnx` yalnız `src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj` içeriyordu; test projesi/framework'ü yoktu ve `dotnet test` test yürütmüyordu. Frontend'de de `npm test` scripti yok. Build, smoke ve unit test farklı doğrulama türleridir; tarihsel smoke sonuçlarına unit test veya code coverage adı verilmez. **7 Ekim 2026 ek adımı:** solution artık [backend integration test projesini](../../tests/FullStackOpsLab.Api.IntegrationTests/README.md) içerir; Linux build job'ına gerçek `dotnet test` step'i eklendi. Yeni hosted sonucu henüz NOT VERIFIED; aşağıdaki eski run/commit kanıtları yeni suite'in kabulü değildir.
 
 ## Repository'den doğrulanan girdiler
 

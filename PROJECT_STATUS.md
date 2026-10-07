@@ -10,7 +10,7 @@ Final acceptance — technical section30/31/37 acceptance completed; manual sect
 
 ## Current Step
 
-Remote main 92e98a10d072c4e53dc6223c1cde8c490cfd586d passed the isolated six-service first-install/final demo; docs/final-acceptance.md maps new and prior evidence. Existing resources and development secrets preserved; user answers/exercises still pending. No application/config changes, commit/push/tag/release.
+Backend integration test addition — local verification completed; Linux CI test step added, new hosted acceptance NOT VERIFIED. Historical technical final acceptance on 92e98a10d072c4e53dc6223c1cde8c490cfd586d remains separate; manual learning answers/exercises still pending. No application/Compose/configuration/secret changes, commit/push/tag/release.
 
 ## Completed
 
@@ -271,9 +271,15 @@ PASS on remote main 92e98a10d072c4e53dc6223c1cde8c490cfd586d, UTC08:48:24–09:1
 
 Only demo Task/cache/container/network/three-volume/two-image/temp resources cleaned. Before/after inventory exactly18containers/8networks/21volumes/38image-tag entries with identical IDs/states/ports; default bridge unchanged. Development .env/user-secrets/volume untouched; captured command/service/frontend-browser canary checks clean. Same-SHA hosted run37436957155 success for all three jobs; no repeated workflow/runtime experiments or new Git operation. Final docs:370 local links/anchors, secret check exit0 and diff check exit0; exactly six documentation files, index untouched. Full PASS/FAIL/NOT VERIFIED matrix, prior evidence links and limits: docs/final-acceptance.md. Manual knowledge answers not evaluated; technical PASS is not learning PASS.
 
+## Backend Integration Tests — 7 October 2026
+
+Added `tests/FullStackOpsLab.Api.IntegrationTests` to the solution with xUnit/WebApplicationFactory and real isolated PostgreSQL 18/Redis 8 Testcontainers. Existing InitialCreate migration applied only inside the fixture's temporary PostgreSQL; tmpfs storage, random localhost DB/Redis ports, generated fake credentials, Production test host, no development .env/user-secrets/volume usage. No API source, frontend, Compose or contract changes. Twenty-one cases PASS, zero FAIL/SKIP: CRUD/Location/exact six JSON fields, nullable description/legacy UpdatedAt, blank title/no mutations, 404, malformed JSON, eight safe configuration failures and one valid disconnected startup. Generated canary/full test connection string absent from captured negative exception chains; test providers disabled, setup/cleanup errors sanitized. This is not production log-redaction or code-coverage acceptance.
+
+Release solution build PASS: zero warnings/errors. The exact Linux CI `dotnet test --no-build --no-restore` command also passed all21 locally. Existing CI jobs/action SHAs/permissions/Compose runtime smoke preserved; one Linux test step added. New hosted CI NOT VERIFIED because no commit/push was requested. Historical final acceptance and manual learning limits remain separate. Repository secret scanner and diff check passed; automatic fixture disposal preserved the original Docker container IDs/states, networks and volumes. Docker Desktop was started for verification; original containers remained stopped. NuGet/Docker sandbox access was resolved through scoped execution permissions; initial test comparison and EF dependency alignment issues fixed only in the test project.
+
 ## Next Goal
 
-Manual learning review: user answers PROJECT_SPEC.md section32's46 questions in their own words and explains two existing lab exercises; evaluate answers and remaining closure items. Review final acceptance documentation before any separately authorized commit. Do not create release/tag or optional advanced labs automatically.
+Review the backend integration test addition before any separately authorized commit/push; then verify its actual hosted CI result. Manual learning review remains pending: user answers section32 questions and explains existing exercises. Do not create release/tag or optional advanced labs automatically.
 
 ## Blockers
 
