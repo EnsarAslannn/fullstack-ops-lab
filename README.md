@@ -107,6 +107,12 @@ dotnet test FullStackOpsLab.slnx --configuration Release --blame-hang-timeout 3m
 
 21 xUnit senaryosu gerçek API pipeline'ı, geçici PostgreSQL/Redis ve mevcut migration ile CRUD/validation/JSON contract ve güvenli startup hatalarını sınar. Development `.env`, user-secrets veya volume hazırlığı gerekmez. Test kaynakları otomatik kaldırılır. [Kapsam, izolasyon, CI ve sınırlar](tests/FullStackOpsLab.Api.IntegrationTests/README.md). Bu suite tarayıcı/Nginx kabulünün veya code coverage ölçümünün yerine geçmez.
 
+## GHCR image publishing
+
+[Opsiyonel registry akışı](labs/11-github-actions/README.md#opsiyonel-ghcr-image-publishing--7-ekim-2026) `main` push'unda bütün build/configuration/runtime kontrolleri geçince API ve frontend image'larını `ghcr.io/ensaraslannn/fullstack-ops-lab-api` ve `ghcr.io/ensaraslannn/fullstack-ops-lab-frontend` adlarıyla yayınlar. Tag'ler `sha-<tam-commit-sha>` ve `latest`; digest ile pull/image ID/revision kontrolü vardır. Yalnız yayın job'ı `packages: write` kullanır; PR'ler yayın yapmaz, development secret veya PAT gerekmez.
+
+Publishing implementasyonu yerel testlerden geçti; **ilk gerçek GHCR run/registry kabulü henüz NOT VERIFIED**. Package görünürlüğü otomatik public yapılmaz. Mevcut Compose kaynaklardan build etmeye devam eder; registry yayınlamak deployment değildir.
+
 ## Repository ve belgeler
 
 ```text
@@ -118,7 +124,7 @@ tests/                         Smoke ve runtime kabul scriptleri
 labs/                          Module 1–11 kanıtları
 troubleshooting/               Yedi hata/çözüm senaryosu
 docs/                          Mimari, sözlük ve komut rehberi
-.github/workflows/ci.yml        Üç job'lı CI
+.github/workflows/ci.yml        Build/test/runtime CI + koşullu GHCR publishing
 ```
 
 - [Mimari, kısa sözlük, DoD incelemesi ve kabul edilen final kapsamı](docs/architecture.md)

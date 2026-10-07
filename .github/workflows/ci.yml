@@ -71,6 +71,9 @@ jobs:
         working-directory: src/frontend
         run: npm run build
 
+      - name: GHCR publisher safety tests without registry access
+        run: python3 tests/Module11.PublishImages.Test.py
+
       - name: Verify Docker and Compose
         run: |
           docker version
@@ -211,3 +214,31 @@ jobs:
       - name: Remove only this run's resources and temporary files
         if: always()
         run: python3 tests/Module11.Compose.Smoke.py cleanup --state "$RUNNER_TEMP/fullstackops-ci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+  publish-images:
+    name: GHCR publish (${{ matrix.component }})
+    needs: [build-and-config, configuration-and-secrets, compose-runtime]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [api, frontend]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout validated commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build publish and verify registry digest
+        env:
+          COMPONENT: ${{ matrix.component }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/Module11.PublishImages.py "$COMPONENT"

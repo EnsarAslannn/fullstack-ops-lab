@@ -1,6 +1,6 @@
 # Module 11 — GitHub Actions CI: plan ve baseline workflow
 
-Plan ve 11A/11B bölümleri kendi aşamalarının kaydıdır. Güncel üç job'lı CI'nin Completed kararı ve denenmemiş fork/main-target sınırları [final kabul bölümündedir](#module-11--final-kabul-ve-öğrenme-değerlendirmesi); ilk baseline başlığı tüm güncel kapsamı tek başına anlatmaz.
+Plan ve 11A/11B bölümleri kendi aşamalarının kaydıdır. Zorunlu üç job'lı CI'nin Completed kararı ve denenmemiş fork/main-target sınırları [final kabul bölümündedir](#module-11--final-kabul-ve-öğrenme-değerlendirmesi). Sonradan eklenen integration testleri ve opsiyonel GHCR publishing ayrı kanıtlarla aşağıda açıklanır; tarihsel kabul yeni publishing adımını otomatik doğrulamaz.
 
 ## Durum ve amaç
 
@@ -24,7 +24,7 @@ Otorite: [PROJECT_SPEC.md — Module 11](../../PROJECT_SPEC.md#modül-11--github
 | Docker Compose smoke, ideal pipeline | İzole boş veritabanı, mevcut migration ve kontrollü HTTP/cache testi | 11B, ayrı küçük adım |
 | GHCR image push, opsiyonel | Temel CI kabulünden sonra ayrı karar | İlk workflow dışında |
 
-**Planlama anındaki test kapsamı (4 Ekim 2026):** `FullStackOpsLab.slnx` yalnız `src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj` içeriyordu; test projesi/framework'ü yoktu ve `dotnet test` test yürütmüyordu. Frontend'de de `npm test` scripti yok. Build, smoke ve unit test farklı doğrulama türleridir; tarihsel smoke sonuçlarına unit test veya code coverage adı verilmez. **7 Ekim 2026 ek adımı:** solution artık [backend integration test projesini](../../tests/FullStackOpsLab.Api.IntegrationTests/README.md) içerir; Linux build job'ına gerçek `dotnet test` step'i eklendi. Yeni hosted sonucu henüz NOT VERIFIED; aşağıdaki eski run/commit kanıtları yeni suite'in kabulü değildir.
+**Planlama anındaki test kapsamı (4 Ekim 2026):** `FullStackOpsLab.slnx` yalnız `src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj` içeriyordu; test projesi/framework'ü yoktu ve `dotnet test` test yürütmüyordu. Frontend'de de `npm test` scripti yok. Build, smoke ve unit test farklı doğrulama türleridir; tarihsel smoke sonuçlarına unit test veya code coverage adı verilmez. **7 Ekim 2026 ek adımı:** solution artık [backend integration test projesini](../../tests/FullStackOpsLab.Api.IntegrationTests/README.md) içerir; Linux build job'ına gerçek `dotnet test` step'i eklendi. [Run 37593868455](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37593868455), commit `9e5e2ea2bd4a898fce5a68b6ceedb128cc4571d2`: üç job success, hosted integration testleri 21 PASS / 0 FAIL / 0 SKIP. Eski kabul run'ları yeni suite'in kanıtı değildir.
 
 ## Repository'den doğrulanan girdiler
 
@@ -454,6 +454,67 @@ Küçük alıştırmalar (bu kabulde uygulanmadı):
 ---
 
 6 Ekim 2026 ortak dokümantasyon dizini: aşağıdaki standart başlıklar tarihsel ayrıntıya bağlanır; yeni deney veya yeni PASS sonucu değildir. Eski container/port/ölçüm değerleri kendi aşamasına aittir. Güncel altı servis ve DoD sınırları [mimari belgesindedir](../../docs/architecture.md#dokümantasyon-standardı-ve-definition-of-done).
+
+## Opsiyonel GHCR image publishing — 7 Ekim 2026
+
+Şartnamenin [Module 11 opsiyonel registry adımı](../../PROJECT_SPEC.md#modül-11--github-actions-ci) ve [Advanced Lab D](../../PROJECT_SPEC.md#advanced-lab-d--container-registry) kapsamında iki uygulama image'ını GHCR'a yayınlayan akış eklendi. Önceki 11A/11B ve final kabul bölümleri tarihsel kanıtlardır; aşağıdaki yeni kapsam onlara otomatik PASS eklemez.
+
+### Tetikleyici, izin ve akış
+
+- Mevcut push/pull_request build/configuration/runtime job'ları korunur. Linux job ayrıca offline publishing güvenlik testlerini çalıştırır.
+- `publish-images` yalnız `push` + `refs/heads/main` için çalışır; `needs` üç mevcut job'ın **tamamının** başarısını bekler. PR ve fork PR'de registry login/push yapılmaz; `pull_request_target` yoktur. Script aynı event/ref kontrolünü tekrar yapar.
+- API/frontend iki matrix çalışmasıdır; mantıksal job sayısı dört, main push'ta toplam runner çalışması beştir. Yeni action eklenmedi; checkout mevcut doğrulanmış tam SHA ile sabittir, persisted Git credential yoktur.
+- `contents: read` global kalır; yalnız publishing job'ında ayrıca `packages: write` vardır. `GITHUB_TOKEN` step environment'ındaki `GHCR_TOKEN` adıyla alınır; PAT/repository secret/development credential eklenmez.
+- [Publishing script'i](../../scripts/Module11.PublishImages.py) token'ı yalnız `docker login --password-stdin` girişine verir; Docker child environment'ından kaldırır. Geçici, ayrı `DOCKER_CONFIG` kullanır; build arg/ENV veya build context'e token taşımaz. Logout ve yalnız sahibi olduğu auth dizininin temizliği hata durumunda da denenir. Runner kaybında cleanup garantisi yoktur.
+- Mevcut Dockerfile/context ile `linux/amd64` image yeniden build edilir; source/revision OCI label'ları eklenir. Önce SHA tag push edilir, registry digest bulunur, digest ile pull edilir; image ID ve kaynak revision doğrulanır. **Bundan sonra** `latest` push edilir. GitHub step summary image, commit ve digest'i kaydeder.
+- Docker hataları nonzero exit üretir; raw stdout/stderr veya exception ayrıntısı credential içerebileceğinden loglanmaz. Build için 600 s, diğer Docker işlemleri için 180 s, job için 20 dakika limit vardır. Aynı kaynak commit'i doğrulanır; önceki CI job'ının image artifact'ı aktarılmaz. Mutable base tag'lerle yeniden build, aynı binary digest garantisi değildir.
+
+### Image adları ve tag'ler
+
+| Image | Tag |
+| --- | --- |
+| `ghcr.io/ensaraslannn/fullstack-ops-lab-api` | `sha-<tam-40-karakter-commit-sha>` ve `latest` |
+| `ghcr.io/ensaraslannn/fullstack-ops-lab-frontend` | `sha-<tam-40-karakter-commit-sha>` ve `latest` |
+
+Namespace Docker kurallarına uygun küçük harfe çevrilir. `latest` hareketli bir alias'tır; commit tag'i izlenebilirlik sağlar ama registry tag'leri teknik olarak üzerine yazılabilir. **Digest**, belirli image içeriğini sabitler. İki component atomik bir yayın değildir; biri başarısızken diğerinin SHA image'ı yayınlanmış olabilir. Workflow başarısı bütün matrix çalışmalarının sonucuna bağlıdır. Release, multi-architecture, signing/SBOM, deployment veya production kabulü eklenmedi.
+
+Yeni GHCR package varsayılan olarak private olabilir; repository public olması anonim pull kabulü değildir. Görünürlük otomatik değiştirilmez. İlk yayın sonrası package'ın repository bağlantısı ve Actions erişimi incelenmelidir; mevcut aynı adlı bağlantısız package varsa `GITHUB_TOKEN` push izni olmayabilir. Production credential'ları veya local development secret'ları bu sorunu çözmek için CI'a taşınmaz.
+
+Package erişimi olan kullanıcı önce `docker login ghcr.io` ile interaktif giriş yapabilir; parolayı/token'ı komut satırına veya `.env` dosyasına koyma. GHCR'a erişim yetkisi hazırsa:
+
+```powershell
+docker pull ghcr.io/ensaraslannn/fullstack-ops-lab-api:sha-<commit-sha>
+docker pull ghcr.io/ensaraslannn/fullstack-ops-lab-frontend:sha-<commit-sha>
+# Daha kesin içerik sabitlemesi: gerçek run summary'deki image@sha256:digest referansını kullan.
+```
+
+Bu komutlardaki SHA yer tutucudur, çalıştırılmış registry kanıtı değildir. Compose hâlâ mevcut kaynak Dockerfile'larından build eder; GHCR image yayınlamak Compose'u deploy etmez ve migration/volume hazırlığını kaldırmaz.
+
+### Doğrulama ve sınırlar
+
+| Kontrol | Sonuç / kanıt |
+| --- | --- |
+| Integration test commit/push | PASS — `9e5e2ea2bd4a898fce5a68b6ceedb128cc4571d2`, [run 37593868455](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37593868455); üç job success, 21 hosted integration case PASS |
+| Publishing logic offline testleri | PASS — [7 unittest metodu](../../tests/Module11.PublishImages.Test.py), component/event/ref/input/CLI failure/timeout/digest/ID/revision alt senaryoları; fake Docker boundary, gerçek login/push yok |
+| Canary çıktısı ve auth cleanup | PASS — fixture çıktılarında generated token yok; Docker child argument/environment içinde yok, yalnız login stdin; owned auth dizinleri temiz |
+| Workflow syntax / expressions | PASS — official actionlint v1.7.12, indirilen SHA256 doğrulandı; shellcheck aracı kurulu olmadığından devre dışı |
+| Repository secret kontrolü / diff check | PASS — değer gösterilmeden; scanner kapsamı/istisnaları değiştirilmedi |
+| Gerçek GHCR job / package / registry roundtrip | NOT VERIFIED — publishing değişikliği henüz commit/push edilmedi; önceki başarılı CI run bu adımı içermez |
+| Gerçek fork PR yayın engeli / deliberately failing hosted job | NOT VERIFIED — yerel guard testleri gerçek fork kabulü değildir |
+
+Yerel kontrol:
+
+```powershell
+python tests/Module11.PublishImages.Test.py
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Module9.SecretLeakage.Check.ps1
+git diff --check
+```
+
+Windows sandbox ilk fixture denemesinin temporary cleanup erişimini engelledi; uygun izinle testler geçti ve yalnız bu denemenin altı fixture dizini temizlendi. Python bytecode üretimi testte kapatıldı; yanlışlıkla oluşmuş yalnız bu modülün bytecode'u kaldırıldı. Scanner Python dinamik token atamalarına başlangıçta false positive verdi; açık `registry_credential` değişken adı kullanıldı, scanner gevşetilmedi. Uygulama/Compose/.env/user-secrets/volume veya mevcut container durumları değiştirilmedi.
+
+Resmî kaynaklar: [GHCR authentication, private visibility, OCI labels ve digest](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry), [Actions publishing permissions](https://docs.github.com/en/packages/managing-github-packages-using-github-actions-workflows/publishing-and-installing-a-package-with-github-actions), [Docker login](https://docs.docker.com/reference/cli/docker/login/).
+
+Öğrenme: registry image dağıtır; CI build/test kaynağı doğrular; deployment çalışan ortamı günceller. Commit SHA kaynak revision'ıdır, image digest içerik kimliğidir. `latest` sürüm sabitlemesi değildir. Job'a özgü write permission ve PR guard, test eden her kodun registry'ye yazabilmesini engeller.
 
 ## Goal
 

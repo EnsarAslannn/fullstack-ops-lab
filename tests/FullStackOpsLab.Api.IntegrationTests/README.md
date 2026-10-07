@@ -48,7 +48,7 @@ Cache'in gerçek listesine CRUD sırasında dokunulur; bu ilk adım ayrı TTL, h
 
 `Microsoft.AspNetCore.Mvc.Testing` 10.0.12 API ile eşleşir; `Microsoft.EntityFrameworkCore.Relational` 10.0.12, API'nin private Design paketinden gelen EF sürümüyle test runtime'ını hizalar. xUnit 2.9.3, VSTest runner 3.1.5, Test SDK 18.0.1 ve Testcontainers 4.15.0 yalnız test projesindedir. API/frontend paketleri değiştirilmedi.
 
-[CI](../../.github/workflows/ci.yml) Linux build/config job'ı solution restore/build ve Docker kontrolünden sonra gerçek `dotnet test` çalıştırır. Windows job test projesini derler; Docker endpoint suite'i orada çalıştırılmaz. Eski configuration/secret ve izole Compose runtime job'ları korunur. Bu değişiklik henüz commit/push edilmediği için yeni hosted CI sonucu **NOT VERIFIED**; tarihsel yeşil run bu yeni testlerin kanıtı değildir.
+[CI](../../.github/workflows/ci.yml) Linux build/config job'ı solution restore/build ve Docker kontrolünden sonra gerçek `dotnet test` çalıştırır. Windows job test projesini derler; Docker endpoint suite'i orada çalıştırılmaz. Eski configuration/secret ve izole Compose runtime job'ları korunur. **Hosted PASS:** [run 37593868455](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37593868455), commit `9e5e2ea2bd4a898fce5a68b6ceedb128cc4571d2`, 7 Ekim 2026. Üç job success; Ubuntu integration step'i 21 PASS / 0 FAIL / 0 SKIP raporladı (test süresi 18 s). Bu run sonraki GHCR publishing implementasyonunun kanıtı değildir.
 
 7 Ekim 2026 yerel Release suite: **21 PASS, 0 FAIL, 0 SKIP**. İlk çalıştırmanın JsonElement tarih karşılaştırması test hatasıydı; değer karşılaştırması düzeltildi. EF runtime sürüm uyuşmazlığı test projesinde giderildi. Uygulama endpoint/configuration davranışı değiştirilmedi.
 

@@ -10,7 +10,7 @@ Final acceptance — technical section30/31/37 acceptance completed; manual sect
 
 ## Current Step
 
-Backend integration test addition — local verification completed; Linux CI test step added, new hosted acceptance NOT VERIFIED. Historical technical final acceptance on 92e98a10d072c4e53dc6223c1cde8c490cfd586d remains separate; manual learning answers/exercises still pending. No application/Compose/configuration/secret changes, commit/push/tag/release.
+Optional GHCR image publishing implemented locally; actual publishing run/registry acceptance NOT VERIFIED. Backend integration tests committed/pushed on 9e5e2ea2bd4a898fce5a68b6ceedb128cc4571d2, run37593868455 all three jobs success and21 integration cases PASS. Historical technical final acceptance and pending manual learning review remain separate. No application/Compose/development-secret changes or deployment/tag/release.
 
 ## Completed
 
@@ -277,9 +277,15 @@ Added `tests/FullStackOpsLab.Api.IntegrationTests` to the solution with xUnit/We
 
 Release solution build PASS: zero warnings/errors. The exact Linux CI `dotnet test --no-build --no-restore` command also passed all21 locally. Existing CI jobs/action SHAs/permissions/Compose runtime smoke preserved; one Linux test step added. New hosted CI NOT VERIFIED because no commit/push was requested. Historical final acceptance and manual learning limits remain separate. Repository secret scanner and diff check passed; automatic fixture disposal preserved the original Docker container IDs/states, networks and volumes. Docker Desktop was started for verification; original containers remained stopped. NuGet/Docker sandbox access was resolved through scoped execution permissions; initial test comparison and EF dependency alignment issues fixed only in the test project.
 
+## Optional GHCR Publishing — 7 October 2026
+
+User requested registry publishing after integration test commit/push. Integration commit9e5e2ea2bd4a898fce5a68b6ceedb128cc4571d2 pushed to origin/main; run37593868455 succeeded for Linux build/config, Windows configuration/secrets and isolated Compose runtime; hosted xUnit21 PASS/0 FAIL/0 SKIP. Publishing implementation adds one main-push-only matrix job after all three CI gates, packages:write only on that job, unchanged SHA-pinned checkout, temporary GITHUB_TOKEN login over stdin and isolated Docker auth cleanup. API/frontend images use ghcr.io/ensaraslannn/fullstack-ops-lab-{api,frontend}, full SHA and latest tags; digest pull/image ID/source revision checked before advancing latest. No deployment, package visibility change, app/Compose/secret-source changes or new GitHub secret.
+
+Local checks: seven publishing unittest methods with fake Docker boundary PASS (event/ref/input/failure/timeout/digest/ID/revision/canary/cleanup); actionlint1.7.12 checksum verified and workflow passed (shellcheck unavailable); repository secret/diff checks passed. Initial Windows sandbox fixture cleanup issue resolved with scoped execution permissions, six own fixtures removed. No real registry call performed locally. Actual publishing job/package/digest acceptance remains NOT VERIFIED until separately authorized commit/push; current source implementation is not proof of uploaded images. Prior Module11/final acceptance remains historical. Test/build publishing uses the same source commit but rebuilds images; mutable base tags and non-atomic two-component publication are documented limitations.
+
 ## Next Goal
 
-Review the backend integration test addition before any separately authorized commit/push; then verify its actual hosted CI result. Manual learning review remains pending: user answers section32 questions and explains existing exercises. Do not create release/tag or optional advanced labs automatically.
+Review the GHCR publishing scope and authorize its separate commit/push to verify the first actual registry run, package access, digest and source revision; local offline checks are not hosted publishing acceptance. Manual learning review remains pending. Do not implement deployment or create a release/tag automatically.
 
 ## Blockers
 
