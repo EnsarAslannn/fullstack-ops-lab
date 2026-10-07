@@ -499,8 +499,18 @@ Bu komutlardaki SHA yer tutucudur, çalıştırılmış registry kanıtı değil
 | Canary çıktısı ve auth cleanup | PASS — fixture çıktılarında generated token yok; Docker child argument/environment içinde yok, yalnız login stdin; owned auth dizinleri temiz |
 | Workflow syntax / expressions | PASS — official actionlint v1.7.12, indirilen SHA256 doğrulandı; shellcheck aracı kurulu olmadığından devre dışı |
 | Repository secret kontrolü / diff check | PASS — değer gösterilmeden; scanner kapsamı/istisnaları değiştirilmedi |
-| Gerçek GHCR job / package / registry roundtrip | NOT VERIFIED — publishing değişikliği henüz commit/push edilmedi; önceki başarılı CI run bu adımı içermez |
+| Gerçek GHCR job / registry roundtrip | PASS — commit `1a9d57400e920263d227ed6383301bf72940aa25`, [run 37597426324](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37597426324); üç CI gate ve iki publishing job success; SHA/latest push, digest pull, image ID/revision eşleşmesi |
+| Package görünürlüğü / repository metadata / anonim pull | NOT VERIFIED — mevcut CLI kimliği package metadata API'sine erişemedi; görünürlük/izin değişikliği veya yeni credential oluşturulmadı. Hosted GITHUB_TOKEN ile push/pull başarılıdır; anonim erişim kanıtı değildir |
 | Gerçek fork PR yayın engeli / deliberately failing hosted job | NOT VERIFIED — yerel guard testleri gerçek fork kabulü değildir |
+
+İlk gerçek yayın 7 Ekim 2026 UTC09:02'de tamamlandı. Doğrulanan digest'ler bu kaynak commit'ine aittir; `latest` sonraki main push'larıyla değişebilir:
+
+| Component | Registry digest | Kaynak revision |
+| --- | --- | --- |
+| API | `ghcr.io/ensaraslannn/fullstack-ops-lab-api@sha256:802b3c29371ea814a69a46163bf0117718b837e766e63936e754c76cb98110fd` | `1a9d57400e920263d227ed6383301bf72940aa25` |
+| Frontend | `ghcr.io/ensaraslannn/fullstack-ops-lab-frontend@sha256:2b1afe9210f5b90d8bf49066a2c6756dad01af639628baf2b6cf6ecf196f2214` | `1a9d57400e920263d227ed6383301bf72940aa25` |
+
+Hosted job'ların geçici auth cleanup'ı tamamlandı; yalnız registry image'ları yayınlandı. Development `.env`, user-secrets, PostgreSQL volume'u veya yerel Docker kaynakları bu kabul için kullanılmadı. Bu sonuç dokümantasyon commit'inin yeni run'ı veya package public erişimi için kanıt sayılmaz.
 
 Yerel kontrol:
 

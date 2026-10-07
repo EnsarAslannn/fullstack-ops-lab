@@ -111,7 +111,7 @@ dotnet test FullStackOpsLab.slnx --configuration Release --blame-hang-timeout 3m
 
 [Opsiyonel registry akışı](labs/11-github-actions/README.md#opsiyonel-ghcr-image-publishing--7-ekim-2026) `main` push'unda bütün build/configuration/runtime kontrolleri geçince API ve frontend image'larını `ghcr.io/ensaraslannn/fullstack-ops-lab-api` ve `ghcr.io/ensaraslannn/fullstack-ops-lab-frontend` adlarıyla yayınlar. Tag'ler `sha-<tam-commit-sha>` ve `latest`; digest ile pull/image ID/revision kontrolü vardır. Yalnız yayın job'ı `packages: write` kullanır; PR'ler yayın yapmaz, development secret veya PAT gerekmez.
 
-Publishing implementasyonu yerel testlerden geçti; **ilk gerçek GHCR run/registry kabulü henüz NOT VERIFIED**. Package görünürlüğü otomatik public yapılmaz. Mevcut Compose kaynaklardan build etmeye devam eder; registry yayınlamak deployment değildir.
+**Hosted PASS:** [run 37597426324](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37597426324), commit `1a9d57400e920263d227ed6383301bf72940aa25`: üç CI doğrulama job'ı ve iki GHCR yayın job'ı başarılı; her image digest ile geri çekilip image ID ve kaynak revision kontrol edildi. Package görünürlüğü ve anonim pull ayrıca doğrulanmadı; otomatik public yapılmaz. Mevcut Compose kaynaklardan build etmeye devam eder; registry yayınlamak deployment değildir.
 
 ## Repository ve belgeler
 
