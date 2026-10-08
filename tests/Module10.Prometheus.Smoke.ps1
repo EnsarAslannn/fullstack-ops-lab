@@ -11,7 +11,6 @@ $createdId = $null
 $cacheTouched = $false
 $apiStopped = $false
 $redisStopped = $false
-# Never forward native stderr, response bodies or sensitive exceptions to the terminal.
 function Docker([string[]]$Arguments) {
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = 'docker'
@@ -130,7 +129,6 @@ try {
     if ($EndpointOnly) { Write-Output 'PASS: Prometheus target endpoint'; exit 0 }
     Assert ((Redis @('EXISTS', $cacheKey)) -eq '0') 'Use an isolated stack without an existing list cache'
 
-    # Create a count sample before comparing subsequent scrapes; no DB mutation.
     Assert ((Request 'POST' '/api/tasks' @{ title = ' ' }).Status -eq 400) 'Warmup validation must return 400'
     $last = Wait-Scrape ((Target).lastScrape)
     $last = Wait-Scrape $last
@@ -162,7 +160,6 @@ try {
     foreach ($metric in @('dotnet_process_cpu_time_seconds_total', 'dotnet_process_memory_working_set_bytes', 'dotnet_gc_heap_total_allocated_bytes_total')) {
         Assert (@(Query "$metric{job=`"fullstack-ops-api`"}").Count -gt 0) "Runtime series missing: $metric"
     }
-    # Generate events across scrape boundaries, not just a single cumulative sample.
     Assert ((Request 'GET' '/api/tasks' $null).Status -eq 200) 'Post-mutation miss failed'
     Assert ((Request 'GET' '/api/tasks' $null).Status -eq 200) 'Post-mutation hit failed'
     $last = Wait-Scrape ((Target).lastScrape)
@@ -203,7 +200,6 @@ try {
     Assert ($external.ContentType -match 'text/html') 'Nginx must not expose API metrics'
     Write-Output "PASS: same API container healthy, target UP; last scrape $last; external /metrics HTML only"
 } catch {
-    # Only our fixed assertion messages are safe to show; unexpected exceptions may contain response data.
     if ($_.Exception -is [InvalidOperationException]) { Write-Output ('FAIL: ' + $_.Exception.Message) }
     else { Write-Output 'FAIL: Prometheus acceptance could not complete (details withheld)' }
     exit 1

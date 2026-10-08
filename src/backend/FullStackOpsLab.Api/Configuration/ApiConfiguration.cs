@@ -26,7 +26,6 @@ internal sealed record ApiConfiguration(string PostgresConnectionString, string 
         }
         catch (Exception)
         {
-            // Provider parse errors may contain the input, including credentials.
             throw new InvalidOperationException("ConnectionStrings:Postgres eksik veya geçersiz.");
         }
 

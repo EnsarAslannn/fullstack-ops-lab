@@ -1,7 +1,6 @@
 @ApiHost = http://localhost:5162
 @taskId = 1
 
-# Start the API, then run POST first. Copy its returned id to taskId if needed.
 POST {{ApiHost}}/api/tasks
 Content-Type: application/json
 
@@ -35,7 +34,6 @@ DELETE {{ApiHost}}/api/tasks/{{taskId}}
 
 ###
 
-# Expect 400: title must contain non-whitespace text.
 POST {{ApiHost}}/api/tasks
 Content-Type: application/json
 
@@ -45,5 +43,4 @@ Content-Type: application/json
 
 ###
 
-# Expect 404: this id does not exist.
 GET {{ApiHost}}/api/tasks/999999999

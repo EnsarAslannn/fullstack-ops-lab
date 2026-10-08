@@ -1,15 +1,12 @@
-# Local dependencies and output are rebuilt inside the image.
 node_modules/
 dist/
 *.tsbuildinfo
 
-# Repository and editor metadata are not build inputs.
 .git/
 .vs/
 .vscode/
 .idea/
 
-# Local environment, logs, and temporary test output stay on the host.
 .env
 .env.*
 *.log
@@ -21,6 +18,5 @@ coverage/
 playwright-report/
 test-results/
 
-# Docker reads these files, but they are not frontend source.
 Dockerfile
 .dockerignore

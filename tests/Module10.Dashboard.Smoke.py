@@ -101,7 +101,6 @@ def run(options):
 
     def browser(require_traffic=False):
         from playwright.sync_api import sync_playwright
-        # Provisioning polling can update metadata between traffic and idle observations.
         rendered_panels = graf("/api/dashboards/uid/" + UID)["dashboard"]["panels"]
         with sync_playwright() as playwright:
             browser_instance = playwright.chromium.launch(channel="msedge", headless=True)
@@ -125,7 +124,6 @@ def run(options):
                 page.wait_for_load_state("networkidle")
                 for panel in rendered_panels:
                     page.get_by_text(panel["title"], exact=True).first.wait_for(state="visible")
-                # Query actual provisioned expressions through Grafana's plugin, not only Prometheus.
                 for panel in rendered_panels:
                     targets = [{"refId": target["refId"], "expr": target["expr"],
                                 "datasource": target["datasource"], "instant": True,
@@ -149,7 +147,6 @@ def run(options):
                       "Unexpected browser console error")
                 check(all(admin_credential not in text for _, text, _ in consoles), "Credential in browser console")
                 if options.screenshots_directory and require_traffic:
-                    # Capture only the main content; no login form, profile menu or account sidebar.
                     content = page.locator("main").first
                     check(user not in content.inner_text() and admin_credential not in content.inner_text(),
                           "Account information in screenshot area (values withheld)")
@@ -174,19 +171,16 @@ def run(options):
     check(status == 200, "Initial Task list failed")
     original_tasks = json.loads(original_text)
     try:
-        # Existing list cache is not deleted. TTL expiration naturally supplies a miss.
         wait_for(lambda: docker("exec", "fullstack-ops-lab-redis-1", "redis-cli", "--raw", "EXISTS",
                                 "fullstack-ops:tasks:all:v1") == "0", "Existing cache did not expire", 180)
         cache_owned = True
         request(frontend, "/api/tasks")
         request(frontend, "/api/tasks")
-        # Zero 5xx with successful traffic is a measured zero, not missing-data padding.
         title = "module10-dashboard-" + uuid.uuid4().hex
         code, text, headers = request(frontend, "/api/tasks", "POST", {"title": title, "description": None})
         check(code == 201, "Test Task POST failed")
         created_id = json.loads(text)["id"]
         check(headers["Location"].endswith("/api/tasks/" + str(created_id)), "POST Location changed")
-        # New counters need a scraped baseline before later events can produce rate().
         time.sleep(17)
         for _ in range(5):
             check(request(frontend, "/api/tasks")[0] == 200, "List traffic failed")
@@ -222,10 +216,8 @@ def run(options):
         postgres_stopped = True
         api_id = docker(*COMPOSE, "ps", "-q", "api")
         for index in range(3):
-            # ID GET reads the database directly; cache cannot hide this failure.
             check(request(frontend, "/api/tasks/2147483647")[0] == 500, "Expected controlled database 5xx")
             if index == 0:
-                # The 5xx label series can be new after API restart; establish its baseline.
                 time.sleep(17)
         wait_for(lambda: positive(3), "5xx did not reach error panel", 90)
         wait_for(lambda: docker("inspect", "--format", "{{.State.Health.Status}}", api_id) == "unhealthy",
@@ -245,7 +237,6 @@ def run(options):
         check(request(frontend, "/api/tasks/2147483647")[0] == 404, "Direct database read did not recover")
         print("PASS: dependency recovered; same API healthy and direct DB GET 404")
 
-        # No API user traffic for >2m; Docker health and Prometheus scrape continue.
         print("Observing a 150-second traffic-free window (health/scrape probes remain)...", flush=True)
         idle_end = time.monotonic() + 150
         while time.monotonic() < idle_end:

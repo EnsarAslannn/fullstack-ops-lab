@@ -8,7 +8,6 @@ $ErrorActionPreference = 'Stop'
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $compose = @('compose', '--env-file', $EnvFile)
 if ($GrafanaEnvFile) { $compose += @('--env-file', $GrafanaEnvFile) }
-# Never forward native stderr, response bodies or sensitive exceptions to the terminal.
 function Docker([string[]]$Arguments) {
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = 'docker'
@@ -76,7 +75,6 @@ try {
     Assert (($health.Body | ConvertFrom-Json).database -eq 'ok') 'Grafana database must be healthy'
     Assert ((Request 'GET' '/api/datasources' $null).Status -eq 401) 'Anonymous datasource access must be disabled'
     if ($EndpointOnly) { Write-Output 'PASS: Grafana service/health'; exit 0 }
-    # Values stay in memory; no credentials in CLI arguments, output or files.
     $envs = (Docker @('inspect', '--format', '{{json .Config.Env}}', $id)) | ConvertFrom-Json
     foreach ($entry in $envs) {
         $key, $value = $entry -split '=',2
@@ -114,7 +112,6 @@ try {
         Assert (-not $serialized.Contains($password)) 'Credential leaked into datasource query (value withheld)'
         Write-Output ("PASS: datasource query $expression; series=$(@($query.data.result).Count)")
     }
-    # Dashboard provisioning now has its own acceptance test; datasource checks remain reusable.
     Write-Output 'PASS: YAML datasource UID/default/read-only, health, queries and safe logs'
 } catch {
     if ($_.Exception -is [InvalidOperationException]) { Write-Output ('FAIL: ' + $_.Exception.Message) }

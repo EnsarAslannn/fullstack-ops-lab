@@ -10,7 +10,6 @@ public sealed class RedisReadinessCheck(IDistributedCache cache) : IHealthCheck
     {
         try
         {
-            // A missing key is enough: the read still requires a working Redis connection.
             await cache.GetAsync("fullstack-ops:health:readiness", cancellationToken);
             return HealthCheckResult.Healthy();
         }

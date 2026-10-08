@@ -5,13 +5,11 @@ $project = Join-Path $repositoryRoot 'src/backend/FullStackOpsLab.Api/FullStackO
 
 Push-Location $repositoryRoot
 try {
-    # Catches a missing design-time DbContext without creating a migration or touching the database.
     $contextInfo = dotnet ef dbcontext info --project $project --startup-project $project 2>&1
     if ($LASTEXITCODE -ne 0 -or ($contextInfo -join "`n") -notmatch 'AppDbContext') {
         throw 'EF Core did not discover AppDbContext.'
     }
 
-    # The generated SQL comes from the real EF model. This command does not apply it.
     $script = dotnet ef dbcontext script --project $project --startup-project $project 2>&1
     if ($LASTEXITCODE -ne 0) {
         throw 'EF Core could not generate the model SQL script.'

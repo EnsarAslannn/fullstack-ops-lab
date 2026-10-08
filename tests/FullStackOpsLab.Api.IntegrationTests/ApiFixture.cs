@@ -52,7 +52,6 @@ public sealed class ApiFixture : IAsyncLifetime
         {
             try { await DisposeAsync(); }
             catch { throw new InvalidOperationException("Isolated integration setup and cleanup failed. Check owned Testcontainers resources."); }
-            // Container/provider exceptions can include credentials; don't forward them to test output.
             throw new InvalidOperationException("Isolated integration setup failed. Check Docker Linux engine and image availability.");
         }
     }
@@ -62,7 +61,6 @@ public sealed class ApiFixture : IAsyncLifetime
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Tasks.ExecuteDeleteAsync();
-        // This Redis instance belongs exclusively to this fixture; remove only the application's list key.
         await scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>()
             .RemoveAsync("fullstack-ops:tasks:all:v1");
     }
@@ -72,7 +70,6 @@ public sealed class ApiFixture : IAsyncLifetime
         Client?.Dispose();
         try
         {
-            // Attempt every disposal even when one fails. Resource reaper is an additional safety net.
             await Task.WhenAll(Factory is null ? Task.CompletedTask : Factory.DisposeAsync().AsTask(),
                 postgres.DisposeAsync().AsTask(), redis.DisposeAsync().AsTask());
         }

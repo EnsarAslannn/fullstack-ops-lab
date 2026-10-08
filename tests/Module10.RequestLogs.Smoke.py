@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.dont_write_bytecode = True # Test helpers must not leave binary artifacts in the repository.
+sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("dashboard_helpers", Path(__file__).with_name("Module10.Dashboard.Smoke.py"))
 helpers = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helpers)
@@ -46,7 +46,6 @@ def run(options):
         check(request(options.frontend, f"/api/tasks/{created_id}", "DELETE")[0] == 204, "DELETE failed")
         created_id = None
         check(request(options.frontend, "/api/tasks/2147483647")[0] == 404, "Missing-ID GET failed")
-        # Direct internal requests avoid putting the fake private query in Nginx's existing access log.
         def internal(path, method="GET", body=None, private=False):
             args = ["exec", "fullstack-ops-lab-frontend-1", "curl", "-s", "--max-time", "20", "-o", "/dev/null", "-w", "%{http_code}", "-X", method]
             if private:

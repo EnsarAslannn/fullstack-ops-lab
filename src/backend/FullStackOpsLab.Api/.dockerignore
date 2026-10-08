@@ -1,10 +1,8 @@
-# Local .NET build output belongs to the host, not the Linux image.
 bin/
 obj/
 **/bin/
 **/obj/
 
-# Repository and editor metadata are not application input.
 .git/
 .vs/
 .vscode/
@@ -12,7 +10,6 @@ obj/
 *.user
 *.suo
 
-# Local tests, temporary files, and environment secrets.
 TestResults/
 **/TestResults/
 *.log
@@ -23,7 +20,6 @@ TestResults/
 .env
 .env.*
 
-# Request samples and build instructions are not runtime files.
 *.http
 Dockerfile
 .dockerignore

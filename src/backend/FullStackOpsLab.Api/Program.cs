@@ -36,7 +36,6 @@ builder.Services.AddStackExchangeRedisCache(options => options.Configuration = a
 
 var app = builder.Build();
 
-// Hosting request-start logs include raw URLs. Record only safe route metadata instead.
 var requestLogger = app.Services.GetRequiredService<ILoggerFactory>()
     .CreateLogger("FullStackOpsLab.Api.Requests");
 app.UseRouting();
@@ -55,7 +54,6 @@ app.Use((HttpContext context, RequestDelegate next) =>
         _ => "OTHER"
     };
     var started = Stopwatch.GetTimestamp();
-    // OnCompleted observes the final status, including errors handled outside this middleware.
     context.Response.OnCompleted(() =>
     {
         requestLogger.LogInformation("HTTP {Method} {Route} -> {StatusCode} in {ElapsedMilliseconds:F3} ms",
@@ -203,7 +201,6 @@ static async Task InvalidateTaskListCacheAsync(IDistributedCache cache, ILogger 
     }
     catch (Exception exception) when (exception is not OperationCanceledException)
     {
-        // The PostgreSQL write has succeeded; a cache failure must not report that write as failed.
         logger.LogWarning(exception, "Could not invalidate task list cache {CacheKey}", cacheKey);
     }
 }

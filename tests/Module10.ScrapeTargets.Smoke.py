@@ -10,7 +10,7 @@ import uuid
 from urllib.parse import urlencode
 from pathlib import Path
 
-sys.dont_write_bytecode = True # Test helpers must not leave binary artifacts in the repository.
+sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("dashboard_helpers", Path(__file__).with_name("Module10.Dashboard.Smoke.py"))
 helpers = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helpers)
@@ -19,7 +19,6 @@ check, docker, wait_for = helpers.check, helpers.docker, helpers.wait_for
 
 def run(options):
     folder = Path(tempfile.mkdtemp(prefix="fullstackops-scrape-")).resolve()
-    # Docker accepts longer names, but one DNS label must fit in 63 characters.
     name = "fullstackops-scrape-lab-" + uuid.uuid4().hex[:12]
     running = False
     observations = []
@@ -52,7 +51,6 @@ def run(options):
             return False
 
     def up(instance):
-        # A reloaded target can coexist with its previous series until staleness is recorded.
         query = 'up{job="fullstack-ops-api",instance="' + instance + '"}'
         data = endpoint('/api/v1/query?' + urlencode({"query": query}))
         check(data["status"] == "success" and len(data["data"]["result"]) == 1, "Expected diagnostic up sample")
@@ -91,7 +89,7 @@ def run(options):
             Path(options.results_file).write_text(json.dumps(observations, indent=2), encoding="utf-8")
     finally:
         if running:
-            docker("stop", name) # --rm removes only this container and its own anonymous image volume, if any.
+            docker("stop", name)
         check(folder.parent == Path(tempfile.gettempdir()).resolve() and folder.name.startswith("fullstackops-scrape-"), "Unsafe temporary cleanup path")
         shutil.rmtree(folder)
 

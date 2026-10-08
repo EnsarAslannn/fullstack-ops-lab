@@ -39,8 +39,7 @@ function Invoke-Git([string]$Root, [string]$Command) {
 function Is-ReferenceOrExample([string]$RawValue) {
     $value = $RawValue.Trim().Trim('"', "'").Trim()
     if (-not $value) { return $true }
-    if ($value -eq '`') { return $true } # Markdown inline `Password=` has no value.
-    # An empty PowerShell fixture may express the following newline as `n or `r`n.
+    if ($value -eq '`') { return $true }
     if ($value.StartsWith('`n') -or $value.StartsWith('`r`n')) { return $true }
     if ($value.StartsWith('$') -or $value.StartsWith('%') -or
         $value.StartsWith('<') -or $value.StartsWith('{{')) { return $true }
@@ -54,7 +53,6 @@ function Add-Finding([string]$Path, [int]$Line, [string]$Rule) {
     $script:findings.Add(('{0}:{1}:{2}' -f $Path, $Line, $Rule))
 }
 
-# Only these visually reviewed screenshots are outside the TEXT scan. No folder-wide skip.
 $documentationPngs = @(
     'labs/10-prometheus-grafana/images/prometheus-targets.png',
     'labs/10-prometheus-grafana/images/prometheus-query.png',
@@ -76,7 +74,6 @@ function Assert-DocumentationPng([byte[]]$Bytes) {
             [uint64]$Bytes[$offset + 2] * 256 + [uint64]$Bytes[$offset + 3]
         $kind = [Text.Encoding]::ASCII.GetString($Bytes, $offset + 4, 4)
         $end = $offset + 12 + $length
-        # Text/comment/EXIF and unknown chunks are rejected, not silently excluded.
         if ($end -gt $Bytes.Length -or $kind -notin @('IHDR','IDAT','IEND','PLTE','tRNS','sRGB','gAMA','cHRM','pHYs')) {
             throw 'Invalid or metadata-bearing documentation image'
         }
@@ -98,7 +95,6 @@ try {
     if (-not [string]::Equals([System.IO.Path]::GetFullPath($topLevel).TrimEnd('\', '/'),
         $root, [System.StringComparison]::OrdinalIgnoreCase)) { throw 'Not a repository root' }
 
-    # NUL-delimited Git paths preserve spaces and newlines. Ignored untracked files never enter this list.
     $tracked = @( (Invoke-Git $root 'ls-files -z --cached').Split([char]0) | Where-Object { $_ })
     $newFiles = @( (Invoke-Git $root 'ls-files -z --others --exclude-standard').Split([char]0) | Where-Object { $_ })
     $findings = [System.Collections.Generic.List[string]]::new()
@@ -109,11 +105,11 @@ try {
         if (-not $fullPath.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
             throw 'Git path outside repository'
         }
-        if (-not [System.IO.File]::Exists($fullPath)) { continue } # deleted tracked file
+        if (-not [System.IO.File]::Exists($fullPath)) { continue }
         $name = [System.IO.Path]::GetFileName($fullPath)
         if ($name -match '^(?i)\.env(?:\..+)?$' -and $name -ine '.env.example') {
             Add-Finding $displayPath 0 'EnvFileInGit'
-            continue # never read a real env file, even if it was force-added
+            continue
         }
         if (([System.IO.File]::GetAttributes($fullPath) -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
             throw 'Symbolic link is outside the text scanner scope'
@@ -121,7 +117,7 @@ try {
         $bytes = [System.IO.File]::ReadAllBytes($fullPath)
         if ($relative.Replace('\', '/') -cin $documentationPngs) {
             Assert-DocumentationPng $bytes
-            continue # Pixels require visual review; this is not OCR or comprehensive secret detection.
+            continue
         }
         if ([Array]::IndexOf($bytes, [byte]0) -ge 0) { throw 'Binary file is outside the text scanner scope' }
         $content = $utf8.GetString($bytes).TrimStart([char]0xFEFF)
@@ -153,7 +149,6 @@ try {
     if ($findings.Count -gt 0) { exit 1 }
     exit 0
 } catch {
-    # Exception text and file contents may include credentials. Only a fixed error is safe.
     Write-Output 'SCAN_ERROR: repository inventory or text scan could not complete.'
     exit 2
 }

@@ -48,7 +48,6 @@ class PublishingTests(unittest.TestCase):
         self.calls.append((args, kwargs))
         command = args[1]
         if command == self.fail_at:
-            # Deliberately unsafe external output must never be forwarded by the real publisher.
             return subprocess.CompletedProcess(args, 9, self.canary, self.canary)
         output = ""
         if command == "login":

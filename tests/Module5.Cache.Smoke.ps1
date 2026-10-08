@@ -85,7 +85,6 @@ try {
             $probe = Send-TaskRequest GET '/api/tasks/2147483647'
             if ($probe.Status -eq 404) { $reconnected = $true; break }
         } catch [System.Net.WebException] {
-            # A stale pooled connection may close the first read after PostgreSQL restarts.
         }
         Start-Sleep -Milliseconds 500
     }

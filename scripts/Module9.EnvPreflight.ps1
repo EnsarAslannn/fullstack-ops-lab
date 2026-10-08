@@ -25,7 +25,6 @@ function Invoke-Docker([string]$Arguments, [AllowNull()][string]$InputText) {
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
     $start.RedirectStandardInput = $true
-    # A shell variable must not conceal a missing or placeholder value in this file.
     foreach ($key in ($requiredKeys + @('Cache__TasksTtlSeconds'))) {
         $start.EnvironmentVariables.Remove($key)
     }
@@ -91,7 +90,6 @@ try {
     }
     $envArguments = $envArguments -join ' '
 
-    # Compose itself parses .env quoting/interpolation. The resolved JSON stays in memory.
     $probe = @'
 services:
   preflight:
@@ -144,6 +142,5 @@ services:
     Write-Output ('External volume exists: ' + $volumeName)
     Write-Output 'Preflight passed. Database credentials and readiness were not verified.'
 } catch {
-    # Docker, Git, and parser errors can contain resolved values. Never echo exceptions.
     Fail 'Preflight could not complete. Check Docker/Compose availability and the local file syntax.'
 }

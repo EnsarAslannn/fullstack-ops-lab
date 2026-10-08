@@ -14,7 +14,6 @@ $redisStopped = $false
 $canary = 'module10-task-' + [guid]::NewGuid().ToString('N')
 $diagnosticName = 'fullstackops-metrics-probe-' + [guid]::NewGuid().ToString('N')
 
-# Never forward native stderr, response bodies or sensitive exceptions to the terminal.
 function Docker([string[]]$Arguments) {
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = 'docker'
@@ -78,7 +77,6 @@ function Redis([string[]]$Arguments) {
 }
 
 function Scrape {
-    # A short-lived diagnostic container on the actual Compose network, with no host port.
     $raw = Docker @('run', '--rm', '--name', $diagnosticName, '--network', $script:Network, '--entrypoint', 'curl',
         $script:DiagnosticImage, '--silent', '--show-error', '--max-time', '15', '-i',
         '-H', 'Accept: text/plain;version=0.0.4', 'http://api:8080/metrics')
@@ -133,14 +131,12 @@ try {
     $networks = (Docker @('inspect', '--format', '{{json .NetworkSettings.Networks}}', $apiId)) | ConvertFrom-Json
     $script:Network = @($networks.PSObject.Properties.Name)[0]
     $script:DiagnosticImage = Docker @('inspect', '--format', '{{.Image}}', $frontendId)
-    # Inspect only specific keys privately to check that their values do not appear in metrics.
     $apiEnv = (Docker @('inspect', '--format', '{{json .Config.Env}}', $apiId)) | ConvertFrom-Json
     $pgId = Docker @('compose', '--env-file', $EnvFile, 'ps', '-q', 'postgres')
     $pgEnv = (Docker @('inspect', '--format', '{{json .Config.Env}}', $pgId)) | ConvertFrom-Json
     $script:SensitiveValues = @(@($apiEnv) + @($pgEnv) | Where-Object {
         $_ -match '^(ConnectionStrings__Postgres|POSTGRES_PASSWORD)='
     } | ForEach-Object { ($_ -split '=', 2)[1] } | Where-Object { $_.Length -gt 0 })
-    # Instruments publish a series only after a measurement. Warm up without writing data.
     $warmup = Request POST '/api/tasks' @{ title='' }
     Assert ($warmup.Status -eq 400) 'HTTP metric warmup must reject an empty title'
     $before = Scrape
@@ -177,7 +173,6 @@ try {
     Delta $before $afterList 'fullstackops_cache_hits_total' 1
     Delta $before $afterList 'http_server_request_duration_seconds_count' 2 @{ http_route='/api/tasks/'; http_request_method='GET'; http_response_status_code='200' }
     Write-Output 'Initial controlled GET pair: HTTP count +2, cache miss +1, cache hit +1'
-    # Preserve database rows: seed only the test-owned cache to exercise the empty-hit branch.
     $null = Redis @('HSET', $cacheKey, 'data', '[]')
     $empty = Request GET '/api/tasks'
     Assert ($empty.Status -eq 200 -and $empty.Body.Trim() -eq '[]') 'Cached empty array must return 200/[]'
@@ -258,7 +253,6 @@ try {
     $afterCrud = $expiryMetrics
     Write-Output 'Real cache TTL expiration and re-population PASS (two additional misses)'
 
-    # Failed reads are not misses or hits. Existing failure policy must still return 500.
     $redisStopped = $true
     $null = Docker @('compose','--env-file',$EnvFile,'stop','redis')
     $failedList = Request GET '/api/tasks'

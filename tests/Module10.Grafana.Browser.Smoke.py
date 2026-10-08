@@ -76,7 +76,6 @@ def run(options):
                 check(context.request.delete(options.frontend_url + f"/api/tasks/{task_id}").status == 204,
                       "Test Task deletion failed")
                 task_id = None
-                # Wait longer than the 15-second scrape interval, then require actual plugin results.
                 time.sleep(17)
 
             for metric in ("http_server_request_duration_seconds_count",
@@ -99,12 +98,10 @@ def run(options):
                 check(admin_credential not in response.text() and user not in response.text(), "Credential leak in query response")
                 print(f"PASS: Grafana /api/ds/query {metric}; numeric columns={len(numeric)}")
 
-            # Observed Grafana behavior: page navigation can cancel this decorative SVG fetch.
             expected_aborts = [(url, reason) for url, reason in failed_requests
                                if url == options.url + "/public/build/img/icons/unicons/sort-amount-up.svg"
                                and reason == "net::ERR_ABORTED"]
             check(not errors and len(expected_aborts) == len(failed_requests), "Unexpected browser script or network failure")
-            # A new account has no advisor-notice preference; Grafana expects this lookup to return 404.
             expected_console = [(kind, text, url) for kind, text, url in console_messages
                                 if kind == "error" and "404" in text
                                 and "/user-storage/advisor-redirect-notice:" in url]

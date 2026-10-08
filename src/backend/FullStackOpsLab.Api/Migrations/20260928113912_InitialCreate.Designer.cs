@@ -15,7 +15,6 @@ namespace FullStackOpsLab.Api.Migrations
     [Migration("20260928113912_InitialCreate")]
     partial class InitialCreate
     {
-        /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618

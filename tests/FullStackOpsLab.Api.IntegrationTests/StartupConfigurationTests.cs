@@ -35,7 +35,6 @@ public sealed class StartupConfigurationTests
     [Fact]
     public async Task Valid_configuration_starts_without_connecting_to_dependencies()
     {
-        // These closed ports validate syntax without using any development service.
         using var factory = new TestApiFactory("Host=127.0.0.1;Port=1;Database=integration;Username=integration", "127.0.0.1:1,abortConnect=false");
         using var client = factory.CreateClient();
         using var response = await client.GetAsync("/health/live");

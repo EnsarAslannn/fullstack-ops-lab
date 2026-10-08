@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace FullStackOpsLab.Api.IntegrationTests;
 
-// xUnit runs one class's cases serially. Every case resets only this fixture's isolated data.
 public sealed class TasksApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>, IAsyncLifetime
 {
     public Task InitializeAsync() => fixture.ResetAsync();

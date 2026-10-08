@@ -6,8 +6,6 @@ $apiDirectory = Join-Path $projectRoot 'src/backend/FullStackOpsLab.Api'
 $apiDll = Join-Path $apiDirectory "bin/$Configuration/net10.0/FullStackOpsLab.Api.dll"
 if (-not (Test-Path $apiDll)) { throw 'Build the API before running this smoke test.' }
 
-# Child processes inherit this process error mode. Restore it immediately after each start.
-# This is scoped to the test process; it does not change Windows-wide settings.
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
@@ -17,7 +15,6 @@ public static class Module9ErrorMode {
 }
 '@
 
-# These addresses deliberately have no listeners. Parsing must not connect to either dependency.
 $canary = 'module9-canary-' + [guid]::NewGuid().ToString('N')
 $validPostgres = "Host=127.0.0.1;Port=1;Database=module9;Username=module9;Password=$canary"
 $validRedis = '127.0.0.1:1,connectTimeout=1000,connectRetry=0,syncTimeout=1000,abortConnect=false'
@@ -77,7 +74,6 @@ function Invoke-StartupCase {
     }
     $info.EnvironmentVariables['ASPNETCORE_ENVIRONMENT'] = 'Production'
     $info.EnvironmentVariables['DOTNET_ENVIRONMENT'] = 'Production'
-    # This host account cannot write the Windows Event Log. Scope the workaround to this child.
     $info.EnvironmentVariables['Logging__EventLog__LogLevel__Default'] = 'None'
     if ($null -ne $Postgres) { $info.EnvironmentVariables['ConnectionStrings__Postgres'] = $Postgres }
     if ($null -ne $Redis) { $info.EnvironmentVariables['ConnectionStrings__Redis'] = $Redis }

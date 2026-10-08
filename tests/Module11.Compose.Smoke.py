@@ -41,7 +41,6 @@ class Lab:
             raise AcceptanceError("State directory must be a direct fullstackops-ci-* child of the system/runner temporary directory, outside the repository")
         self.state_file = self.directory / "state.json"
         self.state = json.loads(self.state_file.read_text(encoding="utf-8")) if self.state_file.exists() else None
-        # Do not let inherited local configuration replace the explicit fake fixture.
         self.environment = {key: value for key, value in os.environ.items()
                             if not key.startswith(("COMPOSE_", "ConnectionStrings__", "Cache__", "POSTGRES_", "GF_SECURITY_ADMIN_"))}
 
@@ -61,7 +60,6 @@ class Lab:
             if canary in output or canary in errors:
                 raise AcceptanceError("Generated credential appeared in captured command output (content withheld)")
         if result.returncode:
-            # Never forward raw native stderr, HTTP bodies, config, logs or exceptions.
             raise AcceptanceError(f"Command failed: {arguments[0]}, exit={result.returncode}")
         if show:
             print(output.strip())
@@ -121,7 +119,6 @@ class Lab:
         names = self.run(["docker", "volume", "ls", "--format", "{{.Name}}"])
         if self.state["volume"] in names.splitlines():
             raise AcceptanceError("Refusing to reuse an existing PostgreSQL volume")
-        # Record ownership intent first so cancellation after create cannot orphan it.
         self.state["volume_created"] = True
         self.save()
         self.run(["docker", "volume", "create", "--label", "fullstackops.ci.owner=" + project, self.state["volume"]])
@@ -143,7 +140,6 @@ class Lab:
         if MIGRATION not in sql or 'CREATE TABLE tasks' not in sql or '__EFMigrationsHistory' not in sql:
             raise AcceptanceError("Generated SQL does not contain the expected InitialCreate schema/history")
         self.sql(sql)
-        # The same script must safely skip an already applied migration.
         self.sql(sql)
         if self.sql('SELECT count(*) FROM "__EFMigrationsHistory"; SELECT count(*) FROM tasks;') != "1\n0":
             raise AcceptanceError("Expected one applied migration and an empty isolated tasks table")
@@ -225,7 +221,6 @@ class Lab:
             raise AcceptanceError("Prometheus API target did not become UP")
         datasource = (ROOT / "monitoring/grafana/provisioning/datasources/prometheus.yml").read_text(encoding="utf-8")
         dashboard = (ROOT / "monitoring/grafana/dashboards/overview.json").read_text(encoding="utf-8")
-        # Authenticate inside the container; credentials never appear in command arguments.
         grafana = self.compose("exec", "-T", "grafana", "sh", "-c",
                                'wget -q -O - --header="Authorization: Basic $(printf "%s:%s" "$GF_SECURITY_ADMIN_USER" "$GF_SECURITY_ADMIN_PASSWORD" | base64 | tr -d "\\n")" http://127.0.0.1:3000/api/datasources/uid/fullstack-ops-prometheus')
         if json.loads(grafana)["url"] != "http://prometheus:9090" or "fullstack-ops-prometheus" not in datasource:
@@ -240,7 +235,6 @@ class Lab:
     def diagnostics(self):
         if self.state is None:
             return
-        # Allowlisted fields only: no environment, probe output, raw logs or config.
         for service in sorted(SERVICES):
             try:
                 state = self.run(["docker", "inspect", "--format",
@@ -248,7 +242,6 @@ class Lab:
                                   self.container(service)])
                 print(f"DIAGNOSTIC {service}: state|health|exit|restarts={state}")
                 logs = self.compose("logs", "--no-color", "--tail", "80", service)
-                # Keep only known safe cache events and method/route/status lines.
                 for event in re.findall(r'\[CACHE (?:HIT|MISS|INVALIDATE)\]|HTTP (?:GET|POST|PUT|DELETE) /api/tasks(?:/\{id[^}]*\})? -> \d{3}', logs):
                     print(f"DIAGNOSTIC {service}: {event}")
             except AcceptanceError:

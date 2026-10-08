@@ -17,7 +17,6 @@ function Send-TaskRequest {
         UseBasicParsing = $true
         TimeoutSec = 20
     }
-    # PowerShell 7 uses HttpResponseException; retain the Windows 5.1 path below.
     if ($PSVersionTable.PSVersion.Major -ge 7) { $options.SkipHttpErrorCheck = $true }
 
     if ($PSBoundParameters.ContainsKey('RequestBody')) {

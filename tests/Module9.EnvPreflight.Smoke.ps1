@@ -67,7 +67,6 @@ try {
     [IO.File]::WriteAllText($overlay, "GF_SECURITY_ADMIN_USER=fixture_admin`nGF_SECURITY_ADMIN_PASSWORD=<set-outside-git>`n", [Text.UTF8Encoding]::new($false))
     Invoke-Case 'placeholder in Grafana overlay' $withoutGrafana $false 'GF_SECURITY_ADMIN_PASSWORD' @('-GrafanaEnvFile', $overlay)
     Invoke-Case 'missing Grafana env file' ($base + "POSTGRES_PASSWORD=$canary`n") $false '.env' @('-GrafanaEnvFile', '.env.module9-missing')
-    # Reject an unavailable override before consulting any volume.
     Invoke-Case 'missing Compose override' ($base + "POSTGRES_PASSWORD=$canary`n") $false 'ComposeOverrideFile' @('-ComposeOverrideFile', 'missing-module9-override.yaml')
     Invoke-Case 'invalid volume name' ($base + "POSTGRES_PASSWORD=$canary`n") $false 'VolumeName' @('-VolumeName', 'invalid volume name')
     $missingVolume = 'fullstackops-missing-' + [guid]::NewGuid().ToString('N')

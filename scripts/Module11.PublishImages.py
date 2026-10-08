@@ -21,7 +21,6 @@ def docker(args, environment, login_input=None):
     except (OSError, subprocess.TimeoutExpired):
         raise PublishingError("Docker command failed to start or exceeded its timeout.") from None
     if result.returncode != 0:
-        # External stdout/stderr can contain credentials; never forward them.
         raise PublishingError("Docker " + args[0] + " failed (exit " + str(result.returncode) + ").")
     return result.stdout.strip()
 
@@ -46,7 +45,6 @@ def publish(component, environment):
     docker_env = dict(environment)
     docker_env.pop("GHCR_TOKEN", None)
     with tempfile.TemporaryDirectory(prefix="fullstack-ops-ghcr-", dir=temp_root) as auth_directory:
-        # Verify the owned cleanup path before TemporaryDirectory's recursive cleanup.
         if Path(auth_directory).resolve().parent != temp_root:
             raise PublishingError("Unsafe Docker auth cleanup path.")
         docker_env["DOCKER_CONFIG"] = auth_directory
@@ -69,14 +67,12 @@ def publish(component, environment):
             revision = docker(["image", "inspect", digest_ref, "--format", '{{index .Config.Labels "org.opencontainers.image.revision"}}'], docker_env)
             if pulled_id != built_id or revision != sha:
                 raise PublishingError("Published image identity or source revision verification failed.")
-            # Advance the moving alias only after the SHA image has passed registry roundtrip checks.
             docker(["tag", digest_ref, latest], docker_env)
             docker(["push", latest], docker_env)
         finally:
             try:
                 docker(["logout", "ghcr.io"], docker_env)
             except PublishingError:
-                # The owned auth directory is removed regardless of logout failure.
                 pass
 
     message = "Published " + sha_tag + " and latest; verified digest " + digest_ref + "\n"

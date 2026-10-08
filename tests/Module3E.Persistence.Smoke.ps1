@@ -80,7 +80,6 @@ try {
         $portCheck.Connect('127.0.0.1', $Port)
         throw "Test port $Port is already in use."
     } catch [System.Net.Sockets.SocketException] {
-        # Connection refused means this test can own the port.
     } finally {
         $portCheck.Dispose()
     }
