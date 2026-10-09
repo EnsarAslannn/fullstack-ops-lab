@@ -526,6 +526,71 @@ Resmî kaynaklar: [GHCR authentication, private visibility, OCI labels ve digest
 
 Öğrenme: registry image dağıtır; CI build/test kaynağı doğrular; deployment çalışan ortamı günceller. Commit SHA kaynak revision'ıdır, image digest içerik kimliğidir. `latest` sürüm sabitlemesi değildir. Job'a özgü write permission ve PR guard, test eden her kodun registry'ye yazabilmesini engeller.
 
+### Registry image runtime kabulü — 9 Ekim 2026
+
+Bu kabul mevcut publishing implementasyonunu korur. Başlangıçta `main` çalışma alanı temizdi; test edilen uygulama kaynağı **`4606fa2358ed2f559b96b2cd89f1801ef9c5e733`** idi. [Run 37755926772](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/37755926772) bu SHA için completed/success; üç CI gate ve iki publishing job success. API yayın kanıtı 8 Ekim UTC09:24:01, frontend kanıtı UTC09:23:40. Bunlar yeni bir yayın çalıştırıldığı anlamına gelmez; mevcut run ve yayın logları salt okunur incelendi.
+
+| Component | Registry'den çekilen değişmez referans | Çalışan container `.Image` |
+| --- | --- | --- |
+| API | `ghcr.io/ensaraslannn/fullstack-ops-lab-api@sha256:062314cb87f6a727a7a9fc271005862e7e750b220a58a53ed9afc3c39183d43e` | `sha256:062314cb87f6a727a7a9fc271005862e7e750b220a58a53ed9afc3c39183d43e` |
+| Frontend | `ghcr.io/ensaraslannn/fullstack-ops-lab-frontend@sha256:e72f4795363d30e613cc2192c3073895d7b2d037d31c04c2e11f78b4b3f74901` | `sha256:e72f4795363d30e613cc2192c3073895d7b2d037d31c04c2e11f78b4b3f74901` |
+
+İki image'ın OCI revision label'ı kaynak SHA ile ve RepoDigests alanı seçilen referansla eşleşti. Bu iki image için yerel Docker Engine'in bildirdiği image ID ile registry digest eşitti; farklı platform/manifest yapılarında bunların her zaman aynı olacağı varsayılmaz. Kabul script'i referansın local image ID'sini container `.Image` ile ayrıca karşılaştırır.
+
+**Package erişimi:** Mevcut Docker kimliğiyle iki digest pull PASS. Ayrıca ayrı, boş geçici `DOCKER_CONFIG` ve token içermeyen process environment ile iki anonim digest pull PASS; yeni credential/PAT veya login oluşturulmadı. Mevcut `gh` kimliği package metadata API'sini okuyamadı: ayardaki `visibility` ve repository bağlantısı **NOT VERIFIED**. Anonim pull bu iki referansa o anda anonim okuma erişimi olduğunu kanıtlar; package ayarının API'den okunduğu iddia edilmez. Ayarlar değiştirilmedi. Önceki 7 Ekim bölümünün erişim sınırları kendi tarihine aittir.
+
+#### İzole hazırlık ve komutlar
+
+[Mevcut Compose kabul script'i](../../tests/Module11.Compose.Smoke.py) opsiyonel registry modu kazanır; CI'nın mevcut parametresiz `prepare`/`test` akışı ve [publishing script'i](../../scripts/Module11.PublishImages.py) korunur. [Yedi offline güvenlik testi](../../tests/Module11.RegistryRuntime.Test.py) digest zorunluluğunu, eksik girdiyi, revision hatasında volume/state oluşmamasını, yanlış container image ID'sini, secret içeren command failure'ın güvenli çıktısını ve mevcut CI build davranışını kontrol eder. Fixture'lar Docker çağrı sınırını taklit eder; gerçek runtime kabulünün yerine geçmez.
+
+Gerçekten yürütülen komutların tekrar kullanılabilir biçimi:
+
+```powershell
+$state = Join-Path ([IO.Path]::GetTempPath()) 'fullstackops-ci-ghcr-20261009-4606fa2'
+$api = 'ghcr.io/ensaraslannn/fullstack-ops-lab-api@sha256:062314cb87f6a727a7a9fc271005862e7e750b220a58a53ed9afc3c39183d43e'
+$frontend = 'ghcr.io/ensaraslannn/fullstack-ops-lab-frontend@sha256:e72f4795363d30e613cc2192c3073895d7b2d037d31c04c2e11f78b4b3f74901'
+try {
+    python tests/Module11.Compose.Smoke.py prepare --state $state --source-sha 4606fa2358ed2f559b96b2cd89f1801ef9c5e733 --api-image $api --frontend-image $frontend
+    if ($LASTEXITCODE -ne 0) { throw 'Registry preparation failed.' }
+    python tests/Module11.Compose.Smoke.py registry-test --state $state --pwsh powershell
+    if ($LASTEXITCODE -ne 0) { throw 'Registry runtime acceptance failed.' }
+} finally {
+    python tests/Module11.Compose.Smoke.py cleanup --state $state
+    if ($LASTEXITCODE -ne 0) { throw 'Owned resource cleanup failed; inspect safe diagnostics.' }
+}
+```
+
+Bu komutlar aynı kaynak HEAD üzerinde çalıştırılmalıdır; `--source-sha` ile HEAD eşleşmezse preparation durur. İleride başka bir başarılı yayını test etmek için kaynak SHA ve iki digest birlikte güncellenmelidir. Örnek state dizini önceden varsa üzerine yazılmaz; yeni, benzersiz `fullstackops-ci-*` dizini seç. Linux/PowerShell7'de `--pwsh pwsh` kullanılır; bu kabul Windows PowerShell5.1 üzerinde yürütüldü.
+
+Hazırlık, iki `docker pull image@sha256:...` çağrısından sonra geçici override'da API/frontend `build` alanlarını `!reset null` ile kaldırır ve `image` alanlarını digest referanslarına ayarlar. Son stack komutu **`up -d --no-build --pull never --wait --wait-timeout 180`** kullanır; API/frontend Docker image build veya tag çözümleme yapılmaz. Frontend yalnız rastgele localhost portunu yayınlar; diğer beş servis için host portu yoktur. Ana `compose.yaml` değişmez.
+
+Yalnız fixture env'de üretilen sahte PostgreSQL/Grafana credential'ları kullanılır. Gerçek `.env` ve user-secrets okunmaz/değiştirilmez. Ayrı boş external test volume'u hazırlandı; önce PostgreSQL başlatıldı. Host'ta `dotnet tool restore`, solution restore/Release build ve mevcut `dotnet ef migrations script 0 InitialCreate --idempotent ... --configuration Release --no-build` yürütüldü. Host build yalnız migration SQL hazırlığı içindir; registry'den çekilen uygulama image'ını değiştirmez. Design-time process Production ve sahte, erişilemeyen bağlantı adresleri kullandı. SQL schema/history/migration kimliği incelendi; `psql -X -w -v ON_ERROR_STOP=1 -f /dev/stdin` ile iki kez uygulandı. İlk sorguda history **1**, tasks **0** idi. Yeni migration veya runtime otomatik migration eklenmedi.
+
+#### Gerçek sonuçlar
+
+| Kontrol | Sonuç |
+| --- | --- |
+| Docker/Compose | PASS — başlangıçta Engine kapalıydı; Docker Desktop hidden başlatıldı, Engine29.6.1/Compose5.3.0 erişilebilir oldu |
+| Release build / açık migration | PASS — 0 uyarı/0 hata; `20260928113912_InitialCreate` uygulandı ve idempotent tekrar uygulandı |
+| İzole Compose config | PASS — fixture env ile `config -q`; API/frontend digest referansları `config --images` ve container `Config.Image` ile doğrulandı |
+| Altı servis | PASS — API/frontend/PostgreSQL/Redis/Prometheus/Grafana running/healthy |
+| API image kimliği / health | PASS — digest image ID eşleşmesi; internal `/health`, `/health/live`, `/health/ready` **200** |
+| Frontend image / HTML | PASS — digest image ID eşleşmesi; `/` **200**, React root mevcut |
+| JavaScript / CSS | PASS — `/assets/index-CKhYhs0u.js` **200 application/javascript**, `/assets/index-6SMY9-rQ.css` **200 text/css**, içerikler boş değil ve HTML fallback değil |
+| Nginx Task CRUD | PASS — mevcut [Phase0B smoke](../../tests/Phase0B.Tasks.Smoke.ps1): list/single GET200, POST201, PUT200, DELETE204, boş/whitespace başlık400, eksik/silinmiş ID404, timestamps ve Location |
+| JSON / nullable sözleşme | PASS — ek gerçek POST/PUT/GET: tam altı alan; description `null`, createdAt/updatedAt dolu; Location tam `/api/tasks/{id}`; PUT sonrası tekil GET güncel kayıtla eşit |
+| Kayıt/cache temizliği | PASS — test sonunda tasks **0**, migration history **1**; yalnız izole Redis instance'ındaki liste test key'i silindi |
+| Publishing güvenlik / registry fixture testleri | PASS — mevcut publishing **7/7**, yeni registry kabul **7/7**; canary değerleri test stdout/stderr ve güvenli hata metninde yok |
+| Secret regression / repository / diff | PASS — secret fixture **23/23**, repository scanner0, `git diff --check`0; gerçek `.env` ignored ve tracked değil |
+
+Görevin Compose project'i `fullstackops-ci-92d38dc020e346ba8d3f6b0ed6bacc7c`, PostgreSQL volume'u aynı project + `-postgres` idi. Diğer iki yeni volume project'e ait `grafana_data` ve `prometheus_data` idi. Test frontend adresi `http://127.0.0.1:64645` yalnız bu deney sırasında açıktı; cleanup sonrası servis adresi değildir.
+
+**Cleanup PASS:** Altı test container'ı, tek test ağı, üç test volume'u, fixture env/state/override/SQL ve geçici auth/envanter dosyaları kaldırıldı. `down -v`, prune veya development volume bağlantısı kullanılmadı. PostgreSQL volume sahiplik label'ı ve monitoring volume'larının tam project adları kontrol edildi. Yalnız bu görevde yeni çekilen iki digest referansı ayrıca image ID doğrulanarak kaldırıldı; registry'deki image'lar silinmedi. Başlangıç/bitiş aynı **18 container** (hepsi exited), **8 network** (aynı ID'ler), **21 volume**, **38 image liste girdisi**; mevcut development/ilişkisiz kaynaklar korundu. Docker Engine erişilebilir bırakıldı.
+
+Sınırlar: Bu aynı Windows host üzerinde, mevcut dependency image cache'iyle izole registry runtime kabulüdür; temiz VM, production deployment, gerçek fork/PR publishing, retention/performans veya bütün monitoring/kesinti deneylerinin yeniden kabulü değildir. Gerçek tarayıcı/UI davranışı bu adımda yeniden denenmedi; istenen frontend dosya erişimi HTTP ile doğrulandı. Mevcut cache/readiness kesinti scriptleri ek kesinti senaryoları başlatılmadan korundu. Package metadata API erişimi hâlâ doğrulanamadı; anonim digest pull artık gerçek kanıttır. Publishing workflow'u, backend/frontend/Compose davranışı veya secret kaynağı değiştirilmedi; commit/push/image publishing yapılmadı.
+
+Öğrenme: Başarılı push tek başına çalışan uygulama kanıtı değildir. Digest ile pull, OCI kaynak revision'ı, çalışan container image ID'si, açık migration ve gerçek HTTP sözleşmesi birlikte registry artifact'ının test edilen runtime davranışını gösterir. Migration hazırlığı ve credential/volume izolasyonu, image yayınlama işleminden ayrıdır.
+
 ## Goal
 
 [Durum ve amaç](#durum-ve-amaç).
