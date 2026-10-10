@@ -106,6 +106,9 @@ class Lab:
         if registry:
             if self.run(["git", "rev-parse", "HEAD"]) != source_sha:
                 raise AcceptanceError("Migration source HEAD does not match the published source SHA")
+            if self.run(["git", "status", "--porcelain", "--untracked-files=all", "--",
+                         "src/backend/FullStackOpsLab.Api", "dotnet-tools.json", "FullStackOpsLab.slnx"]):
+                raise AcceptanceError("Registry acceptance requires clean backend and migration preparation sources")
             for service, reference in (("api", api_image), ("frontend", frontend_image)):
                 self.run(["docker", "pull", reference], timeout=180)
                 info = json.loads(self.run(["docker", "image", "inspect", "--format",

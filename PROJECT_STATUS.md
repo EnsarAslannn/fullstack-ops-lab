@@ -297,6 +297,10 @@ Existing Compose acceptance script gained optional digest inputs and registry-te
 
 Owned records/cache cleaned (tasks0/history1), six containers/one network/three volumes and temporary configuration/SQL/auth/inventory removed. Only the two newly pulled digest references were removed locally after identity checks; published registry images unchanged. Initial18 exited containers,8 networks with same IDs,21 volumes and38 image-list entries restored; external development volume and unrelated resources preserved. Docker Engine was initially off, started hidden for the authorized acceptance and left reachable. Same-host/cache-bearing acceptance; no renewed full browser/monitoring/outage/production acceptance. Details and commands: [Module11 GHCR registry runtime record](labs/11-github-actions/README.md#registry-image-runtime-kabulü--9-ekim-2026).
 
+## Maintenance Review — 10 October 2026
+
+Maintenance review — 10 October 2026: fixed registry acceptance source consistency. HEAD/revision matching previously allowed uncommitted backend/migration sources to produce different host migration SQL. Registry preparation now rejects staged/unstaged/untracked changes in backend, dotnet-tools.json or solution before any pull/test-resource creation; default source-build CI and publishing workflow unchanged. Two regression cases failed first, then registry fixtures9/9 PASS; publisher7/7, actual startup tests9/9, Release build0warnings/0errors, frontend build/lint, placeholder-only Compose config, repository secret scan and diff check PASS. Docker Engine unavailable; database-dependent endpoint/runtime suites not rerun. No application/API/configuration/secret-source changes, commit or push; historical runtime evidence remains tied to its original SHA/digests.
+
 ## Next Goal
 
 Manual learning review remains pending: user answers the specification's learning questions and explains the existing exercises. Optional registry runtime acceptance is complete; package metadata inspection remains an access limitation, while anonymous pulls are verified. Do not implement deployment or create a release/tag automatically.

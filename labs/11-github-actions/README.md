@@ -591,6 +591,12 @@ Sınırlar: Bu aynı Windows host üzerinde, mevcut dependency image cache'iyle 
 
 Öğrenme: Başarılı push tek başına çalışan uygulama kanıtı değildir. Digest ile pull, OCI kaynak revision'ı, çalışan container image ID'si, açık migration ve gerçek HTTP sözleşmesi birlikte registry artifact'ının test edilen runtime davranışını gösterir. Migration hazırlığı ve credential/volume izolasyonu, image yayınlama işleminden ayrıdır.
 
+#### Kaynak tutarlılığı düzeltmesi — 10 Ekim 2026
+
+İncelemede `HEAD == source_sha` kontrolünün tek başına yeterli olmadığı görüldü: commit edilmemiş backend/migration dosyaları host EF CLI'nin farklı SQL üretmesine rağmen aynı kaynak SHA'nın raporlanmasına izin veriyordu. Registry preparation artık image pull veya test kaynağı oluşturmadan önce `git status --porcelain --untracked-files=all -- src/backend/FullStackOpsLab.Api dotnet-tools.json FullStackOpsLab.slnx` sonucunun boş olmasını ister. Staged/unstaged değişiklikler ve ignored olmayan yeni backend dosyaları kabulü durdurur; yalnız güvenli, sabit hata mesajı gösterilir. Ignored `bin`/`obj` çıktıları bu kontrole girmez. Kaynak-build CI modu ve publishing workflow'u değiştirilmedi.
+
+İki regresyon testi önce hatayı yakaladı, düzeltmeden sonra registry fixture suite **9/9** geçti. Publishing güvenlik suite **7/7**, gerçek API startup testleri **9/9**, backend Release build **0 uyarı/0 hata**, frontend TypeScript/Vite build ve lint, `.env.example` ile Compose `config -q`, repository secret kontrolü ve diff check geçti. Docker Engine kapalı olduğundan gerçek PostgreSQL/Redis endpoint suite'i veya registry runtime deneyi bu incelemede yeniden çalıştırılmadı. 9 Ekim runtime kanıtı önceki kaynak SHA/digest'lerine aittir; bu küçük düzeltmenin yeni registry image kabulü değildir.
+
 ## Goal
 
 [Durum ve amaç](#durum-ve-amaç).

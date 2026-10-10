@@ -29,6 +29,7 @@ class RegistryAcceptanceTests(unittest.TestCase):
         self.calls = []
         self.wrong_revision = False
         self.wrong_container = False
+        self.dirty_sources = ""
         self.addCleanup(self.remove_fixture)
 
     def remove_fixture(self):
@@ -41,6 +42,8 @@ class RegistryAcceptanceTests(unittest.TestCase):
         output = ""
         if args[:3] == ["git", "rev-parse", "HEAD"]:
             output = SHA
+        elif args[:2] == ["git", "status"] and "src/backend/FullStackOpsLab.Api" in args:
+            output = self.dirty_sources
         elif args[:3] == ["docker", "image", "inspect"]:
             ref = args[-1]
             output = json.dumps({"id": "sha256:" + ("a" if ref == API else "b") * 64,
@@ -100,6 +103,20 @@ class RegistryAcceptanceTests(unittest.TestCase):
             self.prepare()
         self.assertFalse(any(args[:3] == ["docker", "volume", "create"] for args in self.calls))
         self.assertFalse(self.directory.exists(), "Identity failure left partial preparation state")
+
+    def test_uncommitted_migration_change_cannot_use_published_sha(self):
+        self.dirty_sources = " M src/backend/FullStackOpsLab.Api/Migrations/AppDbContextModelSnapshot.cs"
+        with self.assertRaises(module.AcceptanceError):
+            self.prepare()
+        self.assertFalse(self.directory.exists())
+        self.assertFalse(any(args[:2] == ["docker", "pull"] for args in self.calls))
+
+    def test_untracked_backend_source_cannot_use_published_sha(self):
+        self.dirty_sources = "?? src/backend/FullStackOpsLab.Api/Migrations/Uncommitted.cs"
+        with self.assertRaises(module.AcceptanceError):
+            self.prepare()
+        self.assertFalse(self.directory.exists())
+        self.assertFalse(any(args[:2] == ["docker", "pull"] for args in self.calls))
 
     def test_running_container_must_use_selected_image_id(self):
         self.prepare()
