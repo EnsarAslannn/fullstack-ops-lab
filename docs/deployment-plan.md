@@ -1,6 +1,6 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
-**Tarih:** 11 Ekim 2026. **Durum:** yalnız plan; uygulama ve deployment kabulü başlamadı.
+**Plan tarihi:** 11 Ekim 2026. **Güncel durum (13 Ekim):** VM/Docker hazırlığı, aktarım, ayrı env ve digest pull kullanıcı tarafından doğrulandı; ayrı deployment PostgreSQL volume'u ve sağlıklı PostgreSQL/TCP authentication hazır. Migration ve diğer beş servisin deployment/runtime kabulü başlamadı. Aşağıdaki planlama kararları tarihsel bağlamıyla korunur; güncel kanıt son bölümde kayıtlıdır.
 
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
@@ -210,3 +210,63 @@ Sonraki **en küçük görev**, bu dört hazırlık kararını ve salt okunur ho
 | [Prometheus config](../monitoring/prometheus/prometheus.yml), [Grafana datasource](../monitoring/grafana/provisioning/datasources/prometheus.yml), [dashboard](../monitoring/grafana/dashboards/overview.json) | Internal scrape ve otomatik provisioning korunacak |
 
 Bu görevde repository/issue ve resmî hizmet belgeleri incelendi; host donanımı salt okunur sorgulandı. `.env` veya user-secrets değerleri okunmadı. Repository secret kontrolü exit 0, 28 yerel dosya/anchor bağlantısı PASS, yeni belgenin whitespace/son newline kontrolü PASS ve `git diff --check` exit 0; bunlar deployment testi değildir. Sunucu/VM/hizmet kurulmadı, container başlatılmadı, sertifika/DNS değiştirilmedi, migration/backup/restore uygulanmadı; commit/push yok. Cloud teklifleri için ücretsiz kaynak bulunacağı veya sonradan hiçbir maliyet doğmayacağı garantisi verilmez.
+
+## 12. Image-only dosya hazırlığı — 13 Ekim 2026
+
+Kullanıcı ayrı Hyper-V VM'de Ubuntu24.04.5, 4vCPU, yaklaşık6GiB RAM, 60GB VHDX,
+SSH/DNS/HTTP erişimi, Docker active/Client+Server, Compose5.6.0 ve hello-world
+başarısını bildirdi. Bunlar rehberli kullanıcı doğrulamalarıdır; bu görev VM'ye
+uzaktan komut göndermedi. DHCP adresi değişebilir.
+
+[Deployment dosyaları ve kullanım rehberi](../infrastructure/deployment/README.md)
+hazırlandı. Kaynak SHA `1b52633776279b1661a7cac53392d385cbf10444`,
+[run38239884132](https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/38239884132)
+ve iki başarılı publish job yeniden sorgulandı. Yeni API/frontend digest çifti
+[release.json](../infrastructure/deployment/release.json) içinde kayıtlıdır;
+GHCR anonim manifest/config okumasında SHA256, OCI source revision ve linux/amd64
+platformu doğrulandı. Önceki registry runtime kanıtı bu yeni çiftin VM runtime
+kanıtı değildir.
+
+Windows Compose5.3.0 ile yalnız sahte temporary env kullanılarak `config -q` ve
+bellekte JSON model doğrulaması, statik test **2/2 PASS**: build alanları kaldırılmış,
+altı servis/aynı ağ rolleri korunmuş, üç loopback port ve üç ayrı deployment volume
+hedefi var; development modelinin build/volume hedefleri aynı. `!reset`/`!override`
+birleşimini gerçek parser doğruladı. İlk statik görevde VM parse/pull/runtime NOT VERIFIED idi; sonraki rehberli sonuçlar aşağıdadır.
+
+Mevcut plan korunur; `.env`, user-secrets veya Docker kaynakları kullanılmadı ya da
+değiştirilmedi. Image/container/volume/network oluşturulmadı; yalnız testin temporary
+dosyaları temizlendi. Bu ilk statik görevde commit/push yoktu; sonraki hedef VM aktarımı ve PostgreSQL ön hazırlığıydı. Aşağıdaki rehberli adımlarla bunlar tamamlandı; migration, tam stack, HTTPS ve yedekleme henüz uygulanmadı.
+
+## 13. Rehberli VM aktarımı ve PostgreSQL hazırlığı — 13 Ekim 2026
+
+Komutları kullanıcı Ubuntu SSH terminalinde çalıştırdı ve secret içermeyen sonuçları
+paylaştı; bunlar agent tarafından tekrar çalıştırılan runtime deneyleri değildir.
+Kaynak SHA değişmedi. Git archive ile kaynak, açıkça seçilen beş deployment/test
+dosyası ayrı arşivle taşındı; iki arşivin SHA256 eşleşmesi doğrulandı. Development
+secret veya build çıktıları aktarılmadı. VM'de ayrı `.env.deployment` yeni ve farklı
+credential'larla oluşturuldu; izin `600`, sahibi `labadmin`. Değerler kaydedilmez.
+
+VM Engine `unix:///var/run/docker.sock`, platform linux/amd64. Başlangıçta container
+ve volume listeleri boştu; 18081/19090/13000 portları boştu. Gerçek deployment env
+ile `config -q` ve bellekte birleşmiş model kontrolü PASS: altı servis, API/frontend
+build yok, release digest eşleşiyor, yalnız üç loopback bind, ayrı volume adları.
+Her iki digest pull exit0; OCI revision ve platform doğrulandı. API ilk pull denemesi
+başarısızdı; nedeni belirlenmedi. Sınırlı süreli tekrar ve frontend pull başarılıydı;
+ilk başarısız deneme başarı gibi değerlendirilmedi.
+
+Yalnız `fullstackops-deploy-lab-postgres` external volume'u oluşturuldu; yalnız
+`postgres --no-deps --no-build --wait` başlatıldı. Mount Type=volume,
+Destination=/var/lib/postgresql, PublishedPorts={}, State=running, Health=healthy.
+`pg_isready` accepting connections/exit0. Loopback HBA kuralları trust olduğundan
+127.0.0.1 ile ilk negatif parola testi authentication kanıtı değildi. HBA değiştirilmeden
+`postgres:5432` hedefinde yanlış parola beklenen authentication hatasıyla reddedildi,
+doğru deployment parolasıyla SELECT1 ve loopback olmayan TCP/5432 doğrulandı;
+stdout/stderr parola ve canary içermedi. Beklenen database/role PASS.
+`tasks` ve `__EFMigrationsHistory` yok; migration öncesinde bu beklenen durumdur.
+
+Son envanter: yalnız `fullstackops-deploy-lab-postgres-1` healthy, 5432/tcp (host
+publish yok), yalnız deployment PostgreSQL volume'u; project app ağı korunuyor.
+PostgreSQL sonraki adım için çalışır bırakıldı. API/frontend/Redis/Prometheus/Grafana
+başlatılmadı. Migration, test tablosu/kayıt, HTTPS ve backup uygulanmadı. Development
+kaynaklarına dokunulmadı. Sonraki küçük adım aynı kaynaktan InitialCreate SQL üretimi,
+inceleme ve yalnız deployment database'e açık uygulamadır; tam runtime kabulü bekliyor.

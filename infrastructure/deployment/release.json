@@ -1,0 +1,26 @@
+{
+  "source_sha": "1b52633776279b1661a7cac53392d385cbf10444",
+  "run_id": 38239884132,
+  "run_url": "https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/38239884132",
+  "verified_on": "2026-10-13",
+  "run_conclusion": "success",
+  "images": {
+    "api": {
+      "reference": "ghcr.io/ensaraslannn/fullstack-ops-lab-api@sha256:2ccb0ecce9dc7cbe9da418b4f0a952b8122be336299fd3b888539b5d07a05afd",
+      "revision": "1b52633776279b1661a7cac53392d385cbf10444",
+      "config_digest": "sha256:d0772a713ae19cf8137e4e12febb448085068865f1e11017386635dbe5dbb1be",
+      "platform": "linux/amd64",
+      "publishing_job_id": 114783166985
+    },
+    "frontend": {
+      "reference": "ghcr.io/ensaraslannn/fullstack-ops-lab-frontend@sha256:e0c77449225c4cd602e8f3b2af43a68ca3ad1578ce6428ba8ddcccf1fa612627",
+      "revision": "1b52633776279b1661a7cac53392d385cbf10444",
+      "config_digest": "sha256:77e41e9f348a862637aebd76fde87dc072d0bd948bf66fa2174d950fe57c9077",
+      "platform": "linux/amd64",
+      "publishing_job_id": 114783167245
+    }
+  },
+  "registry_metadata_read": "anonymous HTTPS manifest and config reads passed; SHA256 and OCI revision checked",
+  "vm_pull_and_runtime_acceptance": "NOT VERIFIED",
+  "migration_sql_checksum": null
+}

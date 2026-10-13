@@ -1,0 +1,36 @@
+name: fullstackops-deploy-lab
+
+services:
+  api:
+    build: !reset null
+    image: ghcr.io/ensaraslannn/fullstack-ops-lab-api@sha256:2ccb0ecce9dc7cbe9da418b4f0a952b8122be336299fd3b888539b5d07a05afd
+    ports: !reset []
+
+  frontend:
+    build: !reset null
+    image: ghcr.io/ensaraslannn/fullstack-ops-lab-frontend@sha256:e0c77449225c4cd602e8f3b2af43a68ca3ad1578ce6428ba8ddcccf1fa612627
+    ports: !override
+      - "127.0.0.1:18081:80"
+
+  postgres:
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+  prometheus:
+    ports: !override
+      - "127.0.0.1:19090:9090"
+
+  grafana:
+    ports: !override
+      - "127.0.0.1:13000:3000"
+
+volumes:
+  postgres-data:
+    external: true
+    name: fullstackops-deploy-lab-postgres
+  prometheus_data:
+    name: fullstackops-deploy-lab-prometheus
+  grafana_data:
+    name: fullstackops-deploy-lab-grafana

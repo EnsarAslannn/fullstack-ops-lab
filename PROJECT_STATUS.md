@@ -6,11 +6,11 @@ Mandatory technical final acceptance — Completed (6 October 2026, same-host cl
 
 ## Current Phase
 
-Final acceptance — technical section30/31/37 acceptance completed; manual section32 learning review pending
+Optional Deployment Lab — isolated VM PostgreSQL preparation completed; mandatory technical acceptance completed, manual section32 learning review pending
 
 ## Current Step
 
-Optional GHCR registry runtime acceptance completed (9 October 2026): published source4606fa2358ed2f559b96b2cd89f1801ef9c5e733/run37755926772, API/frontend digest pull and running image identities PASS; six isolated services healthy, explicit InitialCreate, API health/readiness, frontend assets and Nginx CRUD/Location/JSON/400/404 PASS. Existing-identity and anonymous digest pulls PASS; package visibility/repository metadata API NOT VERIFIED. Historical mandatory acceptance and pending manual learning review remain separate. No application/Compose/publishing workflow/development-secret changes, deployment/tag/release or commit/push.
+Deployment image selection and static image-only Compose preparation completed (13 October 2026). Successful main run38239884132/source1b52633776279b1661a7cac53392d385cbf10444 and both publishing jobs rechecked; current GHCR digest/config checksums, OCI source revision and linux/amd64 verified through anonymous read-only registry metadata. Separate six-service override removes application builds, selects three deployment volumes and loopback ports; real Compose static tests2/2 PASS. Guided user-executed VM acceptance: Ubuntu/Docker/Compose, same-source archive transfer, private deployment env, real-env Compose config/model and both digest pulls/revision/linux-amd64 checks PASS. Separate external fullstackops-deploy-lab-postgres volume mounted at /var/lib/postgresql; only postgres started, running/healthy without host ports. Non-loopback postgres:5432 rejected an incorrect password and accepted the deployment credential; expected database/role verified. tasks and __EFMigrationsHistory absent as expected before migration. PostgreSQL remains running. Migration, the other five services and full deployment runtime acceptance remain NOT VERIFIED. Historical mandatory acceptance and pending manual learning review remain separate; no development secrets/resources changed.
 
 ## Completed
 
@@ -303,7 +303,7 @@ Maintenance review — 10 October 2026: fixed registry acceptance source consist
 
 ## Next Goal
 
-Manual learning review remains pending: user answers the specification's learning questions and explains the existing exercises. Optional registry runtime acceptance is complete; package metadata inspection remains an access limitation, while anonymous pulls are verified. Do not implement deployment or create a release/tag automatically.
+Next optional small step: generate and review idempotent SQL from the existing InitialCreate migration at source1b52633776279b1661a7cac53392d385cbf10444, then explicitly apply only to the isolated deployment database and verify tasks/history before starting the other five services. Do not start automatically. Manual learning review remains pending; historical GHCR runtime acceptance applies only to its recorded SHA/digests. Current preparation and limits: infrastructure/deployment/README.md and release.json. No tag/release or production deployment acceptance.
 
 ## Blockers
 
