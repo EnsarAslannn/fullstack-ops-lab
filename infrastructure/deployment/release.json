@@ -22,5 +22,5 @@
   },
   "registry_metadata_read": "anonymous HTTPS manifest and config reads passed; SHA256 and OCI revision checked",
   "vm_pull_and_runtime_acceptance": "NOT VERIFIED",
-  "migration_sql_checksum": null
+  "migration_sql_checksum": "sha256:ce23c018c2000cc8143df02f0fb8d2525de0717385a8c29f84b4888507bd5b53"
 }

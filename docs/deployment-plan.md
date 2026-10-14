@@ -1,6 +1,6 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
-**Plan tarihi:** 11 Ekim 2026. **Güncel durum (13 Ekim):** VM/Docker hazırlığı, aktarım, ayrı env ve digest pull kullanıcı tarafından doğrulandı; ayrı deployment PostgreSQL volume'u ve sağlıklı PostgreSQL/TCP authentication hazır. Migration ve diğer beş servisin deployment/runtime kabulü başlamadı. Aşağıdaki planlama kararları tarihsel bağlamıyla korunur; güncel kanıt son bölümde kayıtlıdır.
+**Plan tarihi:** 11 Ekim 2026. **Güncel durum (14 Ekim):** VM/Docker, aktarım/env/digest pull, ayrı PostgreSQL ve InitialCreate kabulü PASS. Aynı seçilmiş digestlerle altı servisli image-only başlangıç, internal health ve Windows loopback SSH/tarayıcı erişimi de PASS. Tam deployment contract/cache/monitoring kabulü ve sonraki kapılar bekliyor. Aşağıdaki planlama kararları tarihsel bağlamıyla korunur; güncel kanıt son bölümde kayıtlıdır.
 
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
@@ -153,7 +153,7 @@ Hedef RPO **24 saat**; kurtarma süresi henüz ölçülmedi. VM/PC kapalıysa g�
 
 ## 9. En küçük uygulama adımları ve kabul kapıları
 
-Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Aşağıdaki runtime maddelerinin tamamı şu anda **NOT VERIFIED**.
+Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. VM/Docker, aktarım/digest pull, ilk veri hazırlığı ve altı servis başlangıç/kimlik/health/SSH erişimi 13–14 Ekim kanıtlarıyla tamamlandı. Adım4'ün contract/cache ve sonraki runtime kapıları **NOT VERIFIED**.
 
 | Adım | Yapılacak iş | Kabul kanıtı |
 | --- | --- | --- |
@@ -175,12 +175,12 @@ Normal kapatma `stop` veya project/env hedefi açık `down`; named volume'lar ko
 
 | Issue #3 maddesi | Bu plandaki karşılık | Bugünkü durum |
 | --- | --- | --- |
-| Sunucu, maliyet, domain | 0 TL yerel VM; public domain ertelendi | Karar kaydedildi; VM oluşturulmadı |
-| Ayrı config ve digest deployment | Image-only override + aynı SHA'lı digest çiftleri | PLAN; runtime NOT VERIFIED |
-| Secret/volume/migration | VM'e özel kaynaklar ve açık SQL hazırlığı | PLAN; runtime NOT VERIFIED |
+| Sunucu, maliyet, domain | 0 TL yerel VM; public domain ertelendi | Yerel Ubuntu VM/Docker/Compose hazırlığı PASS; internet deployment kabulü yok |
+| Ayrı config ve digest deployment | Image-only override + aynı SHA'lı digest çiftleri | Statik model, digest pull ve çalışan image kimlikleri PASS; tam runtime bekliyor |
+| Secret/volume/migration | VM'e özel kaynaklar ve açık SQL hazırlığı | PASS: ayrı env/volume/TCP auth ve InitialCreate uygulama/tekrar; tam stack runtime kabulü bekliyor |
 | Domain ve HTTPS erişimi | Yerel ad/TLS prova; public domain/internet erişimi ayrı gelecek karar | Public kabul NOT VERIFIED; issue tamamlandı sayılmaz |
-| DB/Redis/API kapalı; monitoring sınırlı | Internal portlar, loopback ve SSH yönetimi | PLAN; gerçek ağ testi NOT VERIFIED |
-| Health, frontend ve CRUD | Gerçek VM/browser/HTTP kontrolü | NOT VERIFIED |
+| DB/Redis/API kapalı; monitoring sınırlı | Internal portlar, loopback ve SSH yönetimi | Gerçek Docker bind ve Windows loopback tünel PASS; geniş LAN/public ağ kabulü yapılmadı |
+| Health, frontend ve CRUD | Gerçek VM/browser/HTTP kontrolü | Internal üç health200 ve browser erişimi PASS; manuel CRUD bildirimi var, tam contract/cache kabulü bekliyor |
 | Güncelleme ve rollback | İki uyumlu digest çifti + schema uyum kapısı | NOT VERIFIED |
 | Kayıt recreate sonrası korunur | Aynı lab external PostgreSQL volume'u | Önceki local/CI kanıtı var; yeni VM kabulü NOT VERIFIED |
 | Image / migration rollback farkı | Veri silmeyen image dönüşü; destructive InitialCreate.Down uyarısı | Tasarım açık; restore NOT VERIFIED |
@@ -270,3 +270,55 @@ PostgreSQL sonraki adım için çalışır bırakıldı. API/frontend/Redis/Prom
 başlatılmadı. Migration, test tablosu/kayıt, HTTPS ve backup uygulanmadı. Development
 kaynaklarına dokunulmadı. Sonraki küçük adım aynı kaynaktan InitialCreate SQL üretimi,
 inceleme ve yalnız deployment database'e açık uygulamadır; tam runtime kabulü bekliyor.
+
+## 14. Rehberli InitialCreate kabulü — 14 Ekim 2026
+
+[Deployment rehberindeki güncel migration kaydı](../infrastructure/deployment/README.md#initialcreate-sql-uygulaması--14-ekim-2026)
+Windows'ta kaynak `1b52633776279b1661a7cac53392d385cbf10444` için ayrı geçici detached
+checkout ve local EF10.0.12/SDK10.0.401 ile üretimi, SQL incelemesini ve VM'de yalnız
+deployment database'e uygulamayı kaydeder. Yeni migration, VM SDK/EF kurulumu veya
+API/frontend image build yapılmadı. Seçilmiş image çifti korundu.
+
+Özgün SQL1059byte; SHA256 `ce23c018c2000cc8143df02f0fb8d2525de0717385a8c29f84b4888507bd5b53`
+Windows/VM'de eşleşti ve release.json'a kaydedildi. İlk EF üretimi exit1 idi, nedeni
+belirlenmedi; ayrı Release build exit0 ve --no-build SQL üretimi exit0 geçti.
+İlk psql uygulaması exit3: kontrol bloğu önüne eklenen SQL dosyasının UTF-8 BOM'u
+akış ortasına taşındı. Güvenli log tanısı bunu doğruladı; iki tablo da yoktu.
+Özgün dosya değiştirilmeden yalnız gönderilen payload'dan BOM kaldırıldı.
+Düzeltilmiş uygulama ve ikinci idempotent uygulama exit0/COMMIT geçti.
+
+Altı sütun/tip/nullability/default, identity/primary key, tek InitialCreate history
+kaydı (EF10.0.12) ve Task count0 PASS. İkinci uygulama öncesi/sonrası şema ve
+tablo/sequence OID'lerini kapsayan snapshot SHA256
+`c1219d7a88dd073c257a46ffb039368631cd8120d7394037755c05fa8ade1f49` değişmedi.
+Sonuçlar kullanıcının paylaştığı SSH/PowerShell çıktılarıdır; agent ayrıca VM'ye
+bağlanıp deneyi tekrarlamadı. Parola/ham log paylaşılmadı, development kaynakları
+korundu. PostgreSQL çalışır bırakıldı; diğer beş servis başlatılmadı.
+
+Sonraki küçük adım image-only stack başlangıcı/health/image identity ve localhost
+SSH tüneli erişimidir. Tam uygulama runtime, update/rollback, HTTPS ve backup/restore
+kabulü henüz yoktur; bu kayıt bunları tamamlandı saymaz.
+
+## 15. Altı servis başlangıcı ve Windows SSH erişimi — 14 Ekim 2026
+
+[Gerçek komutlar ve sonuçlar](../infrastructure/deployment/README.md#stack-başlangıcı-ve-ssh-erişimi--14-ekim-2026):
+PostgreSQL/volume/history ve gerçek-env sessiz model kontrolü sonrası --no-build/
+--pull missing/--wait ile up exit0. Altı running/healthy; API/frontend tam digest,
+OCI source1b52633776279b1661a7cac53392d385cbf10444/linux-amd64 ve container image ID
+eşleşmesi PASS. İki yeni deployment monitoring volume'u oluşturuldu, mevcut PG
+volume'u korundu. API/PG/Redis host portu yok; VM127.0.0.1:18081/19090/13000 bind.
+Doğrudan api:8080 GET /health, /health/live, /health/ready200/bodyHealthy PASS.
+
+Windows127.0.0.1:28081/29090/23000 listener'ları aynı SSH process'iyle doğrulandı;
+VM'nin ilgili loopback portlarına gider. İlk tünel yanlışlıkla VM'de açılmıştı:
+WindowsHTTP000 sonrası yalnız o tünel kapatılıp Windows'ta yeniden açıldı; stack
+restart edilmedi. Curl frontend200, gerçek browser frontend/Prometheus açılışı ve
+Grafana deployment admin girişi kullanıcı tarafından bildirildi. Credential
+değerleri kaydedilmedi. Overview/panel/new-sample kontrolü ayrıca yapılmadı.
+
+Kullanıcının manuel create/complete/delete bildirimi ayrı gözlemdir; tüm HTTP/cache
+sözleşmesini veya tüm runtime kabulünü kanıtlamaz. Stack ve üç lab volume'u çalışır/
+korunmuş bırakıldı; development kaynaklarına dokunulmadı. Bu tarihli kayıt agent'ın
+VM'de tekrar çalıştırdığı bir test değildir. Sıradaki en küçük iş adım4'ün kalan
+Nginx CRUD/Location/JSON/nullable/400/404 ve cache miss/hit/TTL/invalidation kabulüdür.
+HTTPS, persistence recreate, update/rollback, backup/restore sonraki ayrı kapılardır.

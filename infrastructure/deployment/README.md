@@ -1,8 +1,10 @@
 # Deployment Lab — image seçimi ve statik Compose hazırlığı
 
-13 Ekim 2026: statik hazırlık, rehberli VM aktarımı/env/digest pull ve yalnız PostgreSQL
-volume/readiness/TCP authentication **PASS**. Migration, diğer beş servisin başlatılması,
-tam deployment runtime kabulü, HTTPS ve yedekleme henüz **NOT VERIFIED**. Bu bir production
+14 Ekim 2026: statik hazırlık, rehberli VM aktarımı/env/digest pull, PostgreSQL
+volume/readiness/TCP authentication, InitialCreate SQL uygulama/idempotent tekrar,
+altı servisli image-only stack başlangıcı ve Windows SSH/tarayıcı erişimi **PASS**.
+Tam deployment runtime/contract/cache/monitoring kabulü, HTTPS ve yedekleme henüz
+**NOT VERIFIED**. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
 ## Amaç ve dosyalar
@@ -22,7 +24,7 @@ API/frontend için `build: !reset null` kaynak build alanını siler. Sadece `im
 eklemek build alanını kaldırmaz. `ports: !override` eski ve yeni port listelerinin
 birleşmesini engeller. Bu YAML etiketleri için Compose **2.24.4 veya sonrası**
 gerekir. Windows CLI 5.3.0 ile birleşim doğrulandı; kullanıcı VM'de 5.6.0 kurulumunu
-doğruladı; VM'de gerçek env ile parse/model kontrolü de PASS. Tam runtime kabulü henüz yapılmadı.
+doğruladı; VM'de gerçek env ile parse/model ve image-only başlangıç/kimlik kontrolleri de PASS. Tam runtime kabulü henüz yapılmadı.
 [Docker merge belgesi](https://docs.docker.com/reference/compose-file/merge/).
 
 ## Seçilen yayın ve gerçek registry kanıtı
@@ -95,9 +97,9 @@ veya silme. Redis mevcut davranışla tmpfs kullanır, kalıcı veri kaynağı d
 | api / postgres / redis | Yayın yok | 8080 / 5432 / 6379, yalnız app ağı |
 
 Bu adreslerdeki localhost **VM'nin kendisidir**, Windows bilgisayar değildir.
-Windows'tan tarayıcı erişimi sonraki görevde localhost SSH tüneliyle ele alınacak.
-VM hazırlığında bu üç portun boş olduğu doğrulandı. Yalnız PostgreSQL başlatıldı ve
-host portu açılmadı. Internal servis
+Windows'tan tarayıcı erişimi aşağıdaki kayıtla doğrulandı: yalnız Windows loopback
+28081/29090/23000 SSH tünelleri bu VM portlarına gider. VM hazırlığında üç portun
+boş olduğu doğrulandı; güncel altı servisin gerçek port bind kontrolü PASS. Internal servis
 DNS adları `api`, `postgres`, `redis`, `prometheus` ve mevcut portları değişmez.
 
 Monitoring bind mount yolları ilk `-f compose.yaml` dosyasına göre çözülür;
@@ -176,7 +178,7 @@ klasörü paylaşmaz. `~/fullstack-ops-lab` ayrı VM laboratuvar klasörüdür. 
 aktarımda kaynak arşivi ve yalnız beş yeni dosyanın arşivi taşındı; iki arşivin hash
 eşleşmesi doğrulandı. Yukarıdaki scp komutları alternatif dosya aktarım örnekleridir.
 
-## Kurulum sırası — ilk dört hazırlık adımı tamamlandı
+## Kurulum sırası — migration ve stack başlangıcı tamamlandı, tam runtime kabulü bekliyor
 
 1. **Ubuntu SSH:** aynı source SHA'da ayrı temiz clone/config ağacını ve deployment
    dosyalarını hazırla. VM Engine/context, kaynak envanteri ve port boşluğunu kontrol et.
@@ -222,10 +224,11 @@ eşleşmesi doğrulandı. Yukarıdaki scp komutları alternatif dosya aktarım �
    frontend assets, CRUD/cache ve monitoring kabulünü yap. HTTPS, update/rollback
    ve backup/restore ayrı küçük adımlardır.
 
-Rehberli VM adımında 1–4 kapsamındaki kaynak/env/model/digest pull ve yalnız PostgreSQL
-hazırlığı tamamlandı. Ubuntu statik unittest komutu ayrıca çalıştırılmış sayılmaz.
-Adım5 SQL hazırlığı/inceleme ve adım6 migration/tam stack henüz uygulanmadı;
-aşağıdaki kanıt kaydı bu sınırı korur.
+Rehberli VM adımında 1–5 kaynak/env/model/digest pull/PostgreSQL ve SQL hazırlığı
+tamamlandı. Adım6 SQL uygulama/şema ve altı servisin başlangıcı tamamlandı; adım7'nin
+image identity/health/tarayıcı erişimi de PASS. Kalan contract/cache/monitoring
+runtime kabulü bekliyor. Ubuntu statik unittest komutu ayrıca çalıştırılmış sayılmaz.
+Aşağıdaki tarihli kanıt kayıtları bu sınırları korur.
 Normal kapatma project/env/override hedefiyle `down` olur; volume silme rutin adım
 değildir. External PostgreSQL ve monitoring verilerini koru; `down -v` veya prune
 kullanma. Bu statik görevde temizlenecek Docker kaynağı oluşturulmadı.
@@ -272,3 +275,224 @@ adımı için çalışır bırakıldı; cleanup amacıyla volume/container kald�
 Development env/user-secrets/volume kaynakları kullanılmadı veya değiştirilmedi.
 Migration/test kaydı/HTTPS/backup yapılmadı. Sonraki adım mevcut aynı-revision
 InitialCreate'dan SQL üretip incelemek ve açıkça sadece deployment DB'ye uygulamaktır.
+
+## InitialCreate SQL uygulaması — 14 Ekim 2026
+
+Bu bölüm 13 Ekim'in migration öncesi kaydını günceller. Komutları kullanıcı Windows
+PowerShell ve Ubuntu SSH terminalinde çalıştırdı; agent yalnız kaynak/SQL dosyasını
+ve repository dokümantasyonunu inceledi. VM deneyleri ayrıca tekrar çalıştırılmadı.
+
+### Kaynak ve üretim
+
+- Ayrı geçici Git clone, seçilmiş kaynak SHA'da detached checkout: PASS.
+- Windows SDK10.0.401 ve checkout'ın local dotnet-ef10.0.12 aracı: PASS.
+- İlk EF üretimi exit1 idi; ham çıktı paylaşılmadı, kesin neden belirlenmedi.
+  Ayrı backend Release build exit0 ve ardından --no-build SQL üretimi exit0 geçti.
+  Build warning sayısı paylaşılmadı; sıfır warning iddiası yapılmaz.
+- Yalnız EF alt sürecine Production, sahte PostgreSQL/Redis hedefleri ve geçerli TTL
+  verildi. User-secrets veya development env kullanılmadı; database'e bağlanılmadı.
+- VM'ye SDK/EF kurulmadı; API/frontend Docker image build yapılmadı.
+
+Windows'taki çekirdek komutlar (geçici checkout'ta; process config yukarıdaki gibi):
+
+```powershell
+dotnet tool restore
+dotnet build src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj --configuration Release --nologo
+dotnet ef migrations script 0 20260928113912_InitialCreate --idempotent --no-build --configuration Release --project src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj --startup-project src/backend/FullStackOpsLab.Api/FullStackOpsLab.Api.csproj --output InitialCreate.idempotent.sql
+```
+
+Yeni migration üretilmedi. SQL1059byte; özgün dosya SHA256:
+`ce23c018c2000cc8143df02f0fb8d2525de0717385a8c29f84b4888507bd5b53`.
+SCP sonrası VM'de sha256sum/wc aynı sonucu verdi; dosya izni600.
+Release kaydına yalnız SQL checksum eklendi; source SHA/image digestleri değişmedi.
+
+### SQL incelemesi ve BOM teşhisi
+
+| Alan | Beklenen ve doğrulanan şema |
+| --- | --- |
+| id | integer, GENERATED BY DEFAULT AS IDENTITY, NOT NULL, primary key |
+| title | text, NOT NULL |
+| description | text, nullable |
+| is_completed | boolean, NOT NULL, DEFAULT FALSE |
+| created_at | timestamp with time zone, NOT NULL |
+| updated_at | timestamp with time zone, nullable |
+
+History tablosu CREATE IF NOT EXISTS ile transaction dışında hazırlanır. tasks
+oluşturma ve `20260928113912_InitialCreate` / EF10.0.12 history kaydı transaction
+içindedir. History'de migration varsa koşullu DO blokları onu atlar. Script elle
+oluşturulmuş şema/history çelişkilerini çözmez. Ek --single-transaction kullanılmadı.
+
+İlk uygulama psql exit3 ile durdu. Özgün EF SQL dosyası UTF-8 BOM taşıyordu; güvenlik
+kontrol SQL'inin dosya önüne eklenmesi BOM'u stdin'in ortasına taşıdı. PostgreSQL
+logundan yalnız güvenli sınıflandırma ile BOM syntax error BULUNDU; salt okunur
+sorguda tasks/history YOK idi. Bu başarısız girişim migration PASS sayılmadı.
+
+Özgün dosyanın hash'i korunarak yalnız gönderilen payload normalleştirildi:
+
+```python
+original = Path("InitialCreate.idempotent.sql").read_bytes()
+# Önce özgün dosyanın kayıtlı SHA256'sı doğrulanır.
+sql_payload = original.decode("utf-8-sig").encode("utf-8")
+```
+
+Bu yalnız başlangıç BOM'unu kaldırır; migration SQL içeriği ve diskteki dosya
+değişmez. Dosya/stdin encoding'i, SQL önüne kontrol bloğu eklenirken de dikkate alınır.
+[psql exit code ve transaction davranışı](https://www.postgresql.org/docs/18/app-psql.html)
+SQL hatasında ON_ERROR_STOP ile exit3 döndüğünü açıklar.
+
+### Gerçek uygulama ve tekrar kanıtı
+
+Uygulama öncesi project/service/running/healthy, external volume/mount ve host portu
+yokluğu doğrulandı. Non-loopback postgres:5432 TCP bağlantısıyla beklenen deployment
+database/role ve boş şema kontrol edildi. Parola stdin'den shell read ile alınıp
+yalnız child PGPASSWORD'a aktarıldı; komut argümanına/dosyaya/çıktıya eklenmedi.
+Core psql seçenekleri: `-h postgres -p 5432 -X -w -v ON_ERROR_STOP=1
+-v VERBOSITY=sqlstate -f /dev/stdin`; username/database container env'den geldi.
+Statement/lock/connect ve subprocess timeout'ları sınırlıydı. stdout/stderr bellekte
+yakalandı; parola kontrolü geçti, ham hata/loglar paylaşılmadı.
+
+| Kontrol | Gerçek sonuç |
+| --- | --- |
+| Düzeltilmiş ilk uygulama | psql exit0, COMMIT PASS |
+| Salt okunur şema | Altı sütun/tip/nullability/default/identity/primary key PASS |
+| History | Tek InitialCreate kaydı; ProductVersion10.0.12 PASS |
+| Task kayıtları | count0; test Task kaydı oluşturulmadı |
+| İkinci idempotent uygulama | psql exit0, COMMIT PASS |
+| Önce/sonra snapshot | Şema/history/count ve tablo/identity sequence OID'leri aynı |
+| Secret kontrolü | Paylaşılan tanı/SQL çıktılarında değer yok; psql stdout/stderr parola kontrolü PASS |
+
+Snapshot SHA256 (aynı database/role ve mevcut objeler için):
+`c1219d7a88dd073c257a46ffb039368631cd8120d7394037755c05fa8ade1f49`.
+Bu OID'leri içerdiğinden başka yeni database'de aynı hash beklenmez; bu deneyde
+ikinci uygulamanın tabloları/sequence'i yeniden oluşturmadığını da gösterir.
+History atlandı, şema ve Task count0 korundu; bu tüm gelecekteki migration'ların
+veya concurrency senaryolarının testi değildir.
+
+PostgreSQL çalışır bırakıldı. Deployment env, volume ve development kaynakları
+korundu; diğer beş servis başlatılmadı. VM SQL dosyası ve Windows geçici checkout
+bu rehberli adımda kaldırılmadı; SQL secret içermez, env oraya kopyalanmadı.
+Son VM envanteri kullanıcı tarafından doğrulandı: yalnız deployment PostgreSQL
+container'ı Up24hours/healthy, 5432/tcp (host publish yok); volume listesinde yalnız
+fullstackops-deploy-lab-postgres/local. `.env.deployment` ve özgün SQL dosyasının
+izinleri600. PostgreSQL ve volume bilerek korundu; Windows geçici checkout kaldırılmadı.
+Full runtime/CRUD/cache/browser/monitoring, recreate persistence,
+HTTPS, update/rollback ve backup/restore kabulü hâlâ bekliyor. Sonraki küçük adım
+aynı digestlerle image-only stack başlangıcı ve localhost SSH tüneli erişimidir.
+
+Ana repository'de bu kayıt sonrası statik deployment testi2/2 PASS, repository
+secret leakage kontrolü exit0, 40 yerel dosya/anchor bağlantısı PASS ve
+git diff --check exit0. Yalnız bu README, deployment planı, PROJECT_STATUS ve
+release.json SQL checksum kaydı değişti; application/Compose/image seçimi değişmedi.
+Commit/push yapılmadı. Bunlar VM'deki tam uygulama runtime kabulü değildir.
+
+## Stack başlangıcı ve SSH erişimi — 14 Ekim 2026
+
+Bu adım yalnız başlangıç ve erişim kabulüdür. Kullanıcı Ubuntu SSH, Windows
+PowerShell ve gerçek Windows tarayıcısında kontrolleri yaptı; agent paylaşılan
+güvenli sonuçları ve repository dosyalarını inceledi, VM'yi ayrıca yönetmedi.
+Önceki dört dosyanın migration değişiklikleri korundu. Source/release image çifti
+değişmedi; release.json'daki vm_pull_and_runtime_acceptance alanı tam runtime
+kriterleri eksik olduğu için NOT VERIFIED kalır.
+
+### Başlangıç komutu ve gerçek kaynaklar
+
+PostgreSQL project/service/running/healthy, external volume adı/mount/host portu
+yokluğu ve tek InitialCreate10.0.12 history kaydı salt okunur yeniden doğrulandı.
+Gerçek deployment env ile config -q ve bellekte JSON model kontrolü PASS:
+altı servis/aynı app ağı, API/frontend build yok, iki seçilmiş digest, yalnız üç
+VM loopback portu, üç ayrı volume ve read-only provisioning kaynakları.
+Çözümlenmiş JSON/connection string veya credential terminale basılmadı.
+
+Ubuntu SSH terminalinde çalıştırılan gerçek başlangıç komutu:
+
+```bash
+sudo timeout --kill-after=10s 900s docker compose \
+  --project-name fullstackops-deploy-lab \
+  --env-file .env.deployment \
+  -f compose.yaml \
+  -f infrastructure/deployment/compose.deploy.yaml \
+  up -d --no-build --pull missing --wait --wait-timeout 180
+```
+
+Exit0. --no-build ve build alanlarının kaldırılması uygulama image build'ini
+engeller; --pull missing yalnız eksik image'ları çeker. Grafana13.2.3/Redis8.2.10-alpine/
+Prometheusv3.13.4 için paylaşılan pull süreleri sırasıyla92.9/64.5/71.4s idi.
+Bunlar tek seferlik ağ/cache gözlemleridir; benchmark veya genel startup garantisi
+değildir. PostgreSQL'in mevcut volume'u korundu; yalnız iki yeni deployment
+monitoring volume'u oluşturuldu: fullstackops-deploy-lab-grafana/prometheus.
+
+| Servis | Gerçek durum | Gerçek host yayını |
+| --- | --- | --- |
+| postgres | running/healthy | Yok; container5432 |
+| redis | running/healthy | Yok; container6379 |
+| api | running/healthy | Yok; container8080 |
+| frontend | running/healthy | 127.0.0.1:18081 -> 80 |
+| prometheus | running/healthy | 127.0.0.1:19090 -> 9090 |
+| grafana | running/healthy | 127.0.0.1:13000 -> 3000 |
+
+Inspect'te yalnız seçilmiş güvenli alanlar bellekte okundu; environment çıktısı
+gösterilmedi. API/frontend Config.Image tam release referansı, RepoDigests,
+OCI source revision ve linux/amd64 eşleşti. Container.Image ilgili image inspect
+Id ile karşılaştırıldı; bildirilen ID'ler API2ccb0ecce9dc7cbe9da418b4f0a952b8122be336299fd3b888539b5d07a05afd,
+frontend e0c77449225c4cd602e8f3b2af43a68ca3ad1578ce6428ba8ddcccf1fa612627
+(ikisi sha256 ön ekiyle). Manifest/config digest ve Engine ID evrensel olarak
+eşit varsayılmaz. API/PostgreSQL/Redis için gerçek host mapping yoktu.
+
+### Internal health ve Windows tüneli
+
+Frontend container'ındaki mevcut wget ile doğrudan http://api:8080/health,
+/health/live ve /health/ready GET istekleri yapıldı. Üçü de HTTP200/bodyHealthy;
+frontend SPA fallback HTML'i sağlık kanıtı olarak kullanılmadı. Nginx'te yeni
+health/metrics route'u veya internal servis için host portu eklenmedi.
+
+VM eth0 IPv4: 172.24.37.174/20; DHCP olduğu için ileride yeniden doğrulanır.
+Windows'ta development portlarından ayrı üç loopback portu kısa TcpListener
+bind/close ile kullanılabilir olarak doğrulandı. Tünel komutu **Windows
+PowerShell'de**, PS C:\... satırından başlatıldı:
+
+```powershell
+ssh -N -T -o ConnectTimeout=10 -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -L 127.0.0.1:28081:127.0.0.1:18081 -L 127.0.0.1:29090:127.0.0.1:19090 -L 127.0.0.1:23000:127.0.0.1:13000 labadmin@172.24.37.174
+```
+
+İlk port kontrolü yanlışlıkla Bash'te çalıştırıldı; syntax hataları port sonucu
+sayılmadı. İlk tünel de VM'nin içinde açıldı; Windows frontend curl exit7/HTTP000
+ve Windows listener yokluğu görüldü. Kullanıcı yalnız o foreground tüneli Ctrl+C
+ile kapatıp Windows'ta yeniden açtı. Stack yeniden başlatılmadı. SSH -L listener'ı
+istemcinin çalıştığı hostta açar; sağdaki 127.0.0.1 hedefi SSH sunucusu VM'dir.
+
+Doğru tünelde Get-NetTCPConnection üç Windows127.0.0.1 listener'ı ve aynı owning
+process'i gösterdi; Windows curl --noproxy ile frontend root HTTP200. Tünel penceresi
+açık tutulur; Ctrl+C/pencere kapatma yalnız tüneli kapatır, detached stack'i durdurmaz.
+Yeniden erişimde VM IP ve Windows port boşluğu kontrol edilerek tünel tekrar açılır.
+
+| Windows tarayıcı adresi | Kullanıcı gözlemi |
+| --- | --- |
+| http://127.0.0.1:28081/ | Frontend açıldı |
+| http://127.0.0.1:29090/ | Prometheus arayüzü açıldı |
+| http://127.0.0.1:23000/ | Grafana deployment admin ile giriş başarılı |
+
+Grafana bilgileri VM'deki /home/labadmin/fullstack-ops-lab/.env.deployment dosyasında;
+dosya salt okunur editörle kullanıcı tarafından incelendi, değerler sohbete/rapora
+aktarılmadı. Windows development .env bilgileri deployment için kopyalanmadı.
+Grafana Overview görünürlüğü/panel sorguları ve gerçek yeni Prometheus örnekleri
+bu adımda ayrıca doğrulanmadı. Public internet erişimi veya HTTPS kabulü yoktur.
+
+### Sınırlar ve bırakılan durum
+
+Kullanıcı frontend'de bir görev oluşturup tamamladı ve sildiğini bildirdi. Bu
+manuel gözlem için HTTP status/Location/JSON/nullable/400/404 veya Redis TTL ve
+invalidation ölçümü alınmadı; tam CRUD/cache runtime kabulü PASS sayılmaz.
+Agent bu adımda CRUD yazma, kesinti, rollback, HTTPS veya backup testi çalıştırmadı.
+Migration sonundaki Task count0 önceki adıma aittir; manuel tur sonrası yeni DB
+count sorgusu yapılmış gibi sunulmaz.
+
+Stack çalışır bırakıldı; PostgreSQL external volume'u ve iki yeni monitoring
+volume'u korunur. Development env/user-secrets/Docker kaynakları değiştirilmedi;
+yalnız bu adımın tüneli açıldı, yanlış yerdeki tünel kapatıldı. İlk kurulum SQL'i
+ve Windows geçici checkout korunuyor. Sonraki küçük adım planın kalan GHCR runtime
+contract/cache kabulüdür; diğer kabul kapıları ayrıca uygulanır. Commit/push yok.
+
+Repository son kontrolleri: secret leakage exit0, 41 yerel dosya/anchor bağlantısı
+PASS, git diff --check exit0. Bu adımda README/plan/PROJECT_STATUS güncellendi;
+önceki release.json SQL checksum değişikliği korundu. Toplam yalnız dört beklenen
+dosya modified; index boş. Seçilmiş SHA/digest çifti ve Compose dosyaları değişmedi.
