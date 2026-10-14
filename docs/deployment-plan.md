@@ -1,6 +1,6 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
-**Plan tarihi:** 11 Ekim 2026. **Güncel durum (14 Ekim):** VM/Docker, aktarım/env/digest pull, ayrı PostgreSQL ve InitialCreate kabulü PASS. Aynı seçilmiş digestlerle altı servisli image-only başlangıç, internal health ve Windows loopback SSH/tarayıcı erişimi de PASS. Tam deployment contract/cache/monitoring kabulü ve sonraki kapılar bekliyor. Aşağıdaki planlama kararları tarihsel bağlamıyla korunur; güncel kanıt son bölümde kayıtlıdır.
+**Plan tarihi:** 11 Ekim 2026. **Güncel durum (14 Ekim):** VM/Docker, aktarım/env/digest pull, ayrı PostgreSQL ve InitialCreate kabulü PASS. Aynı seçilmiş digestlerle altı servisli image-only başlangıç, internal health, Windows loopback SSH/tarayıcı erişimi ve Nginx HTTP contract/Redis cache kabulü de PASS. Kalan asset/monitoring kabulü ve sonraki kapılar bekliyor. Aşağıdaki planlama kararları tarihsel bağlamıyla korunur; güncel kanıt son bölümde kayıtlıdır.
 
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
@@ -153,7 +153,7 @@ Hedef RPO **24 saat**; kurtarma süresi henüz ölçülmedi. VM/PC kapalıysa g�
 
 ## 9. En küçük uygulama adımları ve kabul kapıları
 
-Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. VM/Docker, aktarım/digest pull, ilk veri hazırlığı ve altı servis başlangıç/kimlik/health/SSH erişimi 13–14 Ekim kanıtlarıyla tamamlandı. Adım4'ün contract/cache ve sonraki runtime kapıları **NOT VERIFIED**.
+Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. VM/Docker, aktarım/digest pull, ilk veri hazırlığı, altı servis başlangıç/kimlik/health/SSH erişimi ve Nginx contract/cache 13–14 Ekim kanıtlarıyla tamamlandı. Adım4'ün ayrı JS/CSS kontrolleri ve sonraki runtime kapıları **NOT VERIFIED**.
 
 | Adım | Yapılacak iş | Kabul kanıtı |
 | --- | --- | --- |
@@ -180,7 +180,7 @@ Normal kapatma `stop` veya project/env hedefi açık `down`; named volume'lar ko
 | Secret/volume/migration | VM'e özel kaynaklar ve açık SQL hazırlığı | PASS: ayrı env/volume/TCP auth ve InitialCreate uygulama/tekrar; tam stack runtime kabulü bekliyor |
 | Domain ve HTTPS erişimi | Yerel ad/TLS prova; public domain/internet erişimi ayrı gelecek karar | Public kabul NOT VERIFIED; issue tamamlandı sayılmaz |
 | DB/Redis/API kapalı; monitoring sınırlı | Internal portlar, loopback ve SSH yönetimi | Gerçek Docker bind ve Windows loopback tünel PASS; geniş LAN/public ağ kabulü yapılmadı |
-| Health, frontend ve CRUD | Gerçek VM/browser/HTTP kontrolü | Internal üç health200 ve browser erişimi PASS; manuel CRUD bildirimi var, tam contract/cache kabulü bekliyor |
+| Health, frontend ve CRUD | Gerçek VM/browser/HTTP kontrolü | Internal üç health200, browser erişimi ve ayrı Nginx HTTP contract/cache kabulü PASS; JS/CSS/monitoring ve tam deployment kapanışı bekliyor |
 | Güncelleme ve rollback | İki uyumlu digest çifti + schema uyum kapısı | NOT VERIFIED |
 | Kayıt recreate sonrası korunur | Aynı lab external PostgreSQL volume'u | Önceki local/CI kanıtı var; yeni VM kabulü NOT VERIFIED |
 | Image / migration rollback farkı | Veri silmeyen image dönüşü; destructive InitialCreate.Down uyarısı | Tasarım açık; restore NOT VERIFIED |
@@ -322,3 +322,29 @@ korunmuş bırakıldı; development kaynaklarına dokunulmadı. Bu tarihli kayı
 VM'de tekrar çalıştırdığı bir test değildir. Sıradaki en küçük iş adım4'ün kalan
 Nginx CRUD/Location/JSON/nullable/400/404 ve cache miss/hit/TTL/invalidation kabulüdür.
 HTTPS, persistence recreate, update/rollback, backup/restore sonraki ayrı kapılardır.
+
+## 16. Nginx HTTP contract ve Redis cache — 14 Ekim 2026
+
+[Rehberli kabul sonuçları](../infrastructure/deployment/README.md#nginx-http-contract-ve-redis-cache-kabulü--14-ekim-2026)
+önceki manuel browser turundan ayrı gerçek assertion'lara dayanır. Windows tüneli
+yeniden açıldı, 127.0.0.1:28081 listener ve frontend HTTP200 doğrulandı. Ubuntu
+kontrolleri VM127.0.0.1:18081 Nginx adresini ve deployment Redis container'ını kullandı.
+Source1b52633776279b1661a7cac53392d385cbf10444 ve iki GHCR digest değişmedi.
+
+Liste GET200; POST201/Location `/api/tasks/2`; tekil GET/PUT200, altı JSON alanı,
+nullable description ve güncellenmiş DTO tekrar okuması PASS. Whitespace POST/PUT400
+ve gerçekten bulunmayan ID için GET/PUT/DELETE404 PASS. Sahipliği doğrulanan yalnız
+test ID2 DELETE204 ile temizlendi, sonraki GET404; diğer DTO'lar silme adımı öncesi/
+sonrası aynıydı. Başlangıçtaki bütün DB'nin snapshot'ı alınmış gibi sunulmaz.
+
+İlk doğal cache yokluğunda MISS ardından HIT logları; POST/PUT/DELETE key invalidation;
+400/404'te key ve bellekte DUMP checksum korunması PASS. Etkin API TTL60 ile gerçek
+yeni key TTL60 eşleşti. Key elle silinmeden doğal expiration EXISTS0/TTL-2 ve sonraki
+GET ile key1/TTL60, yeni MISS → HIT, aynı liste ve test ID yokluğu doğrulandı.
+
+Komutları kullanıcı çalıştırdı; agent VM runtime deneyini ayrıca tekrarlamadı.
+FLUSH/DEL, kesinti/restart, volume veya secret değişikliği yapılmadı. Stack açık
+bırakıldı; normal liste cache'i kendi TTL'siyle bırakıldı, test kaydı kalmadı.
+Adım4'ün JS/CSS asset erişimi ve monitoring/provisioning kabulü sonraki küçük
+kontrollere ayrılır; persistence recreate, HTTPS, update/rollback ve backup/restore
+henüz uygulanmadı. Release tam runtime alanı NOT VERIFIED kalır.

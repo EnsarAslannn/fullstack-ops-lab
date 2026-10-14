@@ -2,8 +2,9 @@
 
 14 Ekim 2026: statik hazırlık, rehberli VM aktarımı/env/digest pull, PostgreSQL
 volume/readiness/TCP authentication, InitialCreate SQL uygulama/idempotent tekrar,
-altı servisli image-only stack başlangıcı ve Windows SSH/tarayıcı erişimi **PASS**.
-Tam deployment runtime/contract/cache/monitoring kabulü, HTTPS ve yedekleme henüz
+altı servisli image-only stack başlangıcı, Windows SSH/tarayıcı erişimi ve Nginx
+HTTP contract/Redis cache kabulü **PASS**. Tam deployment runtime kabulü için ayrı
+asset/monitoring ve diğer plan kapıları bekliyor; HTTPS ve yedekleme henüz
 **NOT VERIFIED**. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
@@ -226,8 +227,9 @@ eşleşmesi doğrulandı. Yukarıdaki scp komutları alternatif dosya aktarım �
 
 Rehberli VM adımında 1–5 kaynak/env/model/digest pull/PostgreSQL ve SQL hazırlığı
 tamamlandı. Adım6 SQL uygulama/şema ve altı servisin başlangıcı tamamlandı; adım7'nin
-image identity/health/tarayıcı erişimi de PASS. Kalan contract/cache/monitoring
-runtime kabulü bekliyor. Ubuntu statik unittest komutu ayrıca çalıştırılmış sayılmaz.
+image identity/health/tarayıcı erişimi de PASS. Son HTTP/cache kabulü aşağıdaki ayrı
+kayıtta tamamlandı; asset/monitoring ve diğer runtime kapıları bekliyor.
+Ubuntu statik unittest komutu ayrıca çalıştırılmış sayılmaz.
 Aşağıdaki tarihli kanıt kayıtları bu sınırları korur.
 Normal kapatma project/env/override hedefiyle `down` olur; volume silme rutin adım
 değildir. External PostgreSQL ve monitoring verilerini koru; `down -v` veya prune
@@ -496,3 +498,100 @@ Repository son kontrolleri: secret leakage exit0, 41 yerel dosya/anchor bağlant
 PASS, git diff --check exit0. Bu adımda README/plan/PROJECT_STATUS güncellendi;
 önceki release.json SQL checksum değişikliği korundu. Toplam yalnız dört beklenen
 dosya modified; index boş. Seçilmiş SHA/digest çifti ve Compose dosyaları değişmedi.
+
+## Nginx HTTP contract ve Redis cache kabulü — 14 Ekim 2026
+
+Bu, önceki manuel browser CRUD gözleminden ayrı, status/JSON/cache assertion'ları
+olan rehberli kabul adımıdır. Komutları kullanıcı Windows PowerShell ve Ubuntu SSH
+terminalinde çalıştırdı, gerçek sonuçları paylaştı. Agent VM'ye bağlanıp testleri
+tekrarlamadı; bu kayıt paylaşılan çıktılar ve uygulama sözleşmesi incelemesine dayanır.
+Repository inceleme HEAD'i `7c3f204729deb8e47c8877e955c9aa325db0ce6e`; çalışan
+uygulama kaynağı ve image çifti yukarıdaki release kaydının
+`1b52633776279b1661a7cac53392d385cbf10444` revision'ına aittir. Yeni main/GHCR
+yayınlarına geçilmedi; image kimliği kabulü önceki başlangıç adımından yeniden kullanıldı.
+
+### Erişim ve kullanılan kontroller
+
+SSH pencereleri kapandığında Windows loopback listener yoktu; buna bağlı ikinci
+PowerShell process kontrolü de boş ID ile başarısız oldu. Bu, VM stack'inin durmuş
+olduğunu kanıtlamaz. Kullanıcı VM eth0 IP'sini `172.24.37.174/20` olarak doğrulayıp
+tüneli yeniden Windows'ta açtı. `Get-NetTCPConnection` Windows127.0.0.1:28081
+listener'ını (o an PID3660), `curl.exe --noproxy "*"` frontend root HTTP200 sonucunu
+gösterdi. Windows development URL'si kullanılmadı.
+
+- Windows frontend adresi `http://127.0.0.1:28081/`; tünel VM127.0.0.1:18081'e gider.
+- Python standart kütüphanesi `urllib.request` ile tüm HTTP contract istekleri
+  Ubuntu'dan `http://127.0.0.1:18081/api/tasks` Nginx girişine gönderildi; API'ye
+  doğrudan istek veya Windows Docker Desktop üzerinden Redis kontrolü yapılmadı.
+- Redis salt okunur `EXISTS`, `TTL`, `DUMP` kontrolleri yalnız
+  `fullstackops-deploy-lab-redis-1` ve `fullstack-ops:tasks:all:v1` key'ini hedefledi.
+  DUMP içeriği yalnız bellekte SHA256 ile karşılaştırıldı, ekrana/dosyaya yazılmadı.
+- Etkin `Cache__TasksTtlSeconds` API container'ında shell builtin ile yalnız bu
+  non-secret key için okundu: `printf "%s" "$Cache__TasksTtlSeconds"`. Env dosyası
+  veya tüm container environment çıktısı okunup paylaşılmadı.
+- API `docker logs --since` çıktısı bellekte veya yalnız CACHE MISS/HIT satırlarıyla
+  incelendi; request body/credential içeren ham log çıktısı paylaşılmadı.
+
+[CRUD smoke](../../tests/Phase0B.Tasks.Smoke.ps1) ve
+[cache smoke](../../tests/Module5.Cache.Smoke.ps1) assertion'ları bu topolojiye
+uyarlandı. Bu scriptler doğrudan çalıştırılmadı: cache script'i başlangıçta key'i
+siler, boş liste ister ve PostgreSQL'i durdurur; bunlar bu görevde yetkilendirilmedi.
+[CI Compose hazırlık/cleanup script'i](../../tests/Module11.Compose.Smoke.py) de
+kalıcı deployment ortamında çalıştırılmadı. Yeni test bağımlılığı veya kaynak dosyası
+eklenmedi; kullanıcı küçük stdin Python bloklarıyla kontrolleri yürüttü.
+
+### Gerçek kabul sonuçları
+
+| Kontrol | Sonuç ve kanıt |
+| --- | --- |
+| İlk liste | PASS: GET200, başlangıç EXISTS0/TTL-2; ardından key1/TTL60 |
+| Cache miss → hit | PASS: ikinci GET200; zaman sınırlı loglarda önce CACHE MISS, sonra CACHE HIT |
+| POST | PASS: 201, Location `/api/tasks/2`; benzersiz lab görevi ID2 |
+| Oluşturulan JSON | PASS: id/title/description/isCompleted/createdAt/updatedAt; description null, completion false, iki timestamp mevcut |
+| Tekil GET | PASS: 200; tam altı alan, null description ve beklenen test title/createdAt ile sahiplik doğrulandı |
+| PUT | PASS: 200; title/description/completion güncellendi, id/createdAt korundu ve updatedAt arttı |
+| Güncelleme tekrar okuması | PASS: tekil GET200; yanıt güncellenen DTO ile aynı |
+| Başarılı mutation invalidation | PASS: POST/PUT/DELETE öncesi key1; her başarılı mutation sonrası key0 |
+| Boş başlık | PASS: whitespace POST400 ve PUT400; key1 ve DUMP checksum değişmedi |
+| Bulunmayan ID | PASS: önce ID2147483647 GET404 ile yokluğu doğrulandı; GET/PUT/DELETE404 ve cache içeriği korundu |
+| DELETE | PASS: sahipliği doğrulanan ID2 için 204/boş body; key0, sonra tekil GET404 |
+| Silme sonrası liste | PASS: GET200; ID2 yok, diğer kayıtların DTO'ları silme öncesi karşılaştırmayla aynı; key1/TTL60 |
+| Etkin TTL | PASS: API configuration60 saniye; yeniden oluşturulan Redis key TTL60 |
+| Doğal expiration | PASS: başlangıç kalan TTL60, silme komutu olmadan EXISTS0/TTL-2; kalan TTL+10 saniye timeout sınırı kullanıldı |
+| Expiration sonrası yeniden oluşturma | PASS: GET200, key1/TTL60 (configuration ile uyumlu), ardından GET200; yeni loglarda MISS → HIT |
+| Son liste | PASS: expiration öncesi/sonrası DTO listesi aynı, test ID2 yok |
+
+JSON nullable kontrolü mevcut HTTP sözleşmesindeki `description` alanına aittir.
+`updatedAt` oluşturma yanıtında `createdAt` ile aynı non-null değeri taşır;
+database'deki nullable sütunu bütün HTTP timestamp'ları nullable gibi sunmak için
+kullanılmaz. Title trim veya her nullable kombinasyonu bu adımda test edilmiş sayılmaz.
+
+### Cleanup, öğrenme ve sınırlar
+
+Yalnız benzersiz test ID2 oluşturuldu/güncellendi/silindi; DELETE öncesinde title ve
+createdAt eşleştirilerek sahipliği doğrulandı. Diğer liste kayıtları DELETE
+öncesi/sonrası aynıydı; tüm görev başlangıcının database snapshot'ı alınmış gibi
+sunulmaz. Son listede test ID yok. Mevcut kayıtları silen toplu işlem, FLUSHALL/FLUSHDB,
+manuel DEL, secret okuma/değiştirme veya geçici SQL/test dosyası oluşturma yapılmadı.
+Test kaydını içeren cache başarılı DELETE ile invalidated oldu; sonunda normal
+liste cache'i yeniden oluştu ve kendi TTL'siyle bırakıldı, temizlemek için silinmedi.
+
+Stack durdurulmadı/yeniden oluşturulmadı; .env.deployment, user-secrets ve bütün
+volume'lar korundu. Altı servisin health/image/port inspect kabulü bu adımda
+tekrarlanmadı. Windows listener yeniden açılması container restart değildir.
+HTML root erişimi PASS; ayrı JS/CSS asset status'ları, Grafana datasource/12 panel
+ve yeni Prometheus örnekleri bu adımda NOT VERIFIED. Kesinti, persistence recreate,
+HTTPS, update/rollback veya backup/restore denenmedi. Bu kısa trafik performans
+benchmark'ı ve production deployment kabulü değildir.
+
+Bu deneyde miss PostgreSQL'den okuyup cache oluşturur; hit cache'den döner.
+Mutation sonrası invalidation bir sonraki liste isteğinin güncel veriyi okumasını
+sağlar; 400/404 başarılı veri değişikliği değildir ve mevcut key'i korur. TTL veri
+kaynağındaki Task kaydını değil, yalnız geçici liste cache'ini sona erdirir.
+Sonraki küçük kabul: kalan asset erişimi ve VM monitoring/provisioning kontrolleri;
+bu görevde başlanmadı. `release.json` tam runtime alanı NOT VERIFIED kalır.
+
+Repository son kontrolleri: Windows'ta statik deployment testi2/2 PASS, secret
+leakage kontrolü exit0, 45 yerel dosya/anchor bağlantısı PASS ve git diff --check
+exit0. Yalnız bu README, deployment planı ve PROJECT_STATUS değişti; index boş.
+Uygulama/config/release dosyaları değişmedi. Commit/push yapılmadı.
