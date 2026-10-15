@@ -6,7 +6,9 @@ Grafana datasource/12 panel sorguları **PASS**. Sonuçlar aşağıdaki tarihli 
 VM kayıtlarına dayanır. Persistence recreate, HTTPS, update/rollback, backup/restore
 ve lab kapanışı bekliyor. Yerel HTTPS dosyaları statik olarak hazır; Windows lab
 CA/leaf, kullanıcı güven deposu ve hosts hazırlığı da kullanıcı çıktılarıyla PASS.
-VM'ye TLS aktarımı/uygulaması ve HTTPS runtime henüz yapılmadı. Deployment lab bütünüyle tamamlanmadı. Bu bir production
+VM TLS dosya aktarımı/izinleri, gerçek Compose modeli ve geçici nginx -t de PASS.
+Çalışan frontend'e TLS uygulanmadı; HTTPS runtime henüz yapılmadı.
+Deployment lab bütünüyle tamamlanmadı. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
 ## Amaç ve dosyalar
@@ -771,6 +773,8 @@ ayrı kalır. Seçilmiş SHA/digest/release aynıdır; commit/push yapılmadı.
 
 ## Windows sertifika ve güven hazırlığı — 15 Ekim 2026
 
+Bu bölüm b0d2fea ile kaydedilen Windows aşamasıdır; sonraki VM hazırlığı aşağıdadır.
+
 Kullanıcı rehberli Windows PowerShell gruplarını uyguladı: mkcert1.4.4 indirme
 hash/sürüm kontrolü, repository dışı lab CA/leaf üretimi ve CurrentUser Root
 deposunda public CA thumbprint kontrolü PASS. OpenSSL3.5.6 ile tek SAN
@@ -785,3 +789,28 @@ private dosya/secret okumadı; kanıt kullanıcı çıktılarıdır. `.env.https
 frontend recreate,18443 tüneli ve gerçek HTTPS/browser/CRUD kabulü bekliyor.
 VM stack'i, mevcut tüneller ve seçilmiş image çifti değişmedi. Bu adım yalnız
 Windows hazırlığıdır; deployment runtime bütünüyle Completed değildir.
+
+## VM TLS aktarımı, izinler ve nginx -t — 15 Ekim 2026
+
+Kullanıcı güncel172.30.249.139 IP'sinde SSH erişimini ve altı healthy servisi
+doğruladı. Üç public HTTPS config dosyası yalnız mevcut kaynak ağacına eklendi;
+Windows→VM checksum'ları üç OK. Yalnız leaf cert/key repository dışındaki
+/home/labadmin/.local/share/fullstackops-deploy-lab/tls yoluna aktarıldı;
+CA private key Windows'ta kaldı. Üst klasör/tls700, key600, crt644 ve yalnız path
+içeren ayrı .env.https600 sahibi labadmin olarak doğrulandı. Mevcut deployment env
+ezilmedi. [Hash'ler ve ayrıntılı kabul tablosu](HTTPS.md#13-vm-tls-aktarımı-ve-geçici-nginx--t-kabulü--15-ekim-2026).
+
+Gerçek env ile sessiz config ve JSON model kontrolleri PASS: altı servis, aynı
+seçilmiş source/digestler/build yok, aynı ağ/ayrı volume adları, üç read-only
+bind/create_host_path false ve yalnız beklenen loopback portları. Mevcut HTTP
+healthcheck korundu. Seçilmiş frontend digestinin local image kimliği çalışan
+frontend ile eşleşti. Aynı image/model ile geçici nginx -t exit0; iki başarı
+mesajı yakalandı, test container'ı temizlendi ve altı container ID'si korundu.
+
+Final gerçek tabloda altı servis healthy; frontend hâlâ127.0.0.1:18081,
+monitoring19090/13000 loopback, internal servisler publish edilmemiş durumda.
+ss18443 listener yok. Bu, henüz etkinleştirilmemiş TLS modelindeki18443 bind'iyle
+karıştırılmaz. Agent VM işlemi/secret okuması yapmadı; kanıt kullanıcı çıktılarıdır.
+Stack/tüneller çalışır bırakıldı, source/digest/release değiştirilmedi; yeni build,
+migration, CRUD, cache temizleme veya volume işlemi yok. Frontend TLS recreate,
+yeni SSH tüneli ve HTTPS/browser/API kabulü bekliyor. Commit/push yapılmadı.

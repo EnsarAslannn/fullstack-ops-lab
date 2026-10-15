@@ -1,10 +1,12 @@
 # Yerel HTTPS — hazırlık ve sonraki uygulama rehberi
 
 15 Ekim 2026: statik yapılandırma b19f620 commit'iyle yayımlandı; ardından
-**Windows lab CA, sunucu sertifikası ve hosts hazırlığı kullanıcı tarafından doğrulandı**.
-Gerçek sonuçlar bölüm12'dedir; agent private dosyaları okumadı veya işlemleri
-kullanıcı yerine çalıştırmadı. VM'ye TLS aktarımı, frontend recreate, yeni HTTPS
-tüneli ve gerçek HTTPS/browser kabulü henüz yapılmadı. Mevcut VM stack'i ve tüneller korunur.
+Windows lab CA, sunucu sertifikası ve hosts hazırlığı b0d2fea ile kaydedildi.
+**VM dosya aktarımı, izinler, gerçek Compose modeli ve geçici nginx -t doğrulandı**.
+Windows sonuçları bölüm12, VM hazırlığı bölüm13'tedir; agent private dosyaları
+okumadı veya işlemleri kullanıcı yerine çalıştırmadı. Çalışan frontend'e TLS
+uygulanmadı; yeni HTTPS tüneli ve gerçek HTTPS/browser kabulü henüz yapılmadı.
+Mevcut altı VM container'ı aynı kimliklerle healthy ve eski portlarla çalışır bırakıldı.
 Komut grupları sırayla sonuç incelenerek uygulanacak; bir grup başarısızsa sonraki
 gruba geçilmez. Bütün belge tek seferde terminale yapıştırılmaz.
 
@@ -37,8 +39,9 @@ veya internet deployment'ı iddiası değildir. Uygulamaya kullanıcı yetkilend
 | Grafana | 23000 | 13000 → grafana3000 |
 | API / PostgreSQL / Redis | Yok | Host publish yok |
 
-Yeni port18443'ün iki hostta boş olduğu henüz kontrol edilmedi. Eski tüneller
-aynı şekilde bırakılır; sonraki adımda yalnız HTTPS için ayrı bir tünel açılabilir.
+VM18443 için başlangıç ve bitiş ss kontrollerinde listener yoktu. Windows18443
+boşluğu bu adımda kontrol edilmedi; etkinleştirmeden önce yeniden bakılmalı.
+Eski tüneller değiştirilmedi; yeni HTTPS tüneli henüz açılmadı.
 
 ## 2. Dosyalar ve davranış
 
@@ -131,7 +134,10 @@ bütünlük incelemesi gerekir. Kullanıcının 15 Ekim'de indirdiği portable v
 doğruladığı hash bölüm12'de kayıtlıdır. PATH değişikliği gerekmedi; komutlar tam
 araç yolunu kullanır. Ücretli hizmet gerekmez.
 
-## 5. Dosya aktarımı — sonraki uygulama
+## 5. Dosya aktarımı — ilk aktarım referansı
+
+Bu aktarım bölüm13'teki hash sonuçlarıyla tamamlandı; komutlar otomatik tekrar
+çalıştırılmaz. Mevcut VM kaynak ağacı topluca güncellenmedi.
 
 Yeni repository dosyaları henüz commit edilmediyse clone tek başına getirmez.
 Seçilmiş kaynak1b52633776279b1661a7cac53392d385cbf10444 ağacı ve mevcut release çifti
@@ -204,7 +210,10 @@ key içeriği paylaşılmaz. Tarayıcı yeniden açılabilir. Bu güven sadece y
 içindir; production CA çözümü değildir. CA private key veya CAROOT klasörünü SCP ile
 gönderme. Windows/VM SSH host fingerprint kontrolü TLS sertifika güveninden farklıdır.
 
-## 7. VM leaf yerleşimi ve ayrı path env — sonraki uygulama
+## 7. VM leaf yerleşimi ve ayrı path env — ilk hazırlık referansı
+
+Bu hazırlık bölüm13'teki sonuçlarla tamamlandı; mevcut dosyaların üzerine yazmak
+veya .env.https dosyasını yeniden oluşturmak için tekrar çalıştırma.
 
 **Ubuntu SSH**, aynı oturumda repository kökünde:
 
@@ -247,10 +256,15 @@ if ($LASTEXITCODE -ne 0) { throw 'Leaf aktarimi basarisiz' }
 
 Public leaf hash'i Windows ile eşleşmeli. Örnek `https.env.example` aynı key'in
 placeholder'ını gösterir; gerçek path VM'de belirlenir. Bu key credential değildir.
-.env.deployment'a ekleme veya secret kopyalama yapılmaz. Private key chmod/mount
-uygunluğu henüz VM'de denenmedi; mevcut image root master süreci sertifikayı okur.
+.env.deployment'a ekleme veya secret kopyalama yapılmaz. VM izinleri ve aynı
+image'ın gerçek TLS dosyalarını okuyabilmesi nginx -t ile doğrulandı (bölüm13).
 
-## 8. Sessiz config ve nginx -t — sonraki uygulama
+## 8. Sessiz config ve nginx -t — doğrulama komutları
+
+Kullanıcı bu adımı aynı env/-f sırası ve seçilmiş image ile tamamladı (bölüm13).
+Gerçek çalışmada Python stdout/stderr'i bellekte yakaladı, 90 saniye timeout,
+benzersiz container adı ve cleanup kontrolü ekledi. Aşağıdaki kısa komutlar
+mekanizmayı gösterir; başarılı deneyi yeniden çalıştırma zorunluluğu yoktur.
 
 **Ubuntu SSH**, repository kökünde bir yardımcı shell fonksiyonu tanımla:
 
@@ -278,8 +292,8 @@ frontend test container'ında syntax ve key eşleşmesini kontrol et:
 deploy_https run --rm --no-deps --pull never --entrypoint nginx frontend -t
 ```
 
-Bu komut **gelecekte geçici container oluşturur**; bugün çalıştırılmadı. Image
-build/pull yapmaz; build alanı modelden kaldırılmış ve seçilmiş image önceden local'dir.
+Bu komut geçici container oluşturur; bölüm13'teki gerçek çalışmada test container'ı
+kaldırıldı. Image build/pull yapmaz; build alanı modelden kaldırılmış ve seçilmiş image önceden local'dir.
 `run` için service-ports kullanılmaz; mevcut frontend portlarına bind olmaz.
 nginx -t başarısızsa burada durulur. Bu test certificate trust/hostname süresinin
 browser kabulü yerine geçmez. [Nginx HTTPS yapılandırması](https://nginx.org/en/docs/http/configuring_https_servers.html).
@@ -403,15 +417,15 @@ Windows Git stdin newline farkı test taşımasında NUL ayırıcıyla giderildi
 | Statik aşamadaki secret leakage,62 yerel belge bağlantısı/anchor ve diff whitespace kontrolü | PASS; b19f620 hazırlık kanıtı |
 | Windows hosts/güven yönergeleri | Uygulama PASS, kaldırma NOT VERIFIED; bölüm12 |
 | Windows certificate SAN/süre, CA zinciri ve leaf private key eşleşmesi | PASS; kullanıcı OpenSSL çıktıları, bölüm12 |
-| Nginx SSL modülü/syntax ve VM'deki certificate/key okuması | NOT VERIFIED; nginx -t çalıştırılmadı |
-| VM dosya izinleri ve iki hostta18443 port boşluğu | NOT VERIFIED |
+| VM aktarımı, izinler, gerçek model ve Nginx SSL syntax/certificate-key okuması | PASS; kullanıcı nginx -t exit0 ve iki başarı mesajını doğruladı, bölüm13 |
+| VM18443 listener yokluğu | PASS; başlangıç/bitiş ss; Windows port boşluğu bu adımda NOT VERIFIED |
 | Gerçek HTTPS HTML/JS/CSS ve API Location/same-origin davranışı | NOT VERIFIED |
 | HTTPS sonrası health, image kimliği ve monitoring erişiminin korunması | NOT VERIFIED |
 | Yenileme/reload, public CA/domain/internet kabulü | NOT VERIFIED |
 
-YAML/static test ve Windows sertifika hazırlığı başarılı HTTPS deployment anlamına
-gelmez. Sonraki küçük adım ayrı rehberli VM dosya aktarımı ve nginx -t hazırlığıdır;
-bu görevde VM aktarımı, yeni tünel veya frontend recreate yapılmadı.
+YAML/static test, Windows sertifika hazırlığı ve nginx -t başarılı HTTPS bağlantısı
+anlamına gelmez. Sonraki küçük adım ayrı rehberli frontend TLS etkinleştirmesi ve
+yeni tünel/HTTPS kabulüdür; mevcut frontend bu görevde yeniden oluşturulmadı.
 
 Gerçekte çalıştırılan yerel komut `py -3 tests/Deployment.Configuration.Test.py`;
 test kendi sahte env dosyalarıyla `docker compose ... config -q` ve JSON model
@@ -424,6 +438,9 @@ edildi. Windows hazırlığı aşağıda ayrı kaydedilir; VM/tünel/Docker kayn
 bu hazırlık sırasında hiçbir işlem gönderilmedi.
 
 ## 12. Windows CA, leaf ve hosts kabulü — 15 Ekim 2026
+
+Bu bölüm b0d2fea ile kaydedilen Windows hazırlığının tarihsel kapanışıdır;
+ondan sonraki VM aktarımı/nginx -t sonucu bölüm13'tedir.
 
 Kanıt kullanıcı tarafından Windows PowerShell'de çalıştırılan grupların paylaşılan
 çıktılarıdır; agent private key, gerçek env veya user-secrets içeriğini okumadı.
@@ -477,3 +494,78 @@ Bu Windows hazırlığı kaydının repository kontrolleri: secret leakage exit0
 PASS ve git diff --check exit0. Yalnız bu rehber, deployment README/planı ve
 PROJECT_STATUS güncellendi; index boş. Windows/VM işlemleri agent tarafından
 tekrarlanmadı; private dosyalar Git'e eklenmedi.
+
+## 13. VM TLS aktarımı ve geçici nginx -t kabulü — 15 Ekim 2026
+
+Kullanıcı Windows PowerShell ve Ubuntu SSH gruplarını çalıştırıp sonuçları
+paylaştı. Agent VM'ye bağlanmadı, private key veya gerçek env içeriği okumadı.
+Başlangıç Git temizdi (HEAD b0d2fea). VM hostname fullstackopslabvm,
+IP172.30.249.139/20 ve Windows'tan SSH hostname kontrolü PASS. Altı servis
+başlangıçta healthy idi; VM18443 ss çıktısı yalnız başlık içeriyordu.
+Public HTTPS config/overlay/örnek, .env.https ve VM leaf dosyalarının hedefte
+başlangıçta bulunmadığı kontrol edildi; mevcut dosyalar ezilmedi.
+
+Yalnız üç public config SCP ile mevcut VM kaynak ağacına eklendi; root Compose,
+deployment overlay, release.json ve diğer kaynaklar topluca değiştirilmedi.
+Windows dosya byte hash'leri VM'de sha256sum --check ile üç kez OK verdi:
+
+| Aktarılan public dosya | SHA256 |
+| --- | --- |
+| compose.https.yaml | `533F3B78C5D8E86876DAC7DEB61EFDCC11A3D4C10F9B96870211E313848E1F9D` |
+| https.env.example | `E2C469AF9062509E4EA491F5C6E14852EEBFB5C6643C46971FAE94D07F2244B1` |
+| nginx/https.conf | `1CDEE6ACA92F5FB641972980173F3C67548124E3245928AA826D8588EF5E4628` |
+
+Bu değerler Windows→VM aktarım bütünlüğüdür; Git blob hash'i değildir, checkout
+satır sonu dönüşümleriyle karıştırılmaz. Ardından yalnız server.crt/server.key
+tekil yollarıyla aktarıldı; CA private key ve development secret'ları aktarılmadı.
+Public leaf SHA256 bölüm12'deki356FA314... değeriyle VM'de OK verdi.
+
+| Kontrol | Gerçek sonuç |
+| --- | --- |
+| VM lab üst klasörü ve tls klasörü | /home/labadmin/.local/share/fullstackops-deploy-lab ve altındaki tls:700, sahibi labadmin |
+| Sunucu dosyaları | server.key600, server.crt644; sahibi labadmin, repository dışında |
+| Ayrı path dosyası | VM checkout kökünde .env.https600/labadmin; yalnız DEPLOYMENT_TLS_DIR, noclobber ile oluşturuldu; mevcut .env.deployment ezilmedi |
+| Sessiz Compose config | Gerçek deployment/TLS env dosyalarıyla config -q exit0; stdout/stderr değerleri paylaşılmadı |
+| Birleşmiş model | Altı servis/fullstackops-deploy-lab project/mevcut app ağı PASS |
+| Image seçimi | Source1b52633776279b1661a7cac53392d385cbf10444 ve release.json API/frontend digest eşleşmesi; build alanları yok PASS |
+| Host portları | API/PostgreSQL/Redis yok; frontend127.0.0.1:18081 ve18443, Prometheus127.0.0.1:19090, Grafana127.0.0.1:13000 yalnız modelde PASS |
+| Mount'lar | Tam üç farklı hedef; doğru config/iki leaf dosyası, bind/read-only/create_host_path false PASS; CA mount yok |
+| Volume ayarları | Ayrı deployment PostgreSQL/Prometheus/Grafana adları, PostgreSQL external PASS; volume işlemi yok |
+| Mevcut frontend probe'u | Modelde HTTP80 wget healthcheck korunuyor PASS |
+| Image kimliği | Seçilmiş frontend digestinin local image ID'si mevcut frontend container Image kimliğiyle eşleşiyor PASS |
+| Geçici test | Aynı Compose modeliyle run --rm --no-deps --pull never -T --entrypoint nginx frontend -t; benzersiz tls-check adı, 90s timeout |
+| nginx -t sonucu | Exit0 ve yakalanan çıktıda hem syntax is ok hem test is successful; yalnız güvenli PASS/status yazdırıldı |
+| Cleanup | --rm ve gerekirse yalnız benzersiz test adına rm -f; son name sorgusunda container yok PASS |
+| Çalışan stack | Başlangıç/bitiş altı container kimlikleri eşit PASS; final tabloda hepsi running/healthy |
+| Etkin HTTPS portu | Final ss18443 listener yok; çalışan frontend yalnız127.0.0.1:18081→80; TLS henüz etkin değil |
+
+Başlangıç ve bitişte korunan container ID'leri:
+
+| Servis | Kısa container ID |
+| --- | --- |
+| frontend | 469774f333b6 |
+| api | 4d572817ca12 |
+| prometheus | 84eaf1ceebb5 |
+| redis | d98d34cc73c5 |
+| grafana | ed9398e62129 |
+| postgres | e9296c518548 |
+
+Finalde monitoring yayınları19090→9090 ve13000→3000 loopback olarak kaldı;
+API8080/Redis6379/PostgreSQL5432 yalnız container portlarıdır. TLS klasörü700,
+crt644, key600 ve .env.https600 final stat çıktısıyla tekrar doğrulandı.
+Test host portu yayınlamadı; frontend recreate, build/pull, migration, CRUD,
+cache temizleme veya kesinti yapılmadı. Mevcut kaynak ağacı/volume/network
+silme veya prune işlemi yoktur;
+tüm Docker network/volume ID envanterinin ayrıca tekrar ölçüldüğü iddia edilmez.
+Seçilmiş GHCR çifti ve release.json korundu; stack mevcut haliyle çalışır bırakıldı.
+
+Sınır: nginx -t, SSL yönergelerini ve gerçek mount'lardaki cert/key dosyalarının
+okunmasını test eder; çalışan bir HTTPS listener, tarayıcı güveni, HTTP/API/CRUD
+veya monitoring regresyon kabulü değildir. Yeni18443 tüneli açılmadı, frontend
+etkinleştirilmedi; bu kontroller **NOT VERIFIED**. Sonraki küçük adım yalnız ayrı
+rehberli frontend TLS etkinleştirmesi ve HTTPS erişim kabulüdür; otomatik başlanmaz.
+Bu görevde yalnız dört repository belgesi güncellenir; commit/push yapılmadı.
+
+Repository belge kontrolleri: secret leakage exit0,66 yerel dosya/anchor bağlantısı
+PASS,7 PowerShell bloğu syntax-only PASS ve git diff --check exit0. Uygulama,
+Compose, release.json ve test kodu değiştirilmedi; index boş, yeni dosya yok.
