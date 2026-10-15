@@ -1,6 +1,6 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
-**Plan tarihi:** 11 Ekim 2026. **Güncel durum (14 Ekim):** VM/Docker, aktarım/env/digest pull, ayrı PostgreSQL ve InitialCreate kabulü PASS. Aynı seçilmiş digestlerle altı servisli image-only başlangıç, internal health, Windows loopback SSH/tarayıcı erişimi ve Nginx HTTP contract/Redis cache kabulü de PASS. Kalan asset/monitoring kabulü ve sonraki kapılar bekliyor. Aşağıdaki planlama kararları tarihsel bağlamıyla korunur; güncel kanıt son bölümde kayıtlıdır.
+**Plan tarihi:** 11 Ekim 2026. **Güncel durum (15 Ekim):** Hazırlık/migration/stack/HTTP-cache kanıtlarına ek olarak gerçek HTML/JS/CSS, Prometheus UP/yeni örnekler ve Grafana datasource/12 panel sorgu kabulü PASS. Seçili SHA/digest çifti korunuyor. Persistence recreate, HTTPS, update/rollback, backup/restore ve lab kapanışı bekliyor. Aşağıdaki planlama kararları tarihsel bağlamıyla korunur; güncel kanıt son bölümde kayıtlıdır.
 
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
@@ -153,7 +153,7 @@ Hedef RPO **24 saat**; kurtarma süresi henüz ölçülmedi. VM/PC kapalıysa g�
 
 ## 9. En küçük uygulama adımları ve kabul kapıları
 
-Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. VM/Docker, aktarım/digest pull, ilk veri hazırlığı, altı servis başlangıç/kimlik/health/SSH erişimi ve Nginx contract/cache 13–14 Ekim kanıtlarıyla tamamlandı. Adım4'ün ayrı JS/CSS kontrolleri ve sonraki runtime kapıları **NOT VERIFIED**.
+Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. Adım1–4 kabulü 13–15 Ekim tarihli kanıtlarla karşılanır; adım6'nın monitoring kısmı ayrıca tamamlandı. Persistence recreate kısmı ve adım5/7/8/9 henüz uygulanmadı. Geçmiş kanıtlar bugün yeniden çalıştırılmış gibi sunulmaz.
 
 | Adım | Yapılacak iş | Kabul kanıtı |
 | --- | --- | --- |
@@ -176,15 +176,15 @@ Normal kapatma `stop` veya project/env hedefi açık `down`; named volume'lar ko
 | Issue #3 maddesi | Bu plandaki karşılık | Bugünkü durum |
 | --- | --- | --- |
 | Sunucu, maliyet, domain | 0 TL yerel VM; public domain ertelendi | Yerel Ubuntu VM/Docker/Compose hazırlığı PASS; internet deployment kabulü yok |
-| Ayrı config ve digest deployment | Image-only override + aynı SHA'lı digest çiftleri | Statik model, digest pull ve çalışan image kimlikleri PASS; tam runtime bekliyor |
-| Secret/volume/migration | VM'e özel kaynaklar ve açık SQL hazırlığı | PASS: ayrı env/volume/TCP auth ve InitialCreate uygulama/tekrar; tam stack runtime kabulü bekliyor |
+| Ayrı config ve digest deployment | Image-only override + aynı SHA'lı digest çiftleri | Statik model/pull/kimlik, HTTP/cache ve asset/monitoring PASS; diğer lab kapıları bekliyor |
+| Secret/volume/migration | VM'e özel kaynaklar ve açık SQL hazırlığı | PASS: ayrı env/volume/TCP auth ve InitialCreate uygulama/tekrar; persistence recreate ayrı bekliyor |
 | Domain ve HTTPS erişimi | Yerel ad/TLS prova; public domain/internet erişimi ayrı gelecek karar | Public kabul NOT VERIFIED; issue tamamlandı sayılmaz |
 | DB/Redis/API kapalı; monitoring sınırlı | Internal portlar, loopback ve SSH yönetimi | Gerçek Docker bind ve Windows loopback tünel PASS; geniş LAN/public ağ kabulü yapılmadı |
-| Health, frontend ve CRUD | Gerçek VM/browser/HTTP kontrolü | Internal üç health200, browser erişimi ve ayrı Nginx HTTP contract/cache kabulü PASS; JS/CSS/monitoring ve tam deployment kapanışı bekliyor |
+| Health, frontend ve CRUD | Gerçek VM/browser/HTTP kontrolü | Önceki health/HTTP-cache ile güncel asset/datasource/12 panel ve yeni örnek kabulü PASS; lab kapanışı bekliyor |
 | Güncelleme ve rollback | İki uyumlu digest çifti + schema uyum kapısı | NOT VERIFIED |
 | Kayıt recreate sonrası korunur | Aynı lab external PostgreSQL volume'u | Önceki local/CI kanıtı var; yeni VM kabulü NOT VERIFIED |
 | Image / migration rollback farkı | Veri silmeyen image dönüşü; destructive InitialCreate.Down uyarısı | Tasarım açık; restore NOT VERIFIED |
-| Development ortamı korunur | Ayrı VM Engine/project/env/volume ve envanter | Bu plan görevinde yalnız doküman değişti; runtime testi yok |
+| Development ortamı korunur | Ayrı VM Engine/project/env/volume ve envanter | Rehberli kabul VM'de ayrı deployment kaynaklarıyla; Windows development Engine/verileri kullanılmadı |
 
 Kullanıcının cevaplarıyla bütçe, erişim, kesinti ve RPO belirlenmiştir. Uygulama öncesinde kalan kısa sorular:
 
@@ -348,3 +348,34 @@ bırakıldı; normal liste cache'i kendi TTL'siyle bırakıldı, test kaydı kal
 Adım4'ün JS/CSS asset erişimi ve monitoring/provisioning kabulü sonraki küçük
 kontrollere ayrılır; persistence recreate, HTTPS, update/rollback ve backup/restore
 henüz uygulanmadı. Release tam runtime alanı NOT VERIFIED kalır.
+
+## 17. Frontend asset ve VM monitoring — 15 Ekim 2026
+
+[Ayrıntılı gerçek sonuçlar](../infrastructure/deployment/README.md#frontend-asset-ve-vm-monitoring-kabulü--15-ekim-2026)
+kullanıcının çalıştırdığı SSH/PowerShell blokları ve Windows browser gözlemine dayanır.
+Başlangıç Git temiz, HEAD aee802e; seçilmiş uygulama kaynağı1b52633776279b1661a7cac53392d385cbf10444
+ve digest çifti değişmedi. Güncel VM IP172.30.249.139; altı healthy, üç VM loopback
+portu doğru, internal servislerde host publish yok. Windows üç port boşken tünel
+yeniden açıldı. Stack zaten sağlıklı olduğu için up/build/recreate çalıştırılmadı.
+
+HTML200/text/html, HTML'in gerçek referansları CSS index-6SMY9-rQ.css200/text/css
+ve JS index-CKhYhs0u.js200/application/javascript PASS. Prometheus api:8080/metrics
+UP/lastError boş/interval15s ve iki farklı scrape PASS. Tek seferlik altı liste GET200
+ile HTTP list13→19, hit2→7, miss11→12 ve invalidation6→6; liste yanıtları aynıydı.
+Baseline09:58:49.959 UTC, trafik10:00:30.346271–10:00:30.356416 UTC,
+Prometheus yeni örnek10:00:34.960 UTC. Grafana datasource aynı değerleri daha yeni
+10:01:34.960 UTC örnekleriyle verdi; yalnız eski grafik görünmesi kanıt sayılmadı.
+
+Grafana datasource UID/internal URL/default/read-only/healthOK, provision edilmiş
+Overview12 panel/refresh15s ve tüm native panel sorguları PASS. Instant panel3/4/8
+null/nonfinite döndü; sorgu hatası yoktu ve sıfıra çevrilmedi. Diğer panellerde sonlu
+örnekler vardı; bu pozitif rate veya benchmark iddiası değildir. Kullanıcı gerçek
+browser'da scrape başarısı, toplam7/12/6 ve görünür hata olmadığını doğruladı;
+otomatik browser console/DOM/network testi yapılmadı.
+
+POST/PUT/DELETE, cache temizleme, kesinti, HTTPS veya backup uygulanmadı. Yeni
+Docker kaynağı/geçici test dosyası oluşmadı. Secret'lar çıktıya yazılmadı; development
+kaynakları korunarak mevcut VM stack'i ve tünel açık bırakıldı. Agent VM deneyini
+tekrarlamadı. Bu üç doküman dışında config/release değişmedi; lab bütünü tamamlanmış
+sayılmaz. Sonraki küçük adım sonuç incelemesi ardından ayrı yetkiyle adım5 yerel
+HTTPS hazırlığıdır; persistence recreate ve diğer kapılar açık kalır.

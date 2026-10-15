@@ -1,11 +1,10 @@
 # Deployment Lab — image seçimi ve statik Compose hazırlığı
 
-14 Ekim 2026: statik hazırlık, rehberli VM aktarımı/env/digest pull, PostgreSQL
-volume/readiness/TCP authentication, InitialCreate SQL uygulama/idempotent tekrar,
-altı servisli image-only stack başlangıcı, Windows SSH/tarayıcı erişimi ve Nginx
-HTTP contract/Redis cache kabulü **PASS**. Tam deployment runtime kabulü için ayrı
-asset/monitoring ve diğer plan kapıları bekliyor; HTTPS ve yedekleme henüz
-**NOT VERIFIED**. Bu bir production
+15 Ekim 2026 güncel durum: 13–14 Ekim'deki hazırlık/migration/stack/HTTP-cache kabulüne
+ek olarak gerçek frontend HTML/JS/CSS erişimi, Prometheus scrape/yeni örnekler ve
+Grafana datasource/12 panel sorguları **PASS**. Sonuçlar aşağıdaki tarihli rehberli
+VM kayıtlarına dayanır. Persistence recreate, HTTPS, update/rollback, backup/restore
+ve lab kapanışı bekliyor; deployment lab bütünüyle tamamlanmadı. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
 ## Amaç ve dosyalar
@@ -227,8 +226,8 @@ eşleşmesi doğrulandı. Yukarıdaki scp komutları alternatif dosya aktarım �
 
 Rehberli VM adımında 1–5 kaynak/env/model/digest pull/PostgreSQL ve SQL hazırlığı
 tamamlandı. Adım6 SQL uygulama/şema ve altı servisin başlangıcı tamamlandı; adım7'nin
-image identity/health/tarayıcı erişimi de PASS. Son HTTP/cache kabulü aşağıdaki ayrı
-kayıtta tamamlandı; asset/monitoring ve diğer runtime kapıları bekliyor.
+image identity/health/tarayıcı erişimi de PASS. HTTP/cache ve 15 Ekim asset/monitoring
+kabulü aşağıdaki ayrı kayıtlarda tamamlandı; diğer plan kapıları bekliyor.
 Ubuntu statik unittest komutu ayrıca çalıştırılmış sayılmaz.
 Aşağıdaki tarihli kanıt kayıtları bu sınırları korur.
 Normal kapatma project/env/override hedefiyle `down` olur; volume silme rutin adım
@@ -595,3 +594,155 @@ Repository son kontrolleri: Windows'ta statik deployment testi2/2 PASS, secret
 leakage kontrolü exit0, 45 yerel dosya/anchor bağlantısı PASS ve git diff --check
 exit0. Yalnız bu README, deployment planı ve PROJECT_STATUS değişti; index boş.
 Uygulama/config/release dosyaları değişmedi. Commit/push yapılmadı.
+
+## Frontend asset ve VM monitoring kabulü — 15 Ekim 2026
+
+Komutları kullanıcı Ubuntu SSH terminalinde ve Windows PowerShell'de çalıştırdı;
+Grafana Overview'u Windows tarayıcısında inceledi. Agent repository dosyalarını ve
+paylaşılan gerçek çıktıları değerlendirdi; VM'ye bağlanıp deneyleri tekrarlamadı.
+Repository inceleme HEAD'i `aee802e5573c27f65908acea58b341fdc8b2c809`, çalışan
+uygulama için seçilmiş source/release çifti hâlâ
+`1b52633776279b1661a7cac53392d385cbf10444` ve yukarıdaki iki GHCR digest'idir.
+Bu oturumda container image identity inspect tekrarlanmadı; önceki kabul yeniden
+kullanıldı, release/config/image seçimi değiştirilmedi.
+
+### Oturum başlangıcı ve erişim
+
+- VM hostname `fullstackopslabvm`; DHCP eth0 IPv4 artık `172.30.249.139`.
+  Önceki `172.24.37.174` tarihsel IP'dir; tünel hedefi güncellendi.
+- Salt okunur `docker ps -a --filter label=com.docker.compose.project=fullstackops-deploy-lab`
+  sonucunda altı servis healthy idi: frontend/API/Redis/Prometheus/Grafana Up23hours,
+  PostgreSQL Up47hours. Bu süreler tek gözlemdir; uptime garantisi değildir.
+- VM yayınları frontend127.0.0.1:18081, Prometheus127.0.0.1:19090,
+  Grafana127.0.0.1:13000; API/PostgreSQL/Redis host portu yok.
+- Windows28081/29090/23000 listener kontrolünde üç port boştu. Windows'ta loopback
+  SSH tüneli yeni VM IP'sine açıldı. Kullanıcı frontend/Prometheus arayüzlerine ve
+  Grafana deployment hesabına erişimi doğruladı. Var olan healthy stack için
+  Compose up/build/recreate gerekmemiştir.
+
+Windows PowerShell'de kullanılan tünel; bu pencere açık tutulur:
+
+```powershell
+ssh -N -T -o ConnectTimeout=10 -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -L 127.0.0.1:28081:127.0.0.1:18081 -L 127.0.0.1:29090:127.0.0.1:19090 -L 127.0.0.1:23000:127.0.0.1:13000 labadmin@172.30.249.139
+```
+
+Grafana hesabını bulmak için kullanıcı yalnız VM'deki mevcut `.env.deployment`
+dosyasını salt okunur editörde inceledi; değerler paylaşılmadı/değiştirilmedi.
+Authenticated testlerde yalnız Grafana container'ının iki admin environment alanı
+child stdout'tan belleğe alındı; Basic auth token'ı bellekte üretildi. Ham credential,
+header veya container environment dökümü yazdırılmadı. Grafana yanıtları parola/token
+eşleşmesi için bellekte kontrol edildi; hassas exception ayrıntıları gizlendi.
+Bu sınırlı kontrol kapsamlı log/secret audit'i değildir.
+
+[Datasource testi](../../tests/Module10.Grafana.Smoke.ps1),
+[Prometheus testi](../../tests/Module10.Prometheus.Smoke.ps1) ve
+[dashboard testi](../../tests/Module10.Dashboard.Smoke.py) incelendi; ilgili metadata,
+query ve freshness assertion'ları deployment adreslerine uyarlanan stdin Python
+bloklarıyla kullanıldı. Scriptlerin tamamı çalıştırılmadı: varsayılan development
+hedefleri ve Prometheus/dashboard scriptlerindeki CRUD/kesinti adımları bu görevin
+kapsamına taşınmadı. Agent yerelde runtime smoke testleri çalıştırmış gibi sunulmaz.
+
+### Frontend asset sonuçları
+
+Ubuntu `urllib.request` ile VM Nginx root HTML'i okundu; `HTMLParser` gerçek script
+src ve stylesheet href'lerini çıkardı. Aynı origin'e ait dosyalar indirilip status,
+MIME ve boş olmayan body kontrol edildi. HTML fallback JS/CSS başarısı sayılmadı;
+JavaScript bu kontrol tarafından çalıştırılmadı.
+
+| Yol | HTTP | Content-Type | Sonuç |
+| --- | --- | --- | --- |
+| `/` | 200 | text/html | PASS |
+| `/assets/index-6SMY9-rQ.css` | 200 | text/css | PASS |
+| `/assets/index-CKhYhs0u.js` | 200 | application/javascript | PASS |
+
+### Prometheus target ve yeni örnek kanıtı
+
+VM127.0.0.1:19090 `/api/v1/targets`: tek API job hedefi
+`http://api:8080/metrics`, interval15s, health up, lastError boş. İki farklı başarılı
+lastScrape `2026-10-15T09:55:04.960507499Z` ve `09:55:19.960610838Z` gözlendi.
+PromQL `up{job="fullstack-ops-api",instance="api:8080"}` değeri1;
+`timestamp(up{job="fullstack-ops-api",instance="api:8080"})` gerçek örnek zamanı
+`09:55:19.960 UTC` verdi. `up` scrape başarısıdır; dependency readiness testi değildir.
+
+Frontend sekmesi kapatıldı; önceki sayaçların değişmediği tekrar doğrulandıktan
+sonra Nginx üzerinden yalnız altı liste GET yapıldı. Altı yanıt HTTP200 ve aynı
+JSON listesiydi; Task mutation yapılmadı. Trafik UTC10:00:30.346271–10:00:30.356416
+aralığındaydı. Bu kısa zaman aralığı benchmark veya gecikme garantisi olarak kullanılmaz.
+Sonraki başarılı scrape için 45 saniye timeout ile beklendi.
+
+| Sayaç / gerçek seri | Önce | Sonra | Fark |
+| --- | ---: | ---: | ---: |
+| Liste GET / http_server_request_duration_seconds_count | 13 | 19 | +6 |
+| fullstackops_cache_hits_total | 2 | 7 | +5 |
+| fullstackops_cache_misses_total | 11 | 12 | +1 |
+| fullstackops_cache_invalidations_total | 6 | 6 | 0 |
+
+Hepsi `job="fullstack-ops-api",instance="api:8080"` ile sorgulandı. HTTP listesi
+ek olarak `http_request_method="GET",http_route=~"/api/tasks/?"` ile sınırlandı;
+buradaki13/19 tüm endpoint'lerin genel HTTP toplamı değildir. Her seri için sum
+ile değer, min(timestamp(selector)) ile gerçek scrape zamanı alındı; sabit query
+evaluation time kullanıldı. Sonuç yokken sıfır uydurulmadı.
+
+| Okuma | Dört sayacın gerçek örnek zamanı (UTC, 15 Ekim) | Kanıt |
+| --- | --- | --- |
+| Prometheus baseline | 09:58:49.959 | 13 / 2 / 11 / 6 |
+| Prometheus trafik sonrası | 10:00:34.960 | 19 / 7 / 12 / 6; örnekler trafik bitişinden sonra |
+| Grafana datasource proxy | 10:01:34.960 | Aynı19 / 7 / 12 / 6; örnekler trafik sonrası ve sorgu anında en çok35s yaşında |
+
+Grafana'da `/api/datasources/proxy/uid/fullstack-ops-prometheus/api/v1/query`
+üzerinden aynı gerçek selector'lar sorgulandı; yeni counter değerleri ve örnek
+zamanları birlikte doğrulandı. Yalnız eski grafiğin görünmesi veya query response
+evaluation timestamp'ı recovery/freshness kanıtı sayılmadı. Bu görevde kesinti veya
+recovery deneyi yoktur. Sınırlı GET trafiğinin etkisi bir miss/beş hit ve sıfır yeni
+invalidation olarak gözlendi; önceki6 invalidation tarihsel sayaç birikimidir.
+
+### Grafana datasource, provisioning ve panel sorguları
+
+- Datasource `fullstack-ops-prometheus`: type prometheus, URL
+  `http://prometheus:9090`, default ve readOnly; health status OK: PASS.
+- Dashboard `fullstack-ops-overview`, başlık FullStack Ops Lab Overview;
+  meta.provisioned true, ID1–12 olmak üzere12 panel, refresh15s ve tüm target'larda
+  sabit datasource UID: PASS.
+- Provision edilen JSON'daki gerçek expr/refId/datasource alanlarıyla Grafana
+  `/api/ds/query` çalıştırıldı. Instant/table sorguları için tüm refId yanıtları,
+  HTTP200 ve nested result error/status kontrolleri PASS; hiçbir panelde sorgu hatası yok.
+
+| Panel ID'leri | Gerçek instant sorgu gözlemi |
+| --- | --- |
+| 1, 2, 5, 6, 9, 10, 11, 12 | Her panelde bir sonlu sayısal örnek |
+| 7 (hit ve miss rate) | İki sonlu sayısal örnek |
+| 3 (5xx oranı), 4 (p95), 8 (hit oranı) | Her panelde bir null/nonfinite sayısal hücre; sorgu hatası yok |
+
+Rate/p95 panelleri gerçek dashboard'un2m penceresini kullanır. Trafik kesildikten
+sonra payda/observed request olmayan pencerede oran/p95 null veya NaN olabilir;
+bu datasource hatası değildir. Grafana'nın null döndürdüğü hücrenin tam upstream
+NaN biçimi ayrıca sınıflandırılmadı. Sıfıra dönüştürülmedi; sonlu örneğin varlığı da
+tek başına pozitif trafik varmış gibi sunulmadı.
+
+Kullanıcı Windows tarayıcısında
+`http://127.0.0.1:23000/d/fullstack-ops-overview/fullstack-ops-lab-overview` açıp
+API scrape başarısını, hit7/miss12/invalidation6 toplamlarını ve görünür kırmızı
+hata olmadığını bildirdi. On iki panelin varlığı ve sorguları API kontrolleriyle
+kanıtlandı; otomatik DOM/console/network veya her panelin tarayıcıda ayrı render
+ölçümü bu görevde yapılmadı. Ekran görüntüsü veya yeni browser aracı eklenmedi.
+
+### Bırakılan durum ve sınırlar
+
+Yeni Task kaydı, migration, key silme/FLUSH, volume veya container oluşturma/
+kaldırma, image build/pull/değiştirme ve uygulama/config değişikliği yapılmadı.
+Liste GET normal mevcut cache davranışını kullandı; cache temizlenmedi. Stack
+ve Windows tüneli çalışır bırakıldı; development Engine/verileri, .env ve
+user-secrets değiştirilmedi. Başlangıç altı healthy kabulü sonrası ayrı bir final
+inspect/env dökümü yapılmış gibi sunulmaz.
+
+Bu adım asset ve monitoring kabulünü tamamlar. Önceki migration/HTTP-cache kanıtları
+tarihleriyle korunur. Persistence recreate, HTTPS, update/rollback, yedekleme ve
+kapanış henüz uygulanmadı. `release.json` birleşik tam-runtime durum alanı bu
+dokümantasyon adımında değiştirilmedi; lab bütünüyle Completed işaretlenmez.
+Sonraki küçük iş bu sonuçların incelenmesi, ardından ayrı yetkiyle planın yerel
+HTTPS hazırlık adımıdır; bu görevde başlanmadı. Commit/push yapılmadı.
+
+Repository son kontrolleri: secret leakage exit0, 49 yerel dosya/anchor bağlantısı
+PASS ve git diff --check exit0. Yalnız deployment README, deployment planı ve
+PROJECT_STATUS değişti; index boş, config/release/SHA/digest çifti aynı.
+Uygulama/config değişmediği için yeni build veya VM runtime tekrarı yapılmadı.
