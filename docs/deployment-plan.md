@@ -1,6 +1,6 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
-**Plan tarihi:** 11 Ekim 2026. **Güncel durum (15 Ekim):** Hazırlık/migration/stack/HTTP-cache kanıtlarına ek olarak gerçek HTML/JS/CSS, Prometheus UP/yeni örnekler ve Grafana datasource/12 panel sorgu kabulü PASS. Seçili SHA/digest çifti korunuyor. Persistence recreate, HTTPS, update/rollback, backup/restore ve lab kapanışı bekliyor. Aşağıdaki planlama kararları tarihsel bağlamıyla korunur; güncel kanıt son bölümde kayıtlıdır.
+**Plan tarihi:** 11 Ekim 2026. **Güncel durum (15 Ekim):** Hazırlık/migration/stack/HTTP-cache, asset ve monitoring kabulü PASS. Aynı frontend image'ında read-only config/key mount ile yerel HTTPS dosyaları statik olarak hazır; VM'ye uygulanmadı. Seçili SHA/digest çifti korunuyor. Sertifika/trust/HTTPS runtime, persistence recreate, update/rollback, backup/restore ve lab kapanışı bekliyor. TLS tasarım değişikliği ve sınırları bölüm18'de kayıtlıdır.
 
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
@@ -44,10 +44,10 @@ VM kendi Docker Engine'ini kullanır; Windows development Engine'ine Docker cont
 
 ```mermaid
 flowchart TB
-    B[Windows tarayıcı — yalnız yerel demo] -->|localhost SSH tüneli / HTTPS| TLS[Linux VM host Nginx — TLS]
-    TLS -->|127.0.0.1:18081| F
+    B[Windows tarayıcı — yalnız yerel demo] -->|HTTPS / localhost18443 SSH tüneli| TLS[VM loopback18443]
     subgraph VM[VM — ayrı Docker Engine ve Compose app ağı]
-        F[frontend:80 — mevcut Nginx ve React] -->|/api/*| A[api:8080]
+        TLS -->|Docker port mapping| F[frontend:443 TLS / :80 teşhis<br/>mevcut Nginx ve React]
+        F -->|HTTP /api/*| A[api:8080]
         A --> P[postgres:5432]
         A --> R[redis:6379]
         M[prometheus:9090] -->|15 s /metrics| A
@@ -58,11 +58,11 @@ flowchart TB
     end
 ```
 
-Altı Compose servisi ve mevcut roller korunur. Host Nginx yalnız HTTPS giriş katmanı önerisidir; ayrı yedinci Compose servisi eklenmez. Frontend image içindeki Nginx statik dosyaları sunmaya ve `api:8080` hedefini kullanmaya devam eder. Host portu ile container portu aynı kavram değildir: host Nginx `127.0.0.1:18081` üzerinden frontend'e, frontend ise Docker DNS ile `api:8080` üzerinden backend'e gider. Host Nginx Docker servis adını doğrudan çözmeye çalışmaz.
+Altı Compose servisi ve mevcut roller korunur. İlk host Nginx önerisinin yerine, 15 Ekim hazırlığında mevcut frontend Nginx'in TLS sonlandırması seçildi: host paketi/yedinci servis veya image build eklenmez. Deployment'a özel config ve leaf certificate/key read-only bağlanır. VM127.0.0.1:18443 frontend443'e, frontend Docker DNS üzerinden api:8080'e gider. API bağlantısı HTTP'dir; tüm internal servislerde TLS iddiası yoktur. Bu diyagram hazırlanan hedefi gösterir; TLS henüz VM'de etkin değil.
 
 ## 4. Adres, HTTPS ve açık/kapalı portlar
 
-Yerel ad önerisi `tasks.fullstackops.test`; ileride yalnız host üzerinde localhost eşlemesi yapılır, public DNS kaydı değildir. Önerilen erişim `https://tasks.fullstackops.test:18443/`: Windows'ta boşluğu doğrulanmış localhost 18443 SSH tüneli, VM loopback 443 host Nginx'e gider. HTTP yönlendirmesi denenirse ayrı localhost 18080 tüneli kullanılır; Location hedefinin yerel HTTPS portunu koruduğu doğrulanır. Bunlar plan değerleridir, henüz açılmadı.
+Yerel ad `tasks.fullstackops.test`; ileride Windows hosts dosyasında127.0.0.1'e eşlenir, public DNS değildir. Hazırlanan erişim `https://tasks.fullstackops.test:18443/`: Windows127.0.0.1:18443 SSH tüneli → VM127.0.0.1:18443 → frontend443. İki hostta18443 boşluğu henüz doğrulanmadı. HTTP28081→VM18081 teşhis/health için korunur; otomatik HTTP redirect bu küçük adımda eklenmez. Tünel ve sertifika kurulum komutları [HTTPS rehberinde](../infrastructure/deployment/HTTPS.md) incelemeye hazırdır, çalıştırılmadı.
 
 Yerel CA ile imzalanmış, bu ada SAN içeren sertifika önerilir. Yalnız lab istemcisinin güvenmesi ve lab anahtarlarının Git dışında kalması gerekir; trust-store değişikliği ancak kullanıcı onayıyla sonraki adımda yapılır. CA özel anahtarı servisler/image'lar ile paylaşılmaz; sunucu sertifika anahtarı dar izinle tutulur. Tarayıcı uyarısını geçmek veya TLS doğrulamasını kapatmak HTTPS kabulü değildir. [Nginx HTTPS](https://nginx.org/en/docs/http/configuring_https_servers.html).
 
@@ -70,9 +70,9 @@ Gerçek internet deployment'ı ileride seçilirse erişilebilir sunucu, kontrol 
 
 | Bileşen | Yerel VM planı | İleride internet deployment'ı seçilirse |
 | --- | --- | --- |
-| Host TLS Nginx | VM loopback 443; tarayıcıya yalnız localhost SSH tüneli | 443 HTTPS; gerektiğinde 80 redirect/ACME |
+| Frontend Nginx TLS | VM loopback18443 → frontend443; Windows18443 SSH tüneli | Public CA/domain/port tasarımı ayrıca kararlaştırılır |
 | SSH | VM özel ağında yalnız host yönetimi | Yönetici kaynağına sınırlı; Docker remote API açılmaz |
-| frontend:80 | VM loopback 18081; doğrudan internet/LAN yok | Yine loopback; host TLS proxy arkasında |
+| frontend:80 | VM loopback18081; mevcut HTTP teşhisi ve healthcheck | İnternet yayını ayrı tasarım kararıdır |
 | api:8080 | Host yayını yok | Host yayını yok |
 | postgres:5432 / redis:6379 | Host yayını yok | Host yayını yok |
 | prometheus:9090 / grafana:3000 | VM loopback; gerekirse localhost 19090/13000 SSH tünelleri | İnternete açık port yok; yönetim tüneli |
@@ -80,7 +80,7 @@ Gerçek internet deployment'ı ileride seçilirse erişilebilir sunucu, kontrol 
 
 Uygulamada kullanıcı/rol yetkilendirmesi yoktur. HTTPS bağlantıyı korur, CRUD'a yetki kontrolü eklemez. Sınırlı demo kararı bu nedenle anlamlıdır; public erişim ileride yeniden değerlendirilir. Redis de mevcut internal yapıda parolasızdır; host portunu açmak uygun değildir.
 
-Host ve frontend Nginx arasında forwarded header zinciri ayrıca incelenir: mevcut frontend `X-Forwarded-Proto` değerini kendi `$scheme` değeriyle değiştirir; host TLS eklenince API'nin HTTPS/client IP bildiği varsayılmaz. Mevcut API forwarded headers/HTTPS redirection kullanmıyor. HTTPS sınırının host Nginx olduğu belgelenir; gerekirse header güveni için minimal öneri ayrı incelemeye sunulur, backend sözleşmesi kendiliğinden değiştirilmez. Docker published portları ile UFW etkileşimi nedeniyle yalnız firewall kuralına güvenmek yerine loopback binding ve gerçek erişim testi birlikte kullanılır. [Docker firewall açıklaması](https://docs.docker.com/engine/network/packet-filtering-firewalls/).
+HTTPS sınırı frontend Nginx'tir. Deployment config X-Forwarded-Proto için kendi $scheme değerini, Host için dış18443 portunu da içeren $http_host değerini gönderir. Mevcut API forwarded headers/HTTPS redirection kullanmaz; client IP/scheme'i otomatik doğru bildiği varsayılmaz. Backend sözleşmesi değiştirilmez. Docker published portları ile UFW etkileşimi nedeniyle loopback binding ve gerçek erişim testi birlikte kullanılır. [Docker firewall açıklaması](https://docs.docker.com/engine/network/packet-filtering-firewalls/).
 
 ## 5. Deployment yapılandırması ve GHCR digest'leri
 
@@ -161,7 +161,7 @@ Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz
 | 2 — Deployment dosyaları | Küçük image-only override, örnek deployment env/kimlik kaydı ve güvenli preflight | Build alanları yok, digest çifti aynı SHA, config-q, secret kontrolü, ayrı volume adı; local Compose değişmemiş |
 | 3 — İlk veri hazırlığı | Yalnız lab volume/PostgreSQL; açık SQL üretme/inceleme/uygulama | TCP auth başarılı; tasks/history doğru; migration hata exit code kapısı; API auto-migration yok |
 | 4 — GHCR runtime | Altı servisi çekilen image'larla başlat, kimliklerini eşleştir | Altı healthy; internal live/ready200; HTML/JS/CSS200; CRUD/Location/altı JSON alanı/nullable/400/404; cache miss/hit/TTL/invalidation |
-| 5 — Yerel HTTPS | Host Nginx, lab sertifikası ve yalnız localhost SSH erişimi | Gerçek browser sertifika/hostname doğrulaması; CRUD aynı origin'de; erişilemeyen DB/Redis/API/monitoring public portları |
+| 5 — Yerel HTTPS | Mevcut frontend Nginx'e read-only config/leaf mount, lab CA ve localhost SSH | Statik dosyalar hazır; sertifika/trust/nginx -t ve gerçek HTTPS/browser/API kabulü bekliyor |
 | 6 — Kalıcılık ve gözlem | PostgreSQL recreate, Prometheus ve Grafana kontrolleri | Aynı lab volume'da görev ID/alanları korunur; Prometheus UP/yeni örnek; datasource ve 12 panel otomatik; readiness ayrı kontrol |
 | 7 — Güncelleme/rollback | İki uyumlu published digest çiftiyle kontrollü geçiş/dönüş | Her iki sürümün SHA/digest/container identity ve HTTP kabulü; veri korunmuş; gerçek kesinti süresi kaydı |
 | 8 — Yedek/restore | Günlük yedek planı ve yeni test DB'ye bir restore | Başarılı dump/checksum, güncel yedek zamanı; ayrı restore'da görev/history doğrulaması; owned cleanup |
@@ -379,3 +379,27 @@ kaynakları korunarak mevcut VM stack'i ve tünel açık bırakıldı. Agent VM 
 tekrarlamadı. Bu üç doküman dışında config/release değişmedi; lab bütünü tamamlanmış
 sayılmaz. Sonraki küçük adım sonuç incelemesi ardından ayrı yetkiyle adım5 yerel
 HTTPS hazırlığıdır; persistence recreate ve diğer kapılar açık kalır.
+
+## 18. Yerel HTTPS statik hazırlığı — 15 Ekim 2026
+
+Önceki beklenti VM'de ayrı host Nginx ile TLS idi. Kullanıcının mevcut image'ı
+değiştirmeden read-only config talebi doğrultusunda TLS frontend container'ına
+alındı. Aynı altı servis/digest, daha az host kurulumu ve tek Nginx proxy zinciri
+tercih edildi. Bu public deployment veya production hardening kararı değildir.
+
+[HTTPS rehberi](../infrastructure/deployment/HTTPS.md), üçüncü overlay,
+Nginx config ve path placeholder örneği hazır. TLS adı tasks.fullstackops.test;
+Windows18443 → VM18443 → frontend443. CA Windows'ta kalacak; yalnız leaf cert/key
+VM'de repository dışında saklanıp iki ayrı read-only mount ile bağlanacak.
+HTTP18081 ve mevcut healthcheck/monitoring topolojisi korunur. HTTP redirect,
+HSTS veya API forwarded-header değişikliği eklenmedi.
+
+Gerçek Compose parser/model ile5/5 statik test PASS: no-build/digestler, diğer
+beş servisin aynı modeli, altı servis/ağ/volume'lar, loopback portlar, üç read-only
+bind/create_host_path false, eksik/boş TLS path reddi ve Git ignore davranışı.
+Başlangıçta yeni guard'ların eksik overlay/ignore nedeniyle başarısız olduğu görüldü.
+Test fixture dışında gerçek env/user-secrets okunmadı; testler Engine kullanmadı.
+Nginx syntax/SSL modülü, certificate/key uyumu ve HTTPS health/browser/API
+kontrolleri NOT VERIFIED. Sertifika/trust/hosts veya VM stack değişikliği yoktur.
+Plan adım5 henüz runtime Completed değildir. Sıradaki küçük iş dosya/komut
+incelemesi, ardından ayrı rehberli CA/leaf/güven hazırlığıdır; otomatik uygulanmaz.

@@ -16,3 +16,14 @@
 .npm-cache/
 
 .dotnet-cli/
+
+**/tls-private/
+*.key
+*.pem
+*.crt
+*.cer
+*.pfx
+*.p12
+*.csr
+*.der
+*.srl

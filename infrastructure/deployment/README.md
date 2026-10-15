@@ -4,7 +4,8 @@
 ek olarak gerçek frontend HTML/JS/CSS erişimi, Prometheus scrape/yeni örnekler ve
 Grafana datasource/12 panel sorguları **PASS**. Sonuçlar aşağıdaki tarihli rehberli
 VM kayıtlarına dayanır. Persistence recreate, HTTPS, update/rollback, backup/restore
-ve lab kapanışı bekliyor; deployment lab bütünüyle tamamlanmadı. Bu bir production
+ve lab kapanışı bekliyor. Yerel HTTPS dosyaları ayrıca statik olarak hazır;
+sertifika/trust veya VM uygulaması yapılmadı. Deployment lab bütünüyle tamamlanmadı. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
 ## Amaç ve dosyalar
@@ -19,6 +20,9 @@ korunur. Nginx frontend image'ının içinde kalır.
 - [release.json](release.json): kaynak SHA, run ve iki immutable image kimliği.
 - [Statik test](../../tests/Deployment.Configuration.Test.py): gerçek Compose
   parser'ını kullanır; Engine, registry pull, .env veya user-secrets gerekmez.
+- [HTTPS hazırlığı ve kurulum komutları](HTTPS.md): isteğe bağlı üçüncü
+  [overlay](compose.https.yaml), [Nginx config](nginx/https.conf) ve
+  [TLS path örneği](https.env.example); şu anda VM'de etkin değildir.
 
 API/frontend için `build: !reset null` kaynak build alanını siler. Sadece `image`
 eklemek build alanını kaldırmaz. `ports: !override` eski ve yeni port listelerinin
@@ -746,3 +750,17 @@ Repository son kontrolleri: secret leakage exit0, 49 yerel dosya/anchor bağlant
 PASS ve git diff --check exit0. Yalnız deployment README, deployment planı ve
 PROJECT_STATUS değişti; index boş, config/release/SHA/digest çifti aynı.
 Uygulama/config değişmediği için yeni build veya VM runtime tekrarı yapılmadı.
+
+## Yerel HTTPS dosya hazırlığı — 15 Ekim 2026
+
+[Somut yapılandırma ve terminale göre ayrılmış gelecek komutları](HTTPS.md)
+incelemeye hazırdır. Önceki host Nginx önerisi yerine aynı frontend image'ında
+read-only deployment Nginx config'i TLS sonlandırır. Yeni image/yedinci servis
+yok; API/postgres/redis host portu açılmaz, monitoring loopback düzeni korunur.
+
+Statik model5/5 PASS; TLS ancak üçüncü compose.https.yaml açıkça eklendiğinde
+modele girer. İki dosyalı mevcut deployment ve development Compose davranışı
+korundu. Şu an çalışan VM/frontend/tüneller değiştirilmedi. `nginx -t`, sertifika
+üretimi, SAN/süre/key eşleşmesi, Windows CA güveni/hosts ve gerçek HTTPS/browser
+kabulü NOT VERIFIED. HTTP→HTTPS redirect yok; HTTP teşhis ve mevcut healthcheck
+ayrı kalır. Seçilmiş SHA/digest/release aynıdır; commit/push yapılmadı.
