@@ -1,9 +1,10 @@
 # Yerel HTTPS — hazırlık ve sonraki uygulama rehberi
 
-15 Ekim 2026: **yalnız repository dosyaları ve statik Compose modeli hazır**.
-Bu sayfadaki Windows/Ubuntu kurulum komutları **bu görevde çalıştırılmadı**.
-Sertifika üretimi, Windows güven deposu/hosts değişikliği ve frontend recreate
-ancak sonraki rehberli uygulamada yapılacak. Çalışan VM stack'i ve mevcut tüneller korunur.
+15 Ekim 2026: statik yapılandırma b19f620 commit'iyle yayımlandı; ardından
+**Windows lab CA, sunucu sertifikası ve hosts hazırlığı kullanıcı tarafından doğrulandı**.
+Gerçek sonuçlar bölüm12'dedir; agent private dosyaları okumadı veya işlemleri
+kullanıcı yerine çalıştırmadı. VM'ye TLS aktarımı, frontend recreate, yeni HTTPS
+tüneli ve gerçek HTTPS/browser kabulü henüz yapılmadı. Mevcut VM stack'i ve tüneller korunur.
 Komut grupları sırayla sonuç incelenerek uygulanacak; bir grup başarısızsa sonraki
 gruba geçilmez. Bütün belge tek seferde terminale yapıştırılmaz.
 
@@ -77,14 +78,19 @@ gerçek listener ve Docker mapping ayrıca doğrulanacak. Dockerfile değişmez.
 
 Tek SAN: **DNS:tasks.fullstackops.test**. DHCP VM IP'si ve localhost SAN değildir;
 browser URL'si `https://tasks.fullstackops.test:18443/` olmalıdır. `.test` için public
-DNS/domain satın alınmaz; Windows hosts eşlemesi127.0.0.1 olacaktır.
+DNS/domain satın alınmaz; Windows hosts eşlemesi127.0.0.1 olarak doğrulandı.
 
 Önerilen araç Windows'ta [resmî mkcert](https://github.com/FiloSottile/mkcert).
 Yerel CA Windows'ta oluşturulur; CA private key **VM'ye veya container'a gönderilmez**.
 Nginx'e yalnız leaf `server.crt` ve `server.key` gider. Windows tarayıcısı yerel CA'nın
-public sertifikasına güvenir. Bunun için ileride mkcert `-install` gerekir;
+public sertifikasına güvenmesi için mkcert `-install` uygulandı;
 `TRUST_STORES=system` diğer store'lara otomatik işlem yapılmasını sınırlar.
-Yönetici onayı gerekebilir; bu görevde hiçbiri uygulanmadı.
+v1.4.4 Windows implementasyonu `CertOpenSystemStoreW("ROOT")` kullanır:
+hedef **Geçerli Kullanıcı → Güvenilen Kök Sertifika Yetkilileri**, PowerShell'de
+`Cert:\CurrentUser\Root` deposudur; LocalMachine değildir. Kullanıcının public CA
+thumbprint'i bu depoda bulundu. Kaynaklar: [mkcert v1.4.4 Windows kodu](https://github.com/FiloSottile/mkcert/blob/v1.4.4/truststore_windows.go),
+[Microsoft depo kapsamı](https://learn.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-certopensystemstorew#remarks).
+Bu depo kontrolü, henüz açılmamış HTTPS adresinin tarayıcı kabulü değildir.
 
 | Dosya | Gelecekte önerilen yer | Git durumu |
 | --- | --- | --- |
@@ -114,14 +120,16 @@ sudo ss -ltnp '( sport = :18443 )'
 
 ```powershell
 Get-NetTCPConnection -State Listen -LocalPort 18443 -ErrorAction SilentlyContinue
-Get-Command mkcert -ErrorAction Stop
-mkcert -version
+$mkcertExe = Join-Path $env:LOCALAPPDATA 'FullStackOpsLab\tools\mkcert\mkcert.exe'
+Get-Item -LiteralPath $mkcertExe -ErrorAction Stop | Select-Object FullName
+& $mkcertExe -version
 if ($LASTEXITCODE -ne 0) { throw 'mkcert kullanilamiyor' }
 ```
 
 mkcert yoksa burada durulur; resmî Windows release'inin ayrı indirme/kurulum ve
-bütünlük incelemesi gerekir. Bu hazırlıkta araç indirilmedi/kurulmadı; belirli bir
-binary hash'i doğrulanmış gibi sunulmaz. Ücretli hizmet gerekmez.
+bütünlük incelemesi gerekir. Kullanıcının 15 Ekim'de indirdiği portable v1.4.4 ve
+doğruladığı hash bölüm12'de kayıtlıdır. PATH değişikliği gerekmedi; komutlar tam
+araç yolunu kullanır. Ücretli hizmet gerekmez.
 
 ## 5. Dosya aktarımı — sonraki uygulama
 
@@ -165,9 +173,10 @@ Get-FileHash infrastructure/deployment/compose.https.yaml, infrastructure/deploy
 sha256sum infrastructure/deployment/compose.https.yaml infrastructure/deployment/nginx/https.conf
 ```
 
-## 6. Yerel CA ve leaf hazırlığı — gelecekte Windows PowerShell
+## 6. Yerel CA ve leaf hazırlığı — ilk kurulum örneği
 
-Bu grup **sertifika ve güven deposu değiştirir; şimdi çalıştırılmayacak**.
+Bu grup **sertifika ve güven deposu değiştirir; şimdi tekrar çalıştırılmayacak**.
+Kullanıcı CA/leaf hazırlığını ayrı küçük komut gruplarıyla tamamladı (bölüm12).
 Ayrı yeni PowerShell oturumu kullanılır; aşağıdaki env ayarları yalnız bu oturum
 içindir, setx kullanılmaz. Repo dışı bu lab dizini zaten varsa önce içeriği/sahipliği
 incelenir; komut mevcut dosyaları sıfırlamak için tekrar çalıştırılmaz.
@@ -176,13 +185,15 @@ incelenir; komut mevcut dosyaları sıfırlamak için tekrar çalıştırılmaz.
 & {
 $tlsLab = Join-Path $env:LOCALAPPDATA 'FullStackOpsLab\deployment-tls'
 if (Test-Path -LiteralPath $tlsLab) { throw 'TLS lab dizini mevcut; once incele' }
+$mkcertExe = Join-Path $env:LOCALAPPDATA 'FullStackOpsLab\tools\mkcert\mkcert.exe'
+if (!(Test-Path -LiteralPath $mkcertExe -PathType Leaf)) { throw 'mkcert bulunamadi' }
 $env:CAROOT = Join-Path $tlsLab 'ca'
 $env:TRUST_STORES = 'system'
 $leafDir = Join-Path $tlsLab 'server'
 New-Item -ItemType Directory -Path $env:CAROOT, $leafDir -ErrorAction Stop | Out-Null
-mkcert -install
+& $mkcertExe -install
 if ($LASTEXITCODE -ne 0) { throw 'Yerel CA guven kurulumu basarisiz' }
-mkcert -cert-file (Join-Path $leafDir 'server.crt') -key-file (Join-Path $leafDir 'server.key') tasks.fullstackops.test
+& $mkcertExe -cert-file (Join-Path $leafDir 'server.crt') -key-file (Join-Path $leafDir 'server.key') tasks.fullstackops.test
 if ($LASTEXITCODE -ne 0) { throw 'Leaf sertifika uretimi basarisiz' }
 Get-FileHash (Join-Path $env:CAROOT 'rootCA.pem'), (Join-Path $leafDir 'server.crt') -Algorithm SHA256
 }
@@ -287,8 +298,9 @@ kimliği/health yeniden kontrol edilir. Doğru deployment env ve üç -f dosyas�
 sonraki frontend yönetiminde birlikte kullanılır; iki dosyalı up TLS mount'larını
 kaldırabilir. TLS private key loglanmaz, nginx -T/full inspect çıktısı paylaşılmaz.
 
-**Windows:** yönetici yetkisiyle hosts dosyasını elle açıp yalnız şu eşlemeyi ekle;
-var olan satırları silme ve VM DHCP IP'sini bu satıra yazma:
+**Windows hosts:** aşağıdaki eşleme 15 Ekim'de kullanıcı tarafından eklendi ve
+doğrulandı; tekrar ekleme. İlk kurulumda yönetici olarak yalnız bu satır eklenir;
+var olan satırlar silinmez ve VM DHCP IP'si bu satıra yazılmaz:
 
 ```text
 127.0.0.1 tasks.fullstackops.test
@@ -319,9 +331,8 @@ doğrulaması ayrı raporlanır; bu Windows browser trust kabulü sayılmaz.
 
 ## 10. Windows değişikliklerini kaldırma — gelecekte, gerektiğinde
 
-Bu bölüm **şimdi çalıştırılmayacak**; henüz hosts veya güven deposu değişmediği
-için bugün kaldırılacak bir kayıt yoktur. Sertifika kurulumu sonrasında lab
-erişimini kapatmak istersen:
+Bu bölüm **şimdi çalıştırılmayacak**; Windows CA güveni ve hosts eşlemesi
+hazırlandı, kaldırma deneyi yapılmadı. İleride lab erişimini kapatmak istersen:
 
 1. Yalnız yeni HTTPS tünelinin çalıştığı PowerShell penceresinde Ctrl+C kullan.
    Mevcut HTTP/Prometheus/Grafana tünellerini ve VM stack'ini değiştirme.
@@ -343,6 +354,8 @@ private key veya credential değildir:
 & {
 $env:CAROOT = Join-Path $env:LOCALAPPDATA 'FullStackOpsLab\deployment-tls\ca'
 $env:TRUST_STORES = 'system'
+$mkcertExe = Join-Path $env:LOCALAPPDATA 'FullStackOpsLab\tools\mkcert\mkcert.exe'
+if (!(Test-Path -LiteralPath $mkcertExe -PathType Leaf)) { throw 'mkcert bulunamadi' }
 $publicCA = Join-Path $env:CAROOT 'rootCA.pem'
 if (!(Test-Path -LiteralPath $publicCA -PathType Leaf) -or
     !(Test-Path -LiteralPath (Join-Path $env:CAROOT 'rootCA-key.pem') -PathType Leaf)) {
@@ -353,7 +366,7 @@ if ($expectedHash -notmatch '^[0-9a-fA-F]{64}$' -or
     (Get-FileHash -LiteralPath $publicCA -Algorithm SHA256 -ErrorAction Stop).Hash -ne $expectedHash) {
     throw 'Public CA hash eslesmedi; kaldirma durdu'
 }
-mkcert -uninstall
+& $mkcertExe -uninstall
 if ($LASTEXITCODE -ne 0) { throw 'Lab CA guven kaldirma basarisiz; durumu incele' }
 }
 ```
@@ -369,7 +382,8 @@ Bu işlemler VM leaf dosyalarını, mount'ları veya frontend'i otomatik değiş
 HTTPS listener açık kalsa bile artık tarayıcı güveni kabulü beklenmez.
 VM TLS kaldırma/yenileme ve private dosyaların güvenli temizliği ayrı rehberli
 işlemlerdir; burada volume veya sertifika dizini silme komutu verilmez.
-Kurulum ve kaldırmanın gerçek Windows kabulü hâlâ **NOT VERIFIED**.
+Windows hazırlığı bölüm12'deki sonuçlarla **PASS**; gerçek kaldırma ve tarayıcı
+HTTPS kabulü hâlâ **NOT VERIFIED**.
 
 ## 11. Statik sonuç ve açık kabul maddeleri
 
@@ -385,24 +399,81 @@ Windows Git stdin newline farkı test taşımasında NUL ayırıcıyla giderildi
 | Üç read-only bind ve create_host_path false; CA dizini mount edilmez | PASS |
 | TLS path eksik/boş ise güvenli anahtar adıyla hata | PASS |
 | Sertifika/key/env ignored, örnek takip edilebilir; eski deployment/development testleri | PASS |
-| Rehberdeki7 PowerShell ve8 Bash bloğunun yalnız sözdizimi | PASS; komutlar yürütülmedi |
-| Secret leakage,62 yerel belge bağlantısı/anchor ve diff whitespace kontrolü | PASS |
-| Windows hosts/güven uygulama ve kaldırma yönergeleri | Statik inceleme PASS; hiçbir değişiklik uygulanmadı |
-| Nginx SSL modülü/syntax/sertifika ve private key eşleşmesi | NOT VERIFIED; nginx -t çalıştırılmadı |
-| Certificate SAN/süre, Windows trust/hosts, VM dosya izinleri ve port boşluğu | NOT VERIFIED |
+| Rehberdeki7 PowerShell ve8 Bash bloğunun yalnız sözdizimi | PASS; statik aşamada yürütülmedi; Windows hazırlık sonuçları bölüm12'de |
+| Statik aşamadaki secret leakage,62 yerel belge bağlantısı/anchor ve diff whitespace kontrolü | PASS; b19f620 hazırlık kanıtı |
+| Windows hosts/güven yönergeleri | Uygulama PASS, kaldırma NOT VERIFIED; bölüm12 |
+| Windows certificate SAN/süre, CA zinciri ve leaf private key eşleşmesi | PASS; kullanıcı OpenSSL çıktıları, bölüm12 |
+| Nginx SSL modülü/syntax ve VM'deki certificate/key okuması | NOT VERIFIED; nginx -t çalıştırılmadı |
+| VM dosya izinleri ve iki hostta18443 port boşluğu | NOT VERIFIED |
 | Gerçek HTTPS HTML/JS/CSS ve API Location/same-origin davranışı | NOT VERIFIED |
 | HTTPS sonrası health, image kimliği ve monitoring erişiminin korunması | NOT VERIFIED |
 | Yenileme/reload, public CA/domain/internet kabulü | NOT VERIFIED |
 
-YAML/static test sonucu başarılı HTTPS deployment anlamına gelmez. Sertifika/key
-üretilmedi; VM/Windows ayarları değiştirilmedi. Sonraki küçük adım dosyaların ve
-komutların incelenmesi; ardından ayrı rehberli sertifika/güven hazırlığıdır.
+YAML/static test ve Windows sertifika hazırlığı başarılı HTTPS deployment anlamına
+gelmez. Sonraki küçük adım ayrı rehberli VM dosya aktarımı ve nginx -t hazırlığıdır;
+bu görevde VM aktarımı, yeni tünel veya frontend recreate yapılmadı.
 
 Gerçekte çalıştırılan yerel komut `py -3 tests/Deployment.Configuration.Test.py`;
 test kendi sahte env dosyalarıyla `docker compose ... config -q` ve JSON model
 kontrolü yapar. Ayrıca secret scanner, git diff --check ve yalnız parser kontrolleri
 çalıştırıldı. Git Bash -n ilk sandbox çağrısında signal pipe erişim engeli verdi;
 aynı syntax-only kontrol izinli yerel süreçte geçti. Bu bir VM komut hatası değildir.
-Temporary fixture dosyaları test sonunda kaldırıldı; certificate/key dosyası
-üretilmedi. Index boş, commit/push yok; başlangıçtaki VM/tünel/Docker kaynaklarına
-hiçbir işlem gönderilmedi.
+Statik aşamadaki temporary fixture dosyaları test sonunda kaldırıldı; o aşamada
+certificate/key üretilmedi. Bu statik hazırlık daha sonra b19f620 ile commit/push
+edildi. Windows hazırlığı aşağıda ayrı kaydedilir; VM/tünel/Docker kaynaklarına
+bu hazırlık sırasında hiçbir işlem gönderilmedi.
+
+## 12. Windows CA, leaf ve hosts kabulü — 15 Ekim 2026
+
+Kanıt kullanıcı tarafından Windows PowerShell'de çalıştırılan grupların paylaşılan
+çıktılarıdır; agent private key, gerçek env veya user-secrets içeriğini okumadı.
+Başlangıçta mkcert PATH'te bulunmadı, ayrılmış lab dizini/CA/leaf dosyaları ve
+CAROOT process ayarı yoktu. Yeni CA yalnız bu ayrılmış lab için oluşturuldu.
+
+| Kontrol | Gerçek sonuç |
+| --- | --- |
+| Portable mkcert | Resmî GitHub v1.4.4 Windows amd64 dosyası; SHA256 eşleşmesi ve sürüm PASS |
+| Araç yeri | `%LOCALAPPDATA%\FullStackOpsLab\tools\mkcert\mkcert.exe`; PATH değiştirilmedi |
+| CA yeri | `%LOCALAPPDATA%\FullStackOpsLab\deployment-tls\ca`; repository dışında |
+| Windows güveni | `TRUST_STORES=system`, `mkcert -install`; beklenen thumbprint `Cert:\CurrentUser\Root` içinde PASS |
+| Leaf yeri | `%LOCALAPPDATA%\FullStackOpsLab\deployment-tls\server\server.crt` ve `server.key`; repository dışında |
+| OpenSSL | Git for Windows içindeki OpenSSL3.5.6; çıktı `7 Apr 2026` |
+| SAN | Tek DNS adı `tasks.fullstackops.test` PASS |
+| Geçerlilik | `notBefore=Oct 15 10:59:05 2026 GMT`, `notAfter=Jan 15 10:59:05 2029 GMT` |
+| Zincir/amaç/hostname/zaman | Explicit lab CA ile `openssl verify -purpose sslserver -verify_hostname ...` exit0, PASS |
+| Leaf key eşleşmesi | x509 `-pubkey` ile pkey `-pubout` çıktıları bellekte case-sensitive eşit; yalnız PASS yazdırıldı |
+| Hosts başlangıcı | İlgili ad için aktif kayıt YOK; kullanıcı gerekli tek satırı ekledi |
+| Hosts son kontrol | Tam bir adet `127.0.0.1 tasks.fullstackops.test` kaydı ve Windows DNS çözümlemesi127.0.0.1 PASS |
+
+mkcert binary SHA256:
+`D2660B50A9ED59EADA480750561C96ABC2ED4C9A38C6A24D93E30E0977631398`.
+Kaynak [resmî v1.4.4 yayını](https://github.com/FiloSottile/mkcert/releases/tag/v1.4.4);
+karşılaştırma değeri [Microsoft WinGet manifestinden](https://github.com/microsoft/winget-pkgs/blob/master/manifests/f/FiloSottile/mkcert/1.4.4/FiloSottile.mkcert.installer.yaml)
+alındı; ayrı bir yayıncı imzalı checksum doğrulaması iddia edilmez.
+
+Aşağıdaki kimlikler **public sertifika metadata'sıdır**, private key değildir:
+
+- CA thumbprint: `BCEB2EF69B3D6D487495B49F9EDF10F66BD96E49`.
+- Public rootCA.pem dosyası SHA256: `A154DBB8BC935F93A50D4FB39212682F9F8C372E30DB5CBD9D3C3B3F72ACDF6E`.
+- Public server.crt dosyası SHA256: `356FA31482DCC3BD07BAFBC45A159CD052E392156A2DCA299416209878D8770D`.
+
+Sonraki aktarımda public leaf hash'i eşleştirilir; CA private key Windows'ta kalır.
+Güveni kaldırma gerektiğinde bölüm10'daki aynı CA kimliği/dizini kontrolü kullanılır;
+hosts için yalnız bu görevde eklenen satır kaldırılır. Şimdi kaldırma yapılmadı.
+OpenSSL explicit CA doğrulaması ile Windows depo kaydının varlığı ayrı kontrollerdir;
+hiçbiri henüz kurulmamış VM HTTPS listener'ı veya browser TLS kabulü yerine geçmez.
+Kullanılan OpenSSL davranışı: [x509](https://docs.openssl.org/3.5/man1/openssl-x509/),
+[pkey](https://docs.openssl.org/3.5/man1/openssl-pkey/),
+[verify](https://docs.openssl.org/3.5/man1/openssl-verify/).
+
+VM'ye config/leaf aktarımı, `.env.https` hazırlığı, nginx -t, yeni18443 SSH tüneli,
+frontend TLS recreate ve HTTPS HTML/asset/API/CRUD/browser kabulü **NOT VERIFIED**.
+Bu görevde build, migration, kesinti veya veri işlemi yapılmadı. Seçilmiş
+source1b52633776279b1661a7cac53392d385cbf10444/GHCR digest çifti ve release.json
+değişmedi; VM stack'i ve mevcut tüneller değişmedi. Commit/push yapılmadı.
+
+Bu Windows hazırlığı kaydının repository kontrolleri: secret leakage exit0,
+64 yerel belge bağlantısı/anchor PASS, rehberdeki7 PowerShell bloğu syntax-only
+PASS ve git diff --check exit0. Yalnız bu rehber, deployment README/planı ve
+PROJECT_STATUS güncellendi; index boş. Windows/VM işlemleri agent tarafından
+tekrarlanmadı; private dosyalar Git'e eklenmedi.

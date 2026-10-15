@@ -1,6 +1,6 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
-**Plan tarihi:** 11 Ekim 2026. **Güncel durum (15 Ekim):** Hazırlık/migration/stack/HTTP-cache, asset ve monitoring kabulü PASS. Aynı frontend image'ında read-only config/key mount ile yerel HTTPS dosyaları statik olarak hazır; VM'ye uygulanmadı. Seçili SHA/digest çifti korunuyor. Sertifika/trust/HTTPS runtime, persistence recreate, update/rollback, backup/restore ve lab kapanışı bekliyor. TLS tasarım değişikliği ve sınırları bölüm18'de kayıtlıdır.
+**Plan tarihi:** 11 Ekim 2026. **Güncel durum (15 Ekim):** Hazırlık/migration/stack/HTTP-cache, asset ve monitoring kabulü PASS. Yerel HTTPS dosyaları statik olarak hazır; Windows CA/leaf/güven deposu/hosts hazırlığı da kullanıcı çıktılarıyla PASS. VM TLS aktarımı ve uygulaması yapılmadı. Seçili SHA/digest çifti korunuyor. HTTPS runtime, persistence recreate, update/rollback, backup/restore ve lab kapanışı bekliyor. TLS tasarımı bölüm18, Windows hazırlığı bölüm19'da kayıtlıdır.
 
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
@@ -382,6 +382,8 @@ HTTPS hazırlığıdır; persistence recreate ve diğer kapılar açık kalır.
 
 ## 18. Yerel HTTPS statik hazırlığı — 15 Ekim 2026
 
+Bu bölüm ilk statik aşamanın kaydıdır; sonraki Windows hazırlığı bölüm19'dadır.
+
 Önceki beklenti VM'de ayrı host Nginx ile TLS idi. Kullanıcının mevcut image'ı
 değiştirmeden read-only config talebi doğrultusunda TLS frontend container'ına
 alındı. Aynı altı servis/digest, daha az host kurulumu ve tek Nginx proxy zinciri
@@ -403,3 +405,23 @@ Nginx syntax/SSL modülü, certificate/key uyumu ve HTTPS health/browser/API
 kontrolleri NOT VERIFIED. Sertifika/trust/hosts veya VM stack değişikliği yoktur.
 Plan adım5 henüz runtime Completed değildir. Sıradaki küçük iş dosya/komut
 incelemesi, ardından ayrı rehberli CA/leaf/güven hazırlığıdır; otomatik uygulanmaz.
+
+## 19. Windows CA, leaf ve hosts hazırlığı — 15 Ekim 2026
+
+Statik hazırlık b19f620 commit'iyle push edilip CI geçtikten sonra kullanıcı
+Windows'ta portable mkcert1.4.4 hash/sürümünü doğruladı. Ayrılmış lab CA ve leaf
+repository dışında oluşturuldu; public CA CurrentUser Root deposunda thumbprint
+ile bulundu. Tek SAN tasks.fullstackops.test, UTC15Ekim2026 10:59:05 →
+15Ocak2029 10:59:05 geçerlilik, OpenSSL CA zinciri/hostname ve key eşleşmesi PASS.
+Hosts başlangıçta ilgili kaydı içermiyordu; kullanıcı yalnız127.0.0.1 eşlemesini
+ekledi, tek kayıt ve Windows çözümlemesi PASS. Public kimlikler ve depo/kaldırma
+bilgisi [ayrıntılı kayıtta](../infrastructure/deployment/HTTPS.md#12-windows-ca-leaf-ve-hosts-kabulü--15-ekim-2026).
+
+Sonuçlar kullanıcı komut çıktılarıdır; agent private key/secret okumadı veya
+Windows ayarlarını kendisi değiştirmedi. CA private key Windows'ta kaldı;
+VM'ye dosya aktarımı, .env.https, nginx -t, TLS frontend recreate ve yeni SSH
+tüneli yapılmadı. Mevcut VM/Docker/volume/tüneller ile seçilmiş source/digestler
+korundu. Sonraki küçük adım ayrı rehberli VM config/leaf aktarımı ve nginx -t
+hazırlığıdır; otomatik uygulanmaz. Plan adım5 gerçek HTTPS/browser/API kabulü
+hâlâ bekliyor; persistence recreate, update/rollback, backup/restore ve kapanış
+adımlarına geçilmedi. Commit/push yapılmadı.

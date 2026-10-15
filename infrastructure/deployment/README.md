@@ -4,8 +4,9 @@
 ek olarak gerçek frontend HTML/JS/CSS erişimi, Prometheus scrape/yeni örnekler ve
 Grafana datasource/12 panel sorguları **PASS**. Sonuçlar aşağıdaki tarihli rehberli
 VM kayıtlarına dayanır. Persistence recreate, HTTPS, update/rollback, backup/restore
-ve lab kapanışı bekliyor. Yerel HTTPS dosyaları ayrıca statik olarak hazır;
-sertifika/trust veya VM uygulaması yapılmadı. Deployment lab bütünüyle tamamlanmadı. Bu bir production
+ve lab kapanışı bekliyor. Yerel HTTPS dosyaları statik olarak hazır; Windows lab
+CA/leaf, kullanıcı güven deposu ve hosts hazırlığı da kullanıcı çıktılarıyla PASS.
+VM'ye TLS aktarımı/uygulaması ve HTTPS runtime henüz yapılmadı. Deployment lab bütünüyle tamamlanmadı. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
 ## Amaç ve dosyalar
@@ -753,6 +754,9 @@ Uygulama/config değişmediği için yeni build veya VM runtime tekrarı yapılm
 
 ## Yerel HTTPS dosya hazırlığı — 15 Ekim 2026
 
+Bu bölüm ilk statik aşamanın tarihsel kaydıdır; Windows hazırlığının sonraki
+sonuçları aşağıdaki ayrı bölümde yer alır.
+
 [Somut yapılandırma ve terminale göre ayrılmış gelecek komutları](HTTPS.md)
 incelemeye hazırdır. Önceki host Nginx önerisi yerine aynı frontend image'ında
 read-only deployment Nginx config'i TLS sonlandırır. Yeni image/yedinci servis
@@ -764,3 +768,20 @@ korundu. Şu an çalışan VM/frontend/tüneller değiştirilmedi. `nginx -t`, s
 üretimi, SAN/süre/key eşleşmesi, Windows CA güveni/hosts ve gerçek HTTPS/browser
 kabulü NOT VERIFIED. HTTP→HTTPS redirect yok; HTTP teşhis ve mevcut healthcheck
 ayrı kalır. Seçilmiş SHA/digest/release aynıdır; commit/push yapılmadı.
+
+## Windows sertifika ve güven hazırlığı — 15 Ekim 2026
+
+Kullanıcı rehberli Windows PowerShell gruplarını uyguladı: mkcert1.4.4 indirme
+hash/sürüm kontrolü, repository dışı lab CA/leaf üretimi ve CurrentUser Root
+deposunda public CA thumbprint kontrolü PASS. OpenSSL3.5.6 ile tek SAN
+tasks.fullstackops.test, lab CA zinciri/hostname/mevcut zamanda geçerlilik ve
+leaf public/private key eşleşmesi PASS. Geçerlilik UTC15Ekim2026 10:59:05 →
+15Ocak2029 10:59:05. Başlangıçta hosts kaydı yoktu; tek127.0.0.1 eşlemesi eklenip
+dosya ve Windows ad çözümlemesiyle doğrulandı. Public hash'ler, kullanılan depo,
+kanıt sınırı ve güven/hosts kaldırma yönergeleri [HTTPS kaydında](HTTPS.md#12-windows-ca-leaf-ve-hosts-kabulü--15-ekim-2026).
+
+CA private key Windows'ta kaldı; hiçbir sertifika/key VM'ye aktarılmadı. Agent
+private dosya/secret okumadı; kanıt kullanıcı çıktılarıdır. `.env.https`, nginx -t,
+frontend recreate,18443 tüneli ve gerçek HTTPS/browser/CRUD kabulü bekliyor.
+VM stack'i, mevcut tüneller ve seçilmiş image çifti değişmedi. Bu adım yalnız
+Windows hazırlığıdır; deployment runtime bütünüyle Completed değildir.
