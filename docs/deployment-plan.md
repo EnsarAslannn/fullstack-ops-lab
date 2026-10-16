@@ -1,6 +1,6 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
-**Plan tarihi:** 11 Ekim 2026. **Güncel durum (15 Ekim):** Hazırlık/migration/stack/HTTP-cache, asset ve monitoring kabulü PASS. HTTPS statik model ve Windows CA/leaf/güven/hosts sonrası VM aktarımı, izinler ve geçici nginx -t de kullanıcı çıktılarıyla PASS. Çalışan frontend'e TLS uygulanmadı. Seçili SHA/digest çifti korunuyor. HTTPS runtime, persistence recreate, update/rollback, backup/restore ve lab kapanışı bekliyor. TLS tasarımı bölüm18, Windows hazırlığı bölüm19, VM hazırlığı bölüm20'de kayıtlıdır.
+**Plan tarihi:** 11 Ekim 2026. **Güncel durum (16 Ekim):** Hazırlık/migration/stack/HTTP-cache, asset/monitoring ve yerel HTTPS/browser/CRUD kabulü PASS. Yalnız frontend aynı seçilmiş digest ile TLS için yeniden oluşturuldu; diğer beş ID aynı, altısı healthy. Schannel varsayılan iptal kontrolü başarısızlığı ve komuta özel best-effort sınırlaması kaydedildi. Seçili SHA/digest çifti korunuyor. Persistence recreate, update/rollback, backup/restore ve lab kapanışı bekliyor. TLS tasarımı bölüm18, Windows hazırlığı bölüm19, VM hazırlığı bölüm20, gerçek HTTPS kabulü bölüm21'de kayıtlıdır.
 
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
@@ -58,13 +58,13 @@ flowchart TB
     end
 ```
 
-Altı Compose servisi ve mevcut roller korunur. İlk host Nginx önerisinin yerine, 15 Ekim hazırlığında mevcut frontend Nginx'in TLS sonlandırması seçildi: host paketi/yedinci servis veya image build eklenmez. Deployment'a özel config ve leaf certificate/key read-only bağlanır. VM127.0.0.1:18443 frontend443'e, frontend Docker DNS üzerinden api:8080'e gider. API bağlantısı HTTP'dir; tüm internal servislerde TLS iddiası yoktur. Bu diyagram hazırlanan hedefi gösterir; TLS henüz VM'de etkin değil.
+Altı Compose servisi ve mevcut roller korunur. İlk host Nginx önerisinin yerine, 15 Ekim hazırlığında mevcut frontend Nginx'in TLS sonlandırması seçildi: host paketi/yedinci servis veya image build eklenmez. Deployment'a özel config ve leaf certificate/key read-only bağlanır. VM127.0.0.1:18443 frontend443'e, frontend Docker DNS üzerinden api:8080'e gider. API bağlantısı HTTP'dir; tüm internal servislerde TLS iddiası yoktur. Bu akış 15–16 Ekim'de VM'de etkinleştirilip yerel HTTPS/browser/CRUD ile doğrulandı; bölüm21.
 
 ## 4. Adres, HTTPS ve açık/kapalı portlar
 
-Yerel ad `tasks.fullstackops.test`; ileride Windows hosts dosyasında127.0.0.1'e eşlenir, public DNS değildir. Hazırlanan erişim `https://tasks.fullstackops.test:18443/`: Windows127.0.0.1:18443 SSH tüneli → VM127.0.0.1:18443 → frontend443. İki hostta18443 boşluğu henüz doğrulanmadı. HTTP28081→VM18081 teşhis/health için korunur; otomatik HTTP redirect bu küçük adımda eklenmez. Tünel ve sertifika kurulum komutları [HTTPS rehberinde](../infrastructure/deployment/HTTPS.md) incelemeye hazırdır, çalıştırılmadı.
+Yerel ad `tasks.fullstackops.test`, Windows hosts dosyasında127.0.0.1'e eşlendi; public DNS değildir. Doğrulanan erişim `https://tasks.fullstackops.test:18443/`: Windows127.0.0.1:18443 SSH tüneli → VM127.0.0.1:18443 → frontend443. İki hostta18443 boşluğu etkinleştirme öncesi kontrol edildi. HTTP28081→VM18081 teşhis/health için korunur; otomatik HTTP redirect eklenmez. Güncel IP her oturumda kontrol edilir. Tünel ve sertifika kurulum komutları ile gerçek sonuçlar [HTTPS rehberindedir](../infrastructure/deployment/HTTPS.md).
 
-Yerel CA ile imzalanmış, bu ada SAN içeren sertifika önerilir. Yalnız lab istemcisinin güvenmesi ve lab anahtarlarının Git dışında kalması gerekir; trust-store değişikliği ancak kullanıcı onayıyla sonraki adımda yapılır. CA özel anahtarı servisler/image'lar ile paylaşılmaz; sunucu sertifika anahtarı dar izinle tutulur. Tarayıcı uyarısını geçmek veya TLS doğrulamasını kapatmak HTTPS kabulü değildir. [Nginx HTTPS](https://nginx.org/en/docs/http/configuring_https_servers.html).
+Yerel CA ile imzalanmış, bu ada SAN içeren sertifika kullanıldı. Lab public CA'sı kullanıcı tarafından Windows CurrentUser Root deposuna eklendi; CA/private key ve leaf dosyaları Git dışında kaldı. CA özel anahtarı VM/servis/image'larla paylaşılmadı; sunucu anahtarı VM'de600 izniyle tutuldu. Tarayıcı uyarısını geçmek veya TLS doğrulamasını kapatmak HTTPS kabulü değildir. Schannel çağrısındaki sınırlı best-effort iptal kontrolü bölüm21'de ayrı açıklanır. [Nginx HTTPS](https://nginx.org/en/docs/http/configuring_https_servers.html).
 
 Gerçek internet deployment'ı ileride seçilirse erişilebilir sunucu, kontrol edilen ücretsiz alt domain veya domain, doğru A/AAAA kayıtları ve public sertifika gerekir. ACME HTTP-01 port 80 erişimi, DNS-01 ise DNS kontrolü ister; yalnız yerel `.test` adresi bu public kabulü karşılamaz. Sertifika yenileme ve reload deneyi ayrıca gerekir. [ACME challenge yöntemleri](https://letsencrypt.org/docs/challenge-types/).
 
@@ -153,7 +153,7 @@ Hedef RPO **24 saat**; kurtarma süresi henüz ölçülmedi. VM/PC kapalıysa g�
 
 ## 9. En küçük uygulama adımları ve kabul kapıları
 
-Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. Adım1–4 kabulü 13–15 Ekim tarihli kanıtlarla karşılanır; adım6'nın monitoring kısmı ayrıca tamamlandı. Persistence recreate kısmı ve adım5/7/8/9 henüz uygulanmadı. Geçmiş kanıtlar bugün yeniden çalıştırılmış gibi sunulmaz.
+Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. Adım1–4 kabulü 13–15 Ekim, adım5 yerel HTTPS kabulü 15–16 Ekim kanıtlarıyla karşılanır; adım6'nın monitoring kısmı ayrıca tamamlandı. Persistence recreate kısmı ve adım7/8/9 henüz uygulanmadı. Geçmiş kanıtlar bugün yeniden çalıştırılmış gibi sunulmaz.
 
 | Adım | Yapılacak iş | Kabul kanıtı |
 | --- | --- | --- |
@@ -161,7 +161,7 @@ Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz
 | 2 — Deployment dosyaları | Küçük image-only override, örnek deployment env/kimlik kaydı ve güvenli preflight | Build alanları yok, digest çifti aynı SHA, config-q, secret kontrolü, ayrı volume adı; local Compose değişmemiş |
 | 3 — İlk veri hazırlığı | Yalnız lab volume/PostgreSQL; açık SQL üretme/inceleme/uygulama | TCP auth başarılı; tasks/history doğru; migration hata exit code kapısı; API auto-migration yok |
 | 4 — GHCR runtime | Altı servisi çekilen image'larla başlat, kimliklerini eşleştir | Altı healthy; internal live/ready200; HTML/JS/CSS200; CRUD/Location/altı JSON alanı/nullable/400/404; cache miss/hit/TTL/invalidation |
-| 5 — Yerel HTTPS | Mevcut frontend Nginx'e read-only config/leaf mount, lab CA ve localhost SSH | Statik dosyalar hazır; sertifika/trust/nginx -t ve gerçek HTTPS/browser/API kabulü bekliyor |
+| 5 — Yerel HTTPS | Mevcut frontend Nginx'e read-only config/leaf mount, lab CA ve localhost SSH | PASS; sertifika/trust/nginx -t, frontend-only recreate, uyarısız manuel browser/asset ve HTTPS contract; iptal durumu NOT VERIFIED, Schannel best-effort sınırı bölüm21'de |
 | 6 — Kalıcılık ve gözlem | PostgreSQL recreate, Prometheus ve Grafana kontrolleri | Aynı lab volume'da görev ID/alanları korunur; Prometheus UP/yeni örnek; datasource ve 12 panel otomatik; readiness ayrı kontrol |
 | 7 — Güncelleme/rollback | İki uyumlu published digest çiftiyle kontrollü geçiş/dönüş | Her iki sürümün SHA/digest/container identity ve HTTP kabulü; veri korunmuş; gerçek kesinti süresi kaydı |
 | 8 — Yedek/restore | Günlük yedek planı ve yeni test DB'ye bir restore | Başarılı dump/checksum, güncel yedek zamanı; ayrı restore'da görev/history doğrulaması; owned cleanup |
@@ -178,7 +178,7 @@ Normal kapatma `stop` veya project/env hedefi açık `down`; named volume'lar ko
 | Sunucu, maliyet, domain | 0 TL yerel VM; public domain ertelendi | Yerel Ubuntu VM/Docker/Compose hazırlığı PASS; internet deployment kabulü yok |
 | Ayrı config ve digest deployment | Image-only override + aynı SHA'lı digest çiftleri | Statik model/pull/kimlik, HTTP/cache ve asset/monitoring PASS; diğer lab kapıları bekliyor |
 | Secret/volume/migration | VM'e özel kaynaklar ve açık SQL hazırlığı | PASS: ayrı env/volume/TCP auth ve InitialCreate uygulama/tekrar; persistence recreate ayrı bekliyor |
-| Domain ve HTTPS erişimi | Yerel ad/TLS prova; public domain/internet erişimi ayrı gelecek karar | Public kabul NOT VERIFIED; issue tamamlandı sayılmaz |
+| Domain ve HTTPS erişimi | Yerel ad/TLS prova; public domain/internet erişimi ayrı gelecek karar | Yerel HTTPS/browser/CRUD PASS; iptal durumu ve public kabul NOT VERIFIED; issue tamamlandı sayılmaz |
 | DB/Redis/API kapalı; monitoring sınırlı | Internal portlar, loopback ve SSH yönetimi | Gerçek Docker bind ve Windows loopback tünel PASS; geniş LAN/public ağ kabulü yapılmadı |
 | Health, frontend ve CRUD | Gerçek VM/browser/HTTP kontrolü | Önceki health/HTTP-cache ile güncel asset/datasource/12 panel ve yeni örnek kabulü PASS; lab kapanışı bekliyor |
 | Güncelleme ve rollback | İki uyumlu digest çifti + schema uyum kapısı | NOT VERIFIED |
@@ -186,14 +186,18 @@ Normal kapatma `stop` veya project/env hedefi açık `down`; named volume'lar ko
 | Image / migration rollback farkı | Veri silmeyen image dönüşü; destructive InitialCreate.Down uyarısı | Tasarım açık; restore NOT VERIFIED |
 | Development ortamı korunur | Ayrı VM Engine/project/env/volume ve envanter | Rehberli kabul VM'de ayrı deployment kaynaklarıyla; Windows development Engine/verileri kullanılmadı |
 
-Kullanıcının cevaplarıyla bütçe, erişim, kesinti ve RPO belirlenmiştir. Uygulama öncesinde kalan kısa sorular:
+Kullanıcının cevaplarıyla bütçe, erişim, kesinti ve RPO belirlenmiştir. Aşağıdaki
+hazırlık soruları ilk planın tarihsel kaydıdır; VM/CA/HTTPS hazırlığı sonraki
+tarihli bölümlerde tamamlandı. Yedek hedefi hâlâ ayrı karar gerektirir:
 
 1. Hyper-V özelliği zaten açık mı; gerekiyorsa özellik kurulumu/reboot uygun mu? Windows/Docker ayarlarını değiştirmeden önce cevap beklenir.
 2. VM için önerilen 60 GB disk alanı ve 6 GB RAM ayrılabilir mi? Bunlar sabit minimum değil; boş alan/kullanım doğrulanacak.
 3. Yerel HTTPS için yalnız lab CA'sına istemcide güven verilmesini kabul ediyor musun? İstemci trust değişikliği bu görevde yapılmadı.
 4. VM dışı günlük yedek kopyası mevcut hangi diskte/dizinde tutulmalı? Konum ve dosya izinleri uygulamada seçilir; secret veya kişisel dosya paylaşman gerekmez.
 
-Sonraki **en küçük görev**, bu dört hazırlık kararını ve salt okunur host kontrollerini tamamlayıp VM kurulum planını kesinleştirmektir. Henüz VM, hesap, cloud kaynağı, DNS, sertifika, env, volume veya deployment oluşturulmaz.
+İlk planda önerilen **en küçük görev** hazırlık kararları ve salt okunur host
+kontrolleriydi. O planlama görevinde kaynak oluşturulmadı; sonraki VM/HTTPS
+uygulamalarının gerçek sonuçları aşağıdaki tarihli bölümlerde kaydedilir.
 
 ## 11. Kaynaklar ve bu görevin doğrulama sınırı
 
@@ -451,3 +455,44 @@ Bu adım çalışan frontend'e TLS etkinleştirmesi değildir. Yeni tünel, ger�
 HTML/asset/API/CRUD/browser ve TLS sonrası monitoring kabulü bekliyor; nginx -t
 bunların yerine geçmez. Sonraki küçük adım ayrı rehberli etkinleştirme/erişimdir;
 PostgreSQL recreate, update/rollback veya backup'a geçilmedi. Commit/push yok.
+
+## 21. Yerel HTTPS etkinleştirme ve kabul — 15–16 Ekim 2026
+
+Başlangıç HEAD a5fb235/Git temiz. Kullanıcı VM/Windows komutlarını çalıştırıp
+kanıtları paylaştı; agent secret/private key okumadı veya VM'ye komut göndermedi.
+Gerçek config -q, aynı image ve mount'larla geçici nginx -t exit0 sonrasında yalnız
+frontend üç Compose/iki env ile --no-build/--no-deps/--pull never/--wait kullanılarak
+yeniden oluşturuldu. Kaynak1b52633776279b1661a7cac53392d385cbf10444 ve release.json
+digest çifti korundu. Üç bind read-only; frontend Image kimliği seçilmiş digest ile
+aynı, HTTP18081 GET200 ve HTTPS yalnız VM127.0.0.1:18443→443 PASS.
+
+Windows18443 boşluğu ve ssh sahibi loopback listener PASS. Uyarısız tarayıcı,
+mkcert zinciri/tarihleri, gerçek HTTPS JS/CSS200 ve manuel Console'da hata/mixed
+content görülmemesi PASS; otomatik browser/network/console testi yapılmadı.
+Varsayılan Schannel curl CRYPT_E_NO_REVOCATION_CHECK/exit35 verdi. Public leaf
+hash'i aynı, CRL/AIA yok; yalnız --ssl-revoke-best-effort ile HTTP200/VERIFY0/exit0
+ve Windows loopback alındı. Zincir/hostname/zaman doğrulaması korundu; iptal durumu
+kanıtlanmadı. -k/insecure veya sistem genelinde kontrol kapatma kullanılmadı.
+
+HTTPS liste GET200/JSON; POST201/test ID3/relative Location aynı HTTPS originine
+çözüldü; tekil GET200, altı alan/null description, PUT200/createdAt korunması ve
+updatedAt ilerlemesi/tekrar GET PASS. Boş title POST400/PUT400, eksik ID GET404
+ve bu kontrollerin test kaydını değiştirmemesi PASS. Sahiplik doğrulandıktan sonra
+yalnız Task3 DELETE204/boş gövde ve GET404; istemci geçici dosyaları temizlendi.
+Geçerli charset'i yanlış reddeden ilk regex düzeltildi; uygulama/config değişmedi.
+
+16 Ekim oturumunda Hyper-V konsolu yanıt vermeyince SSH ile VM172.30.249.139 ve
+aynı altı healthy container kontrol edildi. VM/Docker restart veya yeni recreate
+yapılmadı; kapanmış HTTPS tüneli port boşluğu kontrolünden sonra yeniden açıldı.
+Son inspect: frontend e401eb7fbff5; api4d572817ca12, postgres e9296c518548,
+redis d98d34cc73c5, prometheus84eaf1ceebb5, grafana ed9398e62129; diğer beş ID aynı.
+Frontend18081/18443 ve monitoring19090/13000 yalnız VM loopback; internal üç servis
+host portu açmadı. Yeni monitoring sorguları çalıştırılmadı; önceki15 Ekim kanıtı
+ayrıdır. [Ayrıntılı HTTPS kabulü](../infrastructure/deployment/HTTPS.md#14-https-etkinleştirme-ve-runtime-kabulü--1516-ekim-2026).
+
+Plan adım5 yerel HTTPS küçük adımı tamamlandı; public/domain/internet/production
+kabulü değildir. Mevcut veriler, development ayarları ve volume'lar korundu; elle
+cache temizlenmedi. Stack ve HTTPS tüneli açık bırakıldı. Sonraki öneri plan
+adım6 kapsamında yalnız deployment PostgreSQL recreate kalıcılığının ayrı kabulüdür;
+bu görevde başlanmadı. Güncelleme/rollback, günlük yedek/restore ve final lab
+kapanışı bekliyor. Manuel öğrenme NOT VERIFIED; commit/push yapılmadı.

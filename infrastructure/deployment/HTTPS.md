@@ -1,12 +1,14 @@
-# Yerel HTTPS — hazırlık ve sonraki uygulama rehberi
+# Yerel HTTPS — kurulum ve rehberli kabul
 
-15 Ekim 2026: statik yapılandırma b19f620 commit'iyle yayımlandı; ardından
-Windows lab CA, sunucu sertifikası ve hosts hazırlığı b0d2fea ile kaydedildi.
-**VM dosya aktarımı, izinler, gerçek Compose modeli ve geçici nginx -t doğrulandı**.
-Windows sonuçları bölüm12, VM hazırlığı bölüm13'tedir; agent private dosyaları
-okumadı veya işlemleri kullanıcı yerine çalıştırmadı. Çalışan frontend'e TLS
-uygulanmadı; yeni HTTPS tüneli ve gerçek HTTPS/browser kabulü henüz yapılmadı.
-Mevcut altı VM container'ı aynı kimliklerle healthy ve eski portlarla çalışır bırakıldı.
+16 Ekim 2026 güncel durum: **frontend TLS etkinleştirmesi, Windows SSH tüneli,
+uyarısız tarayıcı/HTTPS asset erişimi ve HTTPS CRUD kabulü PASS**. Yalnız frontend
+yeniden oluşturuldu; diğer beş container'ın kimliği korundu, finalde altısı healthy.
+Windows hazırlığı bölüm12, VM dosya hazırlığı bölüm13, 15–16 Ekim etkinleştirme
+ve kabulü bölüm14'tedir. Önceki tarihli bölümler o aşamanın kanıtını anlatır.
+Varsayılan Schannel curl çağrısı iptal kontrolü nedeniyle başarısız oldu; yalnız
+komuta ait best-effort seçeneğiyle başarılı kontrolün sınırı bölüm14'te açıklanır.
+Agent private dosyaları okumadı veya VM/Windows işlemlerini kullanıcı yerine yapmadı.
+Stack ve HTTPS tüneli çalışır bırakıldı; deployment lab bütünüyle tamamlanmadı.
 Komut grupları sırayla sonuç incelenerek uygulanacak; bir grup başarısızsa sonraki
 gruba geçilmez. Bütün belge tek seferde terminale yapıştırılmaz.
 
@@ -39,9 +41,10 @@ veya internet deployment'ı iddiası değildir. Uygulamaya kullanıcı yetkilend
 | Grafana | 23000 | 13000 → grafana3000 |
 | API / PostgreSQL / Redis | Yok | Host publish yok |
 
-VM18443 için başlangıç ve bitiş ss kontrollerinde listener yoktu. Windows18443
-boşluğu bu adımda kontrol edilmedi; etkinleştirmeden önce yeniden bakılmalı.
-Eski tüneller değiştirilmedi; yeni HTTPS tüneli henüz açılmadı.
+VM18443, dosya hazırlığı sırasında boştu. Sonraki etkinleştirmede Windows18443
+boşluğu doğrulandı; VM127.0.0.1:18443 listener ve Windows127.0.0.1:18443 SSH
+tüneliyle erişim sağlandı. Pencereler kapatılınca 16 Ekim'de IP/altı container
+yeniden kontrol edilip yalnız HTTPS tüneli açıldı; container recreate gerekmedi.
 
 ## 2. Dosyalar ve davranış
 
@@ -327,21 +330,39 @@ Yol `%SystemRoot%\System32\drivers\etc\hosts`. **Ayrı Windows PowerShell** tün
 güncel VM IP'siyle; mevcut HTTP/monitoring tünelleri açık kalır:
 
 ```powershell
-ssh -N -T -o ConnectTimeout=10 -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -L 127.0.0.1:18443:127.0.0.1:18443 labadmin@172.30.249.139
+ssh -N -T -o ConnectTimeout=10 -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -L 127.0.0.1:18443:127.0.0.1:18443 labadmin@172.30.249.139
 ```
 
 Browser: `https://tasks.fullstackops.test:18443/`. Uyarıyı geçmek veya curl -k
 kullanmak kabul değildir. **Diğer Windows PowerShell** penceresinde ilk GET:
 
 ```powershell
-curl.exe --noproxy "*" --resolve "tasks.fullstackops.test:18443:127.0.0.1" --max-time 10 -sS -o NUL -w "HTTPS HTTP=%{http_code}\n" https://tasks.fullstackops.test:18443/
-if ($LASTEXITCODE -ne 0) { throw 'HTTPS dogrulamasi basarisiz' }
+& {
+    $curlExe = Join-Path $env:SystemRoot 'System32\curl.exe'
+    $result = & $curlExe --disable --noproxy "*" --proto "=https" `
+        --ssl-revoke-best-effort --connect-timeout 10 --max-time 20 `
+        --fail --silent --show-error --output NUL `
+        --write-out 'HTTP=%{http_code};VERIFY=%{ssl_verify_result};IP=%{remote_ip}\n' `
+        https://tasks.fullstackops.test:18443/
+    $exitCode = $LASTEXITCODE
+    Write-Output $result
+    if ($exitCode -ne 0 -or
+        ($result -join "`n").Trim() -ne 'HTTP=200;VERIFY=0;IP=127.0.0.1') {
+        throw 'HTTPS dogrulamasi basarisiz'
+    }
+}
 ```
 
---resolve yalnız DNS yönlendirmesidir; doğru SNI/hostname ve varsayılan TLS
-doğrulaması korunur. Browser ayrıca Windows hosts çözümlemesini doğrular. curl TLS
-backend'i Windows güven deposunu kullanmıyorsa public CA dosyasıyla açık --cacert
-doğrulaması ayrı raporlanır; bu Windows browser trust kabulü sayılmaz.
+Bu komut Windows Schannel curl ve bu yerel mkcert lab'ı içindir. İlk varsayılan
+çağrı CRYPT_E_NO_REVOCATION_CHECK/exit35 verdi; public leaf dosyasında CRL ve AIA
+uzantıları bulunmadığı kontrol edildi. `--ssl-revoke-best-effort`, yalnız bu
+çağrıda eksik/erişilemeyen iptal dağıtım noktalarını tolere eder. Zincir, hostname
+ve geçerlilik doğrulaması açık kalır; **iptal durumunun başarıyla kontrol edildiği
+iddia edilmez**. `--insecure`, `-k`, `--ssl-no-revoke` veya sistem geneli ayar
+değişikliği kullanılmaz. [Resmî curl seçeneği](https://curl.se/docs/manpage.html#--ssl-revoke-best-effort).
+`--disable` kişisel curl config'ini atlar; `--noproxy` yerel bağlantıyı proxy'ye
+göndermez. DNS için --resolve kullanılmadı; hosts çözümlemesi de gerçek istekte
+kullanıldı. Ayrı uyarısız Windows tarayıcı kabulü bölüm14'tedir.
 
 ## 10. Windows değişikliklerini kaldırma — gelecekte, gerektiğinde
 
@@ -396,8 +417,8 @@ Bu işlemler VM leaf dosyalarını, mount'ları veya frontend'i otomatik değiş
 HTTPS listener açık kalsa bile artık tarayıcı güveni kabulü beklenmez.
 VM TLS kaldırma/yenileme ve private dosyaların güvenli temizliği ayrı rehberli
 işlemlerdir; burada volume veya sertifika dizini silme komutu verilmez.
-Windows hazırlığı bölüm12'deki sonuçlarla **PASS**; gerçek kaldırma ve tarayıcı
-HTTPS kabulü hâlâ **NOT VERIFIED**.
+Windows hazırlığı bölüm12, tarayıcı HTTPS kabulü bölüm14'te **PASS**;
+gerçek güven/hosts kaldırma işlemi **NOT VERIFIED** ve şimdi uygulanmaz.
 
 ## 11. Statik sonuç ve açık kabul maddeleri
 
@@ -407,7 +428,7 @@ Windows Git stdin newline farkı test taşımasında NUL ayırıcıyla giderildi
 
 | Madde | Durum |
 | --- | --- |
-| Gerçek iki env dosyasıyla sessiz config/model parse | PASS; yalnız sahte fixture değerleri |
+| İki env dosyasıyla sessiz config/model parse | PASS; yerel testte sahte fixture, VM'de gerçek env kullanıcı çıktıları bölüm13–14 |
 | Aynı altı servis/network/volume ve seçilmiş image çiftleri; build yok | PASS |
 | HTTPS yalnız127.0.0.1:18443; HTTP18081/monitoring aynı; diğer beş servis modeli aynı | PASS |
 | Üç read-only bind ve create_host_path false; CA dizini mount edilmez | PASS |
@@ -418,14 +439,16 @@ Windows Git stdin newline farkı test taşımasında NUL ayırıcıyla giderildi
 | Windows hosts/güven yönergeleri | Uygulama PASS, kaldırma NOT VERIFIED; bölüm12 |
 | Windows certificate SAN/süre, CA zinciri ve leaf private key eşleşmesi | PASS; kullanıcı OpenSSL çıktıları, bölüm12 |
 | VM aktarımı, izinler, gerçek model ve Nginx SSL syntax/certificate-key okuması | PASS; kullanıcı nginx -t exit0 ve iki başarı mesajını doğruladı, bölüm13 |
-| VM18443 listener yokluğu | PASS; başlangıç/bitiş ss; Windows port boşluğu bu adımda NOT VERIFIED |
-| Gerçek HTTPS HTML/JS/CSS ve API Location/same-origin davranışı | NOT VERIFIED |
-| HTTPS sonrası health, image kimliği ve monitoring erişiminin korunması | NOT VERIFIED |
+| VM/Windows18443 ve gerçek HTTPS yayını | PASS; hazırlıkta boş, etkinleştirmede yalnız VM/Windows loopback; bölüm14 |
+| Gerçek HTTPS HTML/JS/CSS ve API Location/same-origin davranışı | PASS; manuel tarayıcı/Network ve curl API sonuçları, bölüm14 |
+| HTTPS sonrası altı health, frontend image ve diğer beş container kimliği | PASS; gerçek inspect, bölüm14 |
+| Monitoring portlarının korunması / yeni monitoring sorguları | Portlar ve healthy PASS; sorgu/browser kabulü bu adımda tekrarlanmadı, 15 Ekim kanıtı ayrı |
+| Varsayılan Schannel curl iptal kontrolü / best-effort çağrı | Varsayılan çağrı FAIL exit35; best-effort ile zincir/hostname/geçerlilik PASS, iptal durumu NOT VERIFIED |
 | Yenileme/reload, public CA/domain/internet kabulü | NOT VERIFIED |
 
-YAML/static test, Windows sertifika hazırlığı ve nginx -t başarılı HTTPS bağlantısı
-anlamına gelmez. Sonraki küçük adım ayrı rehberli frontend TLS etkinleştirmesi ve
-yeni tünel/HTTPS kabulüdür; mevcut frontend bu görevde yeniden oluşturulmadı.
+YAML/static test, Windows sertifika hazırlığı ve nginx -t tek başına başarılı
+HTTPS bağlantısı anlamına gelmez. Ayrı etkinleştirme ve runtime kanıtı bölüm14'te
+elde edildi; eski aşamalardaki NOT VERIFIED kayıtları tarihsel sınırları korur.
 
 Gerçekte çalıştırılan yerel komut `py -3 tests/Deployment.Configuration.Test.py`;
 test kendi sahte env dosyalarıyla `docker compose ... config -q` ve JSON model
@@ -569,3 +592,126 @@ Bu görevde yalnız dört repository belgesi güncellenir; commit/push yapılmad
 Repository belge kontrolleri: secret leakage exit0,66 yerel dosya/anchor bağlantısı
 PASS,7 PowerShell bloğu syntax-only PASS ve git diff --check exit0. Uygulama,
 Compose, release.json ve test kodu değiştirilmedi; index boş, yeni dosya yok.
+
+## 14. HTTPS etkinleştirme ve runtime kabulü — 15–16 Ekim 2026
+
+Başlangıç repository temizdi, HEAD a5fb235. Kullanıcı komutları Windows PowerShell
+ve Ubuntu SSH terminallerinde çalıştırıp sonuçlarını paylaştı; agent VM'ye
+bağlanmadı, gerçek env/private key okumadı. Etkinleştirme 15 Ekim'de, son erişim,
+CRUD ve kimlik/health kontrolleri 16 Ekim'de tamamlandı. Test edilen uygulama
+kaynağı değişmedi: `1b52633776279b1661a7cac53392d385cbf10444`; image referansları
+[release.json](release.json) içindeki aynı API/frontend digest çiftidir.
+
+### Frontend'e uygulama ve erişim
+
+Başlangıç altı container healthy ve VM18443 boştu. İki env ve üç Compose dosyasıyla
+sessiz config -q PASS; aynı frontend image ve gerçek bind'larla geçici nginx -t
+exit0. Benzersiz kontrol container'ı temizlendi. Ardından yalnız frontend:
+
+```bash
+sudo docker compose --project-name fullstackops-deploy-lab \
+  --env-file .env.deployment --env-file .env.https \
+  -f compose.yaml \
+  -f infrastructure/deployment/compose.deploy.yaml \
+  -f infrastructure/deployment/compose.https.yaml \
+  up -d --no-build --no-deps --pull never --wait --wait-timeout 90 frontend
+```
+
+Health beklemesi başarılıydı. Frontend469774f333b6 yerine e401eb7fbff5 oluştu;
+API ve diğer dört bağımlılık yeniden oluşturulmadı. Gerçek frontend image ref'i,
+local selected image ve container Image kimliği frontend digest'iyle eşleşti:
+`sha256:e0c77449225c4cd602e8f3b2af43a68ca3ad1578ce6428ba8ddcccf1fa612627`.
+Nginx config/leaf crt/key için üç bind RW=false; CA mount yok. VM ss yalnız
+127.0.0.1:18443 listener gösterdi. Eski HTTP18081 GET200 ve text/html korundu.
+
+Windows18443 boşluğu kontrol edilip güncel VM IP172.30.249.139'e yukarıdaki
+SSH tüneli açıldı; Windows listener127.0.0.1:18443 ve sahibi ssh doğrulandı.
+16 Ekim'de kullanıcı pencereleri kapattıktan sonra Hyper-V konsolu yanıt vermedi.
+SSH erişimi ve altı mevcut container'ın healthy/aynı ID olduğu doğrulandı;
+VM veya Docker yeniden başlatılmadı. Port boşken yalnız HTTPS tüneli yeniden
+açıldı, tarayıcı erişimi geri geldi. Konsolun yanıt vermeme kök nedeni belirlenmedi.
+
+### Sertifika ve istemci sınırlaması
+
+| Kontrol | Gerçek sonuç |
+| --- | --- |
+| İlk Schannel curl 8.21.0 | FAIL; CRYPT_E_NO_REVOCATION_CHECK (0x80092012), exit35, HTTP000; VERIFY0 tek başına başarı sayılmadı |
+| Public leaf dosyası | Önceden kaydedilmiş SHA256 ile aynı; CRL2.5.29.31 ve AIA1.3.6.1.5.5.7.1.1 uzantıları yok |
+| Komuta özel --ssl-revoke-best-effort | HTTP200; VERIFY0; IP127.0.0.1; exit0; zincir/hostname/zaman kontrolleri açık |
+| Tarayıcı | Kullanıcı tasks.fullstackops.test:18443 adresinin sertifika uyarısı olmadan açıldığını bildirdi |
+| Sertifika bilgisi | mkcert development certificate/CA; 15Ekim2026 13:59:05 → 15Ocak2029 13:59:05 Türkiye saati, önceki UTC kayıtlarıyla uyumlu |
+| CN/SAN | Leaf CN boş; önceki OpenSSL SAN tasks.fullstackops.test kontrolü ve URL hostname kabulü geçerli; CN'den isim doğrulama iddiası yok |
+| HTML ve asset erişimi | HTTPS root curl200 ve tarayıcı render; gerçek index-6SMY9-rQ.css ve index-CKhYhs0u.js istekleri HTTPS GET200 |
+| Console/mixed-content | Kullanıcı F12 Network/Console kontrolünde hata olmadığını bildirdi; otomatik browser/console testi yapılmadı |
+
+CRL/OCSP iptal durumu kanıtlanmadı. Bu yerel CA'nın public/production sertifika
+kabulü değildir. Sistem trust/security ayarı, CA, sertifika veya image değiştirilmedi;
+uyarı atlama veya TLS doğrulamasını kapatan callback/flag kullanılmadı. HTTPS
+asset MIME başlıkları ayrıca paylaşılmadı; 15 Ekim HTTP asset MIME kanıtıyla aynı
+ölçüm gibi sunulmaz. Tarayıcı gözlemi manuel ve o kontrol anıyla sınırlıdır.
+
+### HTTPS API contract ve test kaydı temizliği
+
+İstekler Windows curl, aynı best-effort sınırlaması ve aynı HTTPS origin üzerinden
+gönderildi. Gövdeler UTF-8 BOM'suz geçici dosyalarla iletildi; credential okunmadı.
+
+| Kontrol | Gerçek sonuç |
+| --- | --- |
+| Liste GET | HTTP200; application/json; charset=utf-8; curl exit0 |
+| POST | HTTP201; yalnız bu teste ait benzersiz görev ID3 |
+| Location | /api/tasks/3; https://tasks.fullstackops.test:18443/api/tasks/3 olarak çözüldü; HTTPS host/port korundu |
+| İlk JSON ve tekil GET | Tam id/title/description/isCompleted/createdAt/updatedAt; GET200, description null, isCompleted false |
+| PUT | HTTP200; başlık güncellendi, isCompleted true, description null; altı alan ve createdAt korundu, updatedAt ilerledi |
+| Güncellemenin tekrar okunması | Tekil GET200; güncellenen değerler doğrulandı |
+| Boş başlık | POST400 ve test kaydına PUT400 |
+| Bulunmayan ID | Tekil GET2147483647 için404 |
+| Negatif testlerin etkisi | Önce/sonra tekil GET yanıtları aynı; test görevi değişmedi |
+| Temizlik | Benzersiz başlık/ID/createdAt ile sahiplik kontrolünden sonra yalnız ID3 DELETE204, boş gövde; ardından GET404 |
+
+Test kaydı createdAt UTC `2026-10-16T10:16:41.132838+00:00` idi; silme öncesi
+aynı değer doğrulandı. Liste yanıtları veya başka görevlerin içerikleri loglanmadı.
+Diğer kayıtlara silme isteği gönderilmedi. Normal mutation cache invalidation'ı
+korundu; elle cache/key silme, FLUSH veya yeni cache/TTL regresyonu yapılmadı.
+
+İlk liste kontrolünün regex'i geçerli `application/json; charset=utf-8` değerini
+yanlış reddetti. HTTP200/exit0 çıktısı incelenip charset'i kabul eden kontrol
+düzeltildi; API/config hatası sayılmadı, yeniden POST veya uygulama değişikliği
+yapılmadı. İstek başarılı olsa da hatalı assertion PASS gibi saklanmadı.
+
+### Son durum ve açık işler
+
+16 Ekim son salt okunur inspect sonucu aşağıdadır. Kimlikler başlangıçla
+karşılaştırıldı; frontend TLS recreate sonrası yeni ID'sini, diğer beş servis
+etkinleştirme öncesi ID'lerini korudu.
+
+| Servis | Container ID başlangıcı | State / health | Host bind |
+| --- | --- | --- | --- |
+| frontend | e401eb7fbff5 | running / healthy | 127.0.0.1:18081→80 ve127.0.0.1:18443→443 |
+| api | 4d572817ca12 | running / healthy | Yok |
+| postgres | e9296c518548 | running / healthy | Yok |
+| redis | d98d34cc73c5 | running / healthy | Yok |
+| prometheus | 84eaf1ceebb5 | running / healthy | 127.0.0.1:19090→9090 |
+| grafana | ed9398e62129 | running / healthy | 127.0.0.1:13000→3000 |
+
+Test Task3 ve istemci geçici payload/response/header dosyaları temizlendi;
+geçici nginx kontrol container'ı kalmadı. Stack ve HTTPS tüneli açık bırakıldı.
+Monitoring sorguları bu adımda yeniden çalıştırılmadı; finalde healthy/ID/port
+koruması doğrulandı, 15 Ekim datasource/12 panel/yeni örnek kanıtı ayrı kalır.
+Development env/user-secrets/volume'ları kullanılmadı; VM TLS env/key/sertifika
+dosyaları Git dışında, seçilmiş kaynak/digestler ve release.json değişmedi.
+
+Bu sonuç yerel HTTPS küçük adımını tamamlar. Deployment PostgreSQL recreate
+kalıcılığı, sürüm güncelleme/rollback, backup/restore ve lab kapanışı bekliyor.
+Yeni kesinti/performans veya public domain/internet/production kabulü yok;
+manuel öğrenme değerlendirmesi hâlâ NOT VERIFIED. Commit/push yapılmadı.
+
+16 Ekim repository kontrolleri: `py -3 tests/Deployment.Configuration.Test.py`
+5/5 PASS (yalnız sahte fixture/Compose parser, Engine kaynağı oluşturmaz),
+repository secret leakage exit0,70 yerel dosya/anchor bağlantısı PASS,
+7 PowerShell belge bloğu syntax-only PASS ve git diff --check exit0. İlk statik
+test çağrısı sandbox geçici dosya izni nedeniyle çalışamadı; uygun izinle tekrar
+geçti, ilk çağrının oluşturduğu yalnız beş boş fixture klasörü tam ad/zaman/yol
+kontrolüyle temizlendi. Gerçek env/key dosyaları okunmadı; kök .env ignored ve
+untracked kontrolü PASS. Yalnız HTTPS/deployment README, deployment planı ve
+PROJECT_STATUS değişti; index boş, yeni dosya veya application/config değişikliği
+yok. VM runtime deneyleri agent tarafından tekrarlanmadı.

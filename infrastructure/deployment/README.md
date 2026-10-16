@@ -1,13 +1,13 @@
-# Deployment Lab — image seçimi ve statik Compose hazırlığı
+# Deployment Lab — image-only VM kurulumu ve kabul kayıtları
 
-15 Ekim 2026 güncel durum: 13–14 Ekim'deki hazırlık/migration/stack/HTTP-cache kabulüne
-ek olarak gerçek frontend HTML/JS/CSS erişimi, Prometheus scrape/yeni örnekler ve
-Grafana datasource/12 panel sorguları **PASS**. Sonuçlar aşağıdaki tarihli rehberli
-VM kayıtlarına dayanır. Persistence recreate, HTTPS, update/rollback, backup/restore
-ve lab kapanışı bekliyor. Yerel HTTPS dosyaları statik olarak hazır; Windows lab
-CA/leaf, kullanıcı güven deposu ve hosts hazırlığı da kullanıcı çıktılarıyla PASS.
-VM TLS dosya aktarımı/izinleri, gerçek Compose modeli ve geçici nginx -t de PASS.
-Çalışan frontend'e TLS uygulanmadı; HTTPS runtime henüz yapılmadı.
+16 Ekim 2026 güncel durum: hazırlık/migration/HTTP-cache ve 15 Ekim asset/monitoring
+kabulüne ek olarak **yerel HTTPS etkinleştirme, uyarısız manuel tarayıcı/asset ve
+HTTPS CRUD kabulü PASS**. Frontend aynı seçilmiş image ile yalnız bir kez TLS için
+yeniden oluşturuldu; diğer beş container kimliği korundu, final altısı healthy.
+Windows Schannel iptal kontrolü sınırlaması ve komuta özel best-effort sonucu
+[ayrıntılı HTTPS kaydında](HTTPS.md#14-https-etkinleştirme-ve-runtime-kabulü--1516-ekim-2026)
+açıklanır. Kaynak SHA/digestler aynı. Persistence recreate, update/rollback,
+backup/restore ve lab kapanışı bekliyor.
 Deployment lab bütünüyle tamamlanmadı. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
@@ -25,7 +25,7 @@ korunur. Nginx frontend image'ının içinde kalır.
   parser'ını kullanır; Engine, registry pull, .env veya user-secrets gerekmez.
 - [HTTPS hazırlığı ve kurulum komutları](HTTPS.md): isteğe bağlı üçüncü
   [overlay](compose.https.yaml), [Nginx config](nginx/https.conf) ve
-  [TLS path örneği](https.env.example); şu anda VM'de etkin değildir.
+  [TLS path örneği](https.env.example); VM'de kullanıcı tarafından etkinleştirildi.
 
 API/frontend için `build: !reset null` kaynak build alanını siler. Sadece `image`
 eklemek build alanını kaldırmaz. `ports: !override` eski ve yeni port listelerinin
@@ -814,3 +814,56 @@ karıştırılmaz. Agent VM işlemi/secret okuması yapmadı; kanıt kullanıcı
 Stack/tüneller çalışır bırakıldı, source/digest/release değiştirilmedi; yeni build,
 migration, CRUD, cache temizleme veya volume işlemi yok. Frontend TLS recreate,
 yeni SSH tüneli ve HTTPS/browser/API kabulü bekliyor. Commit/push yapılmadı.
+
+## Yerel HTTPS etkinleştirme ve kabul — 15–16 Ekim 2026
+
+Bu bölüm önceki hazırlık kayıtlarının devamıdır. Kullanıcı gerçek komut sonuçlarını
+paylaştı; agent VM'ye bağlanmadı, private key/env okumadı. Başlangıç HEAD a5fb235
+ve Git temizdi. [HTTPS kanıt tablosu ve komutlar](HTTPS.md#14-https-etkinleştirme-ve-runtime-kabulü--1516-ekim-2026).
+
+Gerçek env config -q ve geçici nginx -t exit0 sonrasında yalnız frontend,
+üç Compose/iki env dosyasıyla `up -d --no-build --no-deps --pull never --wait`
+kullanılarak yeniden oluşturuldu. Selected frontend ref/local image/container
+Image kimlikleri release.json digest'iyle eşleşti. Üç gerçek bind read-only;
+CA private key Windows'ta kaldı. HTTP127.0.0.1:18081 GET200/text/html korunurken
+HTTPS yalnız VM127.0.0.1:18443→443 üzerinde açıldı. Kaynak
+1b52633776279b1661a7cac53392d385cbf10444 ve iki GHCR digest'i değiştirilmedi.
+
+Windows127.0.0.1:18443 SSH tüneliyle `https://tasks.fullstackops.test:18443/`
+erişimi doğrulandı. Pencereler kapandıktan sonra 16 Ekim'de IP172.30.249.139 ve
+aynı altı healthy container SSH ile kontrol edilip yalnız tünel tekrar açıldı;
+Hyper-V konsolunun yanıt vermemesi için VM/Docker restart yapılmadı, nedeni
+belirlenmedi. Tarayıcı sertifika uyarısı vermedi; görülen mkcert CA/leaf ve
+geçerlilik tarihleri önceki Windows kaydıyla uyumlu. Gerçek HTTPS JS/CSS200,
+manuel Network/Console gözleminde hata/mixed-content yok. Otomatik browser
+testi veya HTTPS asset MIME başlıklarının ayrı doğrulaması iddia edilmez.
+
+Varsayılan Schannel curl8.21.0 önce CRYPT_E_NO_REVOCATION_CHECK/exit35/HTTP000
+verdi. Public leaf hash'i aynı, CRL/AIA bilgisi yoktu. Yalnız komuta ait
+`--ssl-revoke-best-effort` ile HTTP200/VERIFY0/IP127.0.0.1/exit0 alındı;
+zincir/hostname/geçerlilik korunur, iptal durumu **NOT VERIFIED**. -k/insecure,
+genel güvenlik değişikliği veya browser uyarısı atlama kullanılmadı.
+
+| HTTPS contract kontrolü | Gerçek sonuç |
+| --- | --- |
+| Liste / tekil GET | 200; liste application/json; charset=utf-8 |
+| POST ve Location | 201, test ID3, /api/tasks/3; aynı HTTPS origin/18443'e doğru çözüm |
+| JSON ve PUT | Altı alan; null description; PUT200, title/isCompleted güncellendi, createdAt aynı/updatedAt ilerledi; tekrar GET200 |
+| Negatif durumlar | Boş title POST400/PUT400; bulunmayan ID GET404; test görevi değişmedi |
+| Test temizliği | Benzersiz başlık/ID/createdAt kontrolüyle yalnız ID3 DELETE204/boş gövde; sonra GET404 |
+
+Liste kontrolündeki ilk regex, geçerli charset parametresini yanlış reddetti;
+assertion düzeltildi, başarılı HTTP200 uygulama hatası sayılmadı. Başka kayda
+silme isteği, elle cache temizleme, FLUSH, migration veya volume işlemi yapılmadı.
+Geçici nginx test container'ı ve istemci payload/response/header dosyaları temizlendi.
+
+Son inspect: frontend e401eb7fbff5, api4d572817ca12, postgres e9296c518548,
+redis d98d34cc73c5, prometheus84eaf1ceebb5, grafana ed9398e62129; altısı running/healthy.
+Diğer beş ID başlangıçla aynı. Frontend18081/18443, Prometheus19090 ve Grafana13000
+yalnız VM127.0.0.1; internal üç servis PortBindings={} olarak kaldı. Monitoring
+ID/health/port korunması yeni datasource/panel sorgu kabulü değildir; 15 Ekim
+kanıtı ayrı kalır. Stack ve HTTPS tüneli açık bırakıldı; development kaynakları,
+secret'lar ve seçilmiş release değişmedi. Bu adım yalnız yerel HTTPS kabulüdür;
+public domain/internet/production veya deployment lab bütünü için tamamlanma yok.
+Sonraki öneri ayrı yetkiyle deployment PostgreSQL recreate kalıcılık kabulüdür;
+henüz uygulanmadı. Commit/push yapılmadı.
