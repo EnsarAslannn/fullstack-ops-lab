@@ -1,6 +1,6 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
-**Plan tarihi:** 11 Ekim 2026. **Güncel durum (16 Ekim):** Hazırlık/migration/stack/HTTP-cache, asset/monitoring ve yerel HTTPS/browser/CRUD kabulü PASS. Yalnız frontend aynı seçilmiş digest ile TLS için yeniden oluşturuldu; diğer beş ID aynı, altısı healthy. Schannel varsayılan iptal kontrolü başarısızlığı ve komuta özel best-effort sınırlaması kaydedildi. Seçili SHA/digest çifti korunuyor. Persistence recreate, update/rollback, backup/restore ve lab kapanışı bekliyor. TLS tasarımı bölüm18, Windows hazırlığı bölüm19, VM hazırlığı bölüm20, gerçek HTTPS kabulü bölüm21'de kayıtlıdır.
+**Plan tarihi:** 11 Ekim 2026. **Güncel durum (16 Ekim):** Önceki hazırlık/migration/HTTP-cache/asset/monitoring/yerel HTTPS kabulüne ek olarak PostgreSQL recreate kalıcılığı PASS. PostgreSQL yeni ID, aynı image/volume; HTTPS tekil GET'te test görevinin altı alanı aynı. Diğer beş ID aynı, altısı healthy/RestartCount0; test kaydı temizlendi, başlangıç count/hash/history korundu. Seçili SHA/digest çifti ve HTTPS kaynakları aynı. Update/rollback, backup/restore ve lab kapanışı bekliyor. Tarihli kanıtlar bölüm12–21, PostgreSQL recreate kabulü bölüm22'dedir; HTTPS Schannel/manual browser sınırları değişmedi.
 
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
@@ -153,7 +153,7 @@ Hedef RPO **24 saat**; kurtarma süresi henüz ölçülmedi. VM/PC kapalıysa g�
 
 ## 9. En küçük uygulama adımları ve kabul kapıları
 
-Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. Adım1–4 kabulü 13–15 Ekim, adım5 yerel HTTPS kabulü 15–16 Ekim kanıtlarıyla karşılanır; adım6'nın monitoring kısmı ayrıca tamamlandı. Persistence recreate kısmı ve adım7/8/9 henüz uygulanmadı. Geçmiş kanıtlar bugün yeniden çalıştırılmış gibi sunulmaz.
+Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. Adım1–4 kabulü 13–15 Ekim, adım5 yerel HTTPS kabulü 15–16 Ekim kanıtlarıyla karşılanır. Adım6 monitoring kısmı15 Ekim, PostgreSQL recreate kalıcılığı16 Ekim'de tamamlandı. Adım7/8/9 henüz uygulanmadı. Geçmiş kanıtlar bugün yeniden çalıştırılmış gibi sunulmaz.
 
 | Adım | Yapılacak iş | Kabul kanıtı |
 | --- | --- | --- |
@@ -162,7 +162,7 @@ Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz
 | 3 — İlk veri hazırlığı | Yalnız lab volume/PostgreSQL; açık SQL üretme/inceleme/uygulama | TCP auth başarılı; tasks/history doğru; migration hata exit code kapısı; API auto-migration yok |
 | 4 — GHCR runtime | Altı servisi çekilen image'larla başlat, kimliklerini eşleştir | Altı healthy; internal live/ready200; HTML/JS/CSS200; CRUD/Location/altı JSON alanı/nullable/400/404; cache miss/hit/TTL/invalidation |
 | 5 — Yerel HTTPS | Mevcut frontend Nginx'e read-only config/leaf mount, lab CA ve localhost SSH | PASS; sertifika/trust/nginx -t, frontend-only recreate, uyarısız manuel browser/asset ve HTTPS contract; iptal durumu NOT VERIFIED, Schannel best-effort sınırı bölüm21'de |
-| 6 — Kalıcılık ve gözlem | PostgreSQL recreate, Prometheus ve Grafana kontrolleri | Aynı lab volume'da görev ID/alanları korunur; Prometheus UP/yeni örnek; datasource ve 12 panel otomatik; readiness ayrı kontrol |
+| 6 — Kalıcılık ve gözlem | PostgreSQL recreate, Prometheus ve Grafana kontrolleri | PASS; aynı image/volume'da yeni PostgreSQL ID, test ID4/altı alan tekil GET ile korundu, aynı API ready200/RestartCount0 ve cleanup; bölüm22. Monitoring kabulü ayrı15 Ekim kanıtıdır, burada yeniden ölçülmedi |
 | 7 — Güncelleme/rollback | İki uyumlu published digest çiftiyle kontrollü geçiş/dönüş | Her iki sürümün SHA/digest/container identity ve HTTP kabulü; veri korunmuş; gerçek kesinti süresi kaydı |
 | 8 — Yedek/restore | Günlük yedek planı ve yeni test DB'ye bir restore | Başarılı dump/checksum, güncel yedek zamanı; ayrı restore'da görev/history doğrulaması; owned cleanup |
 | 9 — Lab kapanışı | Komutlar, runtime kanıtları, limitler ve kaynak envanteri | Development .env/user-secrets/volume değişmemiş; yalnız lab stack'i down; asıl lab verisi korunmuş |
@@ -177,12 +177,12 @@ Normal kapatma `stop` veya project/env hedefi açık `down`; named volume'lar ko
 | --- | --- | --- |
 | Sunucu, maliyet, domain | 0 TL yerel VM; public domain ertelendi | Yerel Ubuntu VM/Docker/Compose hazırlığı PASS; internet deployment kabulü yok |
 | Ayrı config ve digest deployment | Image-only override + aynı SHA'lı digest çiftleri | Statik model/pull/kimlik, HTTP/cache ve asset/monitoring PASS; diğer lab kapıları bekliyor |
-| Secret/volume/migration | VM'e özel kaynaklar ve açık SQL hazırlığı | PASS: ayrı env/volume/TCP auth ve InitialCreate uygulama/tekrar; persistence recreate ayrı bekliyor |
+| Secret/volume/migration | VM'e özel kaynaklar ve açık SQL hazırlığı | PASS: ayrı env/volume/TCP auth ve InitialCreate uygulama/tekrar;16 Ekim aynı volume recreate sonrası test kaydı korundu, history tek ve aynı |
 | Domain ve HTTPS erişimi | Yerel ad/TLS prova; public domain/internet erişimi ayrı gelecek karar | Yerel HTTPS/browser/CRUD PASS; iptal durumu ve public kabul NOT VERIFIED; issue tamamlandı sayılmaz |
 | DB/Redis/API kapalı; monitoring sınırlı | Internal portlar, loopback ve SSH yönetimi | Gerçek Docker bind ve Windows loopback tünel PASS; geniş LAN/public ağ kabulü yapılmadı |
 | Health, frontend ve CRUD | Gerçek VM/browser/HTTP kontrolü | Önceki health/HTTP-cache ile güncel asset/datasource/12 panel ve yeni örnek kabulü PASS; lab kapanışı bekliyor |
 | Güncelleme ve rollback | İki uyumlu digest çifti + schema uyum kapısı | NOT VERIFIED |
-| Kayıt recreate sonrası korunur | Aynı lab external PostgreSQL volume'u | Önceki local/CI kanıtı var; yeni VM kabulü NOT VERIFIED |
+| Kayıt recreate sonrası korunur | Aynı lab external PostgreSQL volume'u | PASS;16 Ekim VM'de ID4/altı alan aynı, yeni PostgreSQL container ID, aynı volume/image; boş başlangıç ve kesinti gözlem sınırı bölüm22'de |
 | Image / migration rollback farkı | Veri silmeyen image dönüşü; destructive InitialCreate.Down uyarısı | Tasarım açık; restore NOT VERIFIED |
 | Development ortamı korunur | Ayrı VM Engine/project/env/volume ve envanter | Rehberli kabul VM'de ayrı deployment kaynaklarıyla; Windows development Engine/verileri kullanılmadı |
 
@@ -496,3 +496,49 @@ cache temizlenmedi. Stack ve HTTPS tüneli açık bırakıldı. Sonraki öneri p
 adım6 kapsamında yalnız deployment PostgreSQL recreate kalıcılığının ayrı kabulüdür;
 bu görevde başlanmadı. Güncelleme/rollback, günlük yedek/restore ve final lab
 kapanışı bekliyor. Manuel öğrenme NOT VERIFIED; commit/push yapılmadı.
+
+## 22. PostgreSQL recreate kalıcılığı — 16 Ekim 2026
+
+Temiz ana çalışma alanı HEAD fe8c5b88ac0d98d7d185e9aabb4871d7c562ec20.
+Kullanıcı Ubuntu SSH ve Windows PowerShell komutlarını yürüttü; agent VM'ye
+bağlanmadı veya gerçek env/secret okumadı. API/frontend kaynak SHA'sı
+1b52633776279b1661a7cac53392d385cbf10444/digest çifti, mevcut HTTPS overlay ve
+iki env kaynağı aynı kaldı. [Ayrıntılı kabul ve komut](../infrastructure/deployment/README.md#postgresql-recreate-kalıcılık-kabulü--16-ekim-2026).
+
+Başlangıç altı healthy, PostgreSQL external volume fullstackops-deploy-lab-postgres
+→ /var/lib/postgresql. Çalışan image ve local postgres:18-alpine ImageID eşitliği
+77f585114c32... ile kontrol edildi. READ ONLY başlangıç Task sayısı0/IDs[],
+satır SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855;
+tek InitialCreate/EF10.0.12 history kaydı. HTTPS üzerinden benzersiz test görevi
+POST201/ID4, doğru Location ve altı alanlık Windows TEMP snapshot oluşturuldu;
+recreate öncesi doğrudan DB endpoint'inden GET200 ile aynı alanlar doğrulandı.
+
+Gerçek env config -q ve başlangıç image/mount eşleşmeleri sonrasında yalnız
+postgres, üç Compose/iki env ile --no-build/--no-deps/--force-recreate/--pull never
+ve sınırlı --wait kullanılarak yeniden oluşturuldu. ID e9296c518548... →
+b67a87f2d83f...; aynı image, Type=volume/aynı ad/hedef, healthy ve host portu yok.
+5.9s Compose health beklemesidir; API kesinti süresi ölçümü değildir.
+
+Aynı API4d572817ca12... running/healthy/RestartCount0; internal readiness200.
+HTTPS tekil GET /api/tasks/4 HTTP200 ve altı alan snapshot ile birebir aynı:
+null description/false isCompleted, aynı title ve UTC10:42:50.816497 tarihleri.
+Liste cache hit'i kanıt sayılmadı. Diğer beş ID aynı; final inspect'te altısı
+running/healthy/RestartCount0, portlar yalnız önceki loopback yayınları.
+API veya diğer servisler restart edilmedi; geçici hatayı gizleyen müdahale yok.
+
+Sahiplik ve altı alan kontrolünden sonra yalnız Task4 DELETE204/boş gövde,
+GET404; test snapshot/geçici istemci dosyaları temizlendi. Son READ ONLY sorgusu
+başlangıçla aynı count0/IDs[]/SHA256 ve HISTORY_COUNT1/aynı InitialCreate/EF
+sonucunu verdi. Başlangıçta başka Task yoktu; dolu dataset korunması denenmedi.
+Satır hash'i fiziksel veritabanı/şema/sequence eşitliği değildir; ID sayacı
+sıfırlanmadı. Recreate boyunca sürekli API/probe gözlemi yoktu: hiç geçici
+5xx/503/unhealthy oluşmadığı NOT VERIFIED; örneklenen isteklerde hata yoktu.
+
+Named volume yeni container'a yeniden bağlanarak veri korunur; container/image
+sürümü değiştirme ve yedekten restore ayrı konulardır. Stack ve tüneller çalışır
+bırakıldı; development verileri, volume'lar, TLS ve credential'lar korundu.
+Build/pull, migration veya cache temizleme yapılmadı. Plan adım6 tamamlandı;
+monitoring'in15 Ekim kanıtı yeniden koşulmadı. Sonraki öneri yalnız ayrıca
+istenirse adım7 sürüm güncelleme/rollback hazırlığıdır; burada başlanmadı.
+Backup/restore, final lab kabulü ve manuel öğrenme kapanışı hâlâ bekliyor.
+Commit/push yapılmadı.

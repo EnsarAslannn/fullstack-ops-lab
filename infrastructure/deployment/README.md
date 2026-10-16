@@ -6,8 +6,10 @@ HTTPS CRUD kabulü PASS**. Frontend aynı seçilmiş image ile yalnız bir kez T
 yeniden oluşturuldu; diğer beş container kimliği korundu, final altısı healthy.
 Windows Schannel iptal kontrolü sınırlaması ve komuta özel best-effort sonucu
 [ayrıntılı HTTPS kaydında](HTTPS.md#14-https-etkinleştirme-ve-runtime-kabulü--1516-ekim-2026)
-açıklanır. Kaynak SHA/digestler aynı. Persistence recreate, update/rollback,
-backup/restore ve lab kapanışı bekliyor.
+açıklanır. **16 Ekim PostgreSQL recreate kalıcılığı da PASS**: aynı image/volume,
+yeni PostgreSQL container ID'si ve HTTPS tekil GET ile test görevinin altı alanı
+korundu. Diğer beş ID aynı, altısı healthy; test kaydı temizlendi.
+Kaynak SHA/digestler aynı. Update/rollback, backup/restore ve lab kapanışı bekliyor.
 Deployment lab bütünüyle tamamlanmadı. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
@@ -867,3 +869,131 @@ secret'lar ve seçilmiş release değişmedi. Bu adım yalnız yerel HTTPS kabul
 public domain/internet/production veya deployment lab bütünü için tamamlanma yok.
 Sonraki öneri ayrı yetkiyle deployment PostgreSQL recreate kalıcılık kabulüdür;
 henüz uygulanmadı. Commit/push yapılmadı.
+
+## PostgreSQL recreate kalıcılık kabulü — 16 Ekim 2026
+
+Bu kayıt, fe8c5b88ac0d98d7d185e9aabb4871d7c562ec20 üzerindeki temiz ana çalışma
+alanından başlayan, kullanıcı tarafından yürütülen VM/Windows deneyidir. Agent
+VM'ye bağlanmadı veya development/gerçek env/user-secrets/private key okumadı.
+Mevcut üç Compose dosyası ve iki env kaynağı korundu; API/frontend için seçilmiş
+`1b52633776279b1661a7cac53392d385cbf10444` kaynak SHA'sı ve
+[release.json](release.json) digest çifti değişmedi. HTTPS'in Schannel best-effort
+iptal kontrolü sınırı [önceki kabuldeki](HTTPS.md#14-https-etkinleştirme-ve-runtime-kabulü--1516-ekim-2026)
+gibi geçerlidir; yeni bir sertifika/browser kabulü iddia edilmez.
+
+### Başlangıç, aynı image/volume ve recreate
+
+Başlangıçta altı container running/healthy; yalnız amaçlanan loopback portları
+yayındaydı. PostgreSQL project/service etiketleri fullstackops-deploy-lab/postgres,
+Type=volume, Name=fullstackops-deploy-lab-postgres ve
+Destination=/var/lib/postgresql olarak doğrulandı. Çalışan container Image ve
+yerel postgres:18-alpine tag'inin image kimliği aynıydı:
+`sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873`.
+Bu değer PostgreSQL'in yerel runtime image kimliğidir; API/frontend GHCR manifest
+digest'leriyle karıştırılmaz. Tag'in mutable olması nedeniyle kimlik, işlemden
+hemen önce tekrar kontrol edildi ve pull engellendi.
+
+Salt okunur psql transaction'ında UTC saat dilimiyle altı Task sütununu kapsayan
+satır özeti alındı: count=0, ids=[], SHA256
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+Tek history kaydı 20260928113912_InitialCreate / EF10.0.12 idi. Socket/trust psql
+erişimi yalnız envanter içindi; yeni TCP parola doğrulaması olarak sunulmaz.
+
+Windows HTTPS tünelinin 127.0.0.1:18443 listener'ı ve ssh process sahibi kontrol
+edildi. Benzersiz `Deployment persistence 3fac6e980e3e4dbfa8f5ca405e2a8b37` test
+görevi POST201 ile ID4 olarak oluşturuldu, Location=/api/tasks/4 doğrulandı.
+Altı alanlık yanıt yalnız Windows TEMP altında bu deneye ait JSON snapshot'a
+kaydedildi. Recreate öncesi HTTPS tekil GET200 ile her alan bu snapshot'a eşitti.
+
+Container/image/mount başlangıç eşleşmeleri ve sessiz config -q geçtikten sonra
+Ubuntu SSH terminalinde yalnız şu servis yeniden oluşturuldu:
+
+```bash
+sudo docker compose --project-name fullstackops-deploy-lab \
+  --env-file .env.deployment --env-file .env.https \
+  -f compose.yaml \
+  -f infrastructure/deployment/compose.deploy.yaml \
+  -f infrastructure/deployment/compose.https.yaml \
+  up -d --no-build --no-deps --force-recreate --pull never \
+  --wait --wait-timeout 90 postgres
+```
+
+Bu komut gelecekte körlemesine tekrar çalıştırılmaz: önce mevcut container ID,
+çalışan/local image kimliği, volume/mount ve env/overlay hedefleri kontrol edilir.
+PostgreSQL sağlıklı bekleme sonucu 5.9s idi; bu API kesinti süresi ölçümü değildir.
+
+| Kontrol | Gerçek sonuç |
+| --- | --- |
+| Eski PostgreSQL ID | e9296c518548626d194cc05ed28afa0e258287cd0e5d5e7acd6a1d5388c36479 |
+| Yeni PostgreSQL ID | b67a87f2d83ffc7119262239f0bc48d8b2bf141aca9f84b1f4b55d62e173f7f9 |
+| Image | Önce/sonra aynı 77f585114c32... yerel image ID; build/pull yok |
+| Mount | Önce/sonra volume/fullstackops-deploy-lab-postgres → /var/lib/postgresql |
+| PostgreSQL son durum | running/healthy; PublishedPorts={} |
+| API readiness | Frontend container'ından internal http://api:8080/health/ready HTTP200; SPA fallback kullanılmadı |
+| API lifecycle | Aynı 4d572817ca12... container, running/healthy, RestartCount=0; API restart yapılmadı |
+| Kalıcılık kanıtı | HTTPS GET /api/tasks/4 HTTP200; snapshot ile altı alan birebir aynı |
+
+### Korunan test alanları ve diğer servisler
+
+| JSON alanı | Recreate öncesi ve sonrası |
+| --- | --- |
+| id | 4 |
+| title | Deployment persistence 3fac6e980e3e4dbfa8f5ca405e2a8b37 |
+| description | null |
+| isCompleted | false |
+| createdAt | 2026-10-16T10:42:50.816497+00:00 |
+| updatedAt | 2026-10-16T10:42:50.816497+00:00 |
+
+[Tekil GET implementasyonu](../../src/backend/FullStackOpsLab.Api/Program.cs)
+AsNoTracking/SingleOrDefaultAsync ile PostgreSQL'den okur. Liste cache hit'i
+kalıcılık kanıtı olarak kullanılmadı. Her iki GET'te de tam altı alan ve her
+alanın değeri karşılaştırıldı; yalnız HTTP200 veya aynı title yeterli sayılmadı.
+
+| Servis | Korunan container ID başlangıcı | State / health / RestartCount | VM host bind |
+| --- | --- | --- | --- |
+| frontend | e401eb7fbff5 | running / healthy / 0 | 127.0.0.1:18081→80,127.0.0.1:18443→443 |
+| api | 4d572817ca12 | running / healthy / 0 | Yok |
+| redis | d98d34cc73c5 | running / healthy / 0 | Yok |
+| prometheus | 84eaf1ceebb5 | running / healthy / 0 | 127.0.0.1:19090→9090 |
+| grafana | ed9398e62129 | running / healthy / 0 | 127.0.0.1:13000→3000 |
+
+Yeni PostgreSQL de running/healthy/RestartCount=0 idi. RestartCount'un 0 olması
+container recreate yapılmadığı anlamına gelmez; PostgreSQL değişimi eski/yeni
+container ID'leriyle kanıtlandı. Diğer beşinin ID'leri başlangıçla aynı kaldı.
+
+### Temizlik, kabul sınırı ve öğrenme
+
+Silmeden önce ID/title/createdAt ve snapshot'ın altı alanı tekrar eşleştirildi;
+yalnız test Task4 DELETE204/boş gövde ile silindi, tekil GET404 doğrulandı.
+Sadece bu testin Windows snapshot/payload/response/header dosyaları temizlendi.
+Son READ ONLY sorgusu başlangıçla aynı count=0/ids=[]/SHA256 ve HISTORY_COUNT=1,
+aynı InitialCreate/EF10.0.12 sonucunu verdi. **Başlangıçta başka Task yoktu**;
+dolu bir başlangıç dataset'inin korunması ayrıca denenmiş gibi sunulmaz.
+Satır hash'i fiziksel database, şema veya sequence durumunun byte eşitliği
+değildir; ID sayacını geri alma/sıfırlama komutu çalıştırılmadı.
+
+Ölçülen isteklerde hata yoktu: önce/sonra tekil GET200, son readiness200.
+Ancak recreate penceresinde sürekli API/liveness/readiness/Docker health takibi
+yapılmadı; geçici 5xx/503 veya unhealthy oluşmadığı **NOT VERIFIED**. Aynı API'nin
+RestartCount=0 ve sonraki başarılı DB okuması toparlanmanın API restart ile
+gizlenmediğini gösterir; sıfır kesinti veya retry politikasının kapsamlı kabulü
+değildir. Yeni migration, rollback, backup/restore veya monitoring sorgusu yok.
+
+Named volume container'dan ayrı yaşar: yeni PostgreSQL aynı veri dizinini
+bağlayınca şema/history ve test kaydı erişilebilir kaldı. Container recreate,
+image sürüm yükseltme ve yedekten restore farklı deneylerdir. Bu görev yalnız
+ilkini doğrular. Volume silinmedi/sıfırlanmadı, down -v/prune kullanılmadı;
+credential, TLS config, seçilmiş release ve development kaynakları değiştirilmedi.
+Stack ve SSH tünelleri çalışır bırakıldı. Plan adım6'nın kalıcılık kısmı PASS;
+15 Ekim monitoring kanıtı ayrı tarihle geçerlidir. Sıradaki öneri yalnız ayrıca
+istenirse plan adım7'nin güncelleme/rollback hazırlığıdır; henüz başlanmadı.
+Deployment final kabulü ve manuel öğrenme kapanışı tamamlanmadı;
+release.json içindeki birleşik vm_pull_and_runtime_acceptance durumu bu dar
+kabul adımında güncellenmedi. Commit/push yok.
+
+Repository belge kontrolleri: secret leakage kontrolü exit0,67 yerel belge
+bağlantısı/anchor ve git diff --check PASS. Yalnız bu README, deployment planı ve
+PROJECT_STATUS değişti; index boş, yeni dosya yok. Uygulama/Compose/TLS/release
+değişmediğinden build veya yeni runtime deneyi yapılmadı. Kanıtlar kullanıcı
+tarafından yürütülen yukarıdaki deneye aittir; development kaynaklarına işlem
+gönderilmedi, snapshot ve gerçek env/SQL/key dosyaları repository'ye eklenmedi.
