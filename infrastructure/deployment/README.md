@@ -2,8 +2,9 @@
 
 17 Ekim 2026 güncel durum: hazırlık/migration/HTTP-cache ve 15 Ekim asset/monitoring
 kabulüne ek olarak **yerel HTTPS etkinleştirme, uyarısız manuel tarayıcı/asset ve
-HTTPS CRUD kabulü PASS**. Frontend aynı seçilmiş image ile yalnız bir kez TLS için
-yeniden oluşturuldu; diğer beş container kimliği korundu, final altısı healthy.
+HTTPS CRUD kabulü PASS**. 15–16 Ekim HTTPS kabulünde frontend aynı seçilmiş image
+ile yalnız TLS için yeniden oluşturuldu; o adımda diğer beş container korundu.
+17 Ekim sürüm geçişlerinin yeni container kimlikleri aşağıda ayrıca kaydedilir.
 Windows Schannel iptal kontrolü sınırlaması ve komuta özel best-effort sonucu
 [ayrıntılı HTTPS kaydında](HTTPS.md#14-https-etkinleştirme-ve-runtime-kabulü--1516-ekim-2026)
 açıklanır. **16 Ekim PostgreSQL recreate kalıcılığı da PASS**: aynı image/volume,
@@ -15,8 +16,14 @@ ayrı kayıttadır. **17 Ekim public aktarım/hash, B digest pull/revision/platf
 A image korunması, gerçek env ile model ve izole B Nginx/TLS kontrolü PASS**;
 [ayrıntılı VM ön kontrolü](UPDATE-ROLLBACK.md#8-rehberli-vm-aktarımı-b-image-ve-nginx-kontrolü--17-ekim-2026).
 İlk Compose run denemesi exit124 verdi; ayrı doğrudan create/start tanısı geçti,
-timeout nedeni bilinmiyor. Aktif altı servis aynı ID'lerle A/healthy kaldı.
-A→B→A runtime, backup/restore ve lab kapanışı bekliyor.
+timeout nedeni bilinmiyor; bu ön kontrolde altı servis A'da aynı kimliklerle kaldı.
+**Ardından 17 Ekim rehberli A→B→A runtime kabulü PASS:** her yönde yalnız API,
+readiness200 sonrası frontend yeniden oluşturuldu. B ve A dönüşünde exact image
+kimlikleri, HTTPS HTML/JS/CSS, ayrı CRUD/Location/JSON/400/404 ve değişmeyen ID5
+kaydı doğrulandı. Final A aktif/altı healthy, dört altyapı container'ı aynı;
+test kayıtları/dosyaları temizlendi, veri/history başlangıçla aynı.
+[Güncel geçiş kanıtı](UPDATE-ROLLBACK.md#9-rehberli-aba-runtime-kabulü--17-ekim-2026).
+Sürekli erişim/kesinti süresi NOT VERIFIED; backup/restore ve lab kapanışı bekliyor.
 Deployment lab bütünüyle tamamlanmadı. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
@@ -33,7 +40,7 @@ korunur. Nginx frontend image'ının içinde kalır.
 - [Güncelleme/rollback hazırlığı](UPDATE-ROLLBACK.md): aktif A'yı değiştirmeyen
   [A/B release kaydı](releases/update-rollback.json) ve yalnız iki image seçen
   [A](releases/compose.version-a.yaml)/[B](releases/compose.version-b.yaml)
-  dördüncü overlay'leri; gelecekteki komutlar henüz çalıştırılmadı.
+  dördüncü overlay'leri; 17 Ekim rehberli geçiş/dönüş kabulü de aynı rehberde.
 - [Statik test](../../tests/Deployment.Configuration.Test.py): gerçek Compose
   parser'ını kullanır; Engine, registry pull, .env veya user-secrets gerekmez.
 - [HTTPS hazırlığı ve kurulum komutları](HTTPS.md): isteğe bağlı üçüncü
@@ -1062,3 +1069,56 @@ listener'ları yeniden ölçülmedi. Task/SQL/migration/recreate/cache temizliğ
 volume silme yok. Agent VM'ye bağlanmadı/private dosyaları okumadı; development
 kaynakları, env/TLS ve seçilmiş A/B kayıtları korunuyor. A→B→A, aynı kaydın
 korunması/HTTPS kabulü/kesinti ölçümü ve backup/restore/final lab bekliyor.
+
+## A→B→A runtime kabulü — 17 Ekim 2026
+
+Bu bölüm önceki ön kontrolü izleyen ayrı görevdir. Temiz main/HEAD
+`cd11b47c842f524e108c91c9046df165ce847256` ile başladı; kullanıcı komutları
+Windows PowerShell/Ubuntu SSH'de çalıştırıp çıktıları paylaştı. Agent VM'ye
+bağlanmadı veya gerçek secret dosyalarını okumadı. Seçilmiş A source1b526337 ve
+B source69fe741 çiftleri [aynı release kaydında](releases/update-rollback.json);
+aktif release.json A kaldı. Bu JSON 16 Ekim hazırlık anının metadata kaydıdır;
+güncel runtime sonucu [rehber bölüm9'dadır](UPDATE-ROLLBACK.md#9-rehberli-aba-runtime-kabulü--17-ekim-2026).
+
+- Başlangıç altı healthy/A; read-only count0/IDs[]/boş satır SHA256 ve tek
+  InitialCreate/EF10.0.12 history. VM172.30.249.139:18443 loopback LISTEN;
+  Windows'ta eksik HTTPS tüneli yalnız localhost18443 için yeniden açıldı,
+  listener sahibi ssh ve HTTPS200/VERIFY0 doğrulandı. Diğer tünellere müdahale yok.
+- Sahipli kalıcılık görevi ID5 POST201/relative Location; altı alan snapshot'ı
+  Windows TEMP'te. A başlangıç, B ve A dönüşünde doğrudan DB tekil GET200 ile aynı
+  ID/title/description/isCompleted/createdAt/updatedAt; bu görev güncellenmedi.
+- Dört-file Compose, iki env kaynağı, aynı project/HTTPS; her geçişte
+  `--no-build --no-deps --force-recreate --pull never --wait --wait-timeout 90`.
+  Önce API, internal readiness200 sonrası frontend. A→B API5.966s/frontend6.142s;
+  B→A API5.975s/frontend6.103s; hepsi exit0, dış120s timeout False. Bunlar komut
+  süreleridir; sürekli probe ve gerçek kesinti süresi ölçülmedi.
+- B ve A dönüşünde exact ref/localId/container.Image/revision/linux-amd64,
+  altı healthy/RestartCount0 ve internal live/ready200. Frontend içinden API'ye
+  gidildi; Nginx SPA health yanıtı veya liste cache'i kanıt sayılmadı.
+- İki aşamada HTTPS HTML200/text-html, HTML'in referans verdiği gerçek
+  JS200/application-javascript ve CSS200/text-css. Kullanıcı tarayıcıda sertifika
+  uyarısı/Console hatası olmadığını bildirdi; otomatik browser testi yapılmadı.
+  Schannel best-effort kullanıldı; sertifika iptal durumu kanıtlanmadı.
+- Ayrı B CRUD ID6 ve A CRUD ID7: POST201/doğru HTTPS Location, GET/PUT/GET200,
+  altı alan/null description, title/completion güncellemesi, createdAt aynı ve
+  updatedAt ilerledi. Boş title POST/PUT400, bulunmayan ID GET404; negatif
+  kontroller kaydı değiştirmedi. Sahiplik kontrolü sonrası DELETE204/boş body ve
+  GET404; her CRUD sonunda ID5'in altı alanı hâlâ aynı.
+- Finalde API8b3d9f24f627/frontend15a93fef4000 yeni A container'ları;
+  postgres b67a87f2d83f/redis d98d34cc73c5/prometheus84eaf1ceebb5/grafana
+  ed9398e62129 başlangıç ID/image'larıyla aynı. Frontend18081/18443,
+  Prometheus19090, Grafana13000 yalnız VM127.0.0.1; internal üç serviste bind yok.
+- ID5 son kez doğrulanıp DELETE204/GET404 ile temizlendi. Final
+  13:52:25.120940 UTC read-only state başlangıçla aynı: count0/IDs[]/boş satır
+  SHA256, history count1/aynı InitialCreate/EF10.0.12; aynı PostgreSQL volume/mount.
+  Yalnız deneyin Windows/Ubuntu geçici klasörleri kontrollü silindi; kullanıcı
+  cleanup PASS çıktılarını paylaştı. Stack ve HTTPS tüneli A'da açık bırakıldı.
+
+Başlangıçta başka Task yoktu; dolu dataset/sequence/physical DB eşitliği veya
+backup/restore iddiası yok. Başarılı B'den planlı A dönüşü yapıldı; başarısız
+güncelleme enjekte edilmedi. Önceki Compose/nginx-t exit124 nedeni çözülmedi.
+Development env/user-secrets/veri, release/digestler, TLS ve volume'lar korundu;
+build/pull/yayın/migration/FLUSH/prune yok. Monitoring kabulü yeniden koşulmadı.
+Plan adım7 tamamlandı; adım8 yedek/restore ve adım9 kapanış bekliyor. Bu yerel VM
+deneyi production/internet/benchmark veya manuel öğrenme PASS değildir.
+Commit/push yapılmadı.
