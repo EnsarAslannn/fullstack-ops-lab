@@ -9,7 +9,10 @@ Windows Schannel iptal kontrolü sınırlaması ve komuta özel best-effort sonu
 açıklanır. **16 Ekim PostgreSQL recreate kalıcılığı da PASS**: aynı image/volume,
 yeni PostgreSQL container ID'si ve HTTPS tekil GET ile test görevinin altı alanı
 korundu. Diğer beş ID aynı, altısı healthy; test kaydı temizlendi.
-Kaynak SHA/digestler aynı. Update/rollback, backup/restore ve lab kapanışı bekliyor.
+Aktif A kaynak SHA/digestleri aynı. **16 Ekim güncelleme/rollback release seçimi ve
+statik hazırlığı tamamlandı**; [A/B kanıtı ve geçiş planı](UPDATE-ROLLBACK.md)
+ayrı kayıttadır. B henüz VM'ye çekilmedi veya uygulanmadı. Update/rollback runtime,
+backup/restore ve lab kapanışı bekliyor.
 Deployment lab bütünüyle tamamlanmadı. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
@@ -23,6 +26,10 @@ korunur. Nginx frontend image'ının içinde kalır.
   üzerine uygulanır; tek başına kullanılmaz.
 - [.env.example](.env.example): yalnız placeholder; kullanılabilir credential yok.
 - [release.json](release.json): kaynak SHA, run ve iki immutable image kimliği.
+- [Güncelleme/rollback hazırlığı](UPDATE-ROLLBACK.md): aktif A'yı değiştirmeyen
+  [A/B release kaydı](releases/update-rollback.json) ve yalnız iki image seçen
+  [A](releases/compose.version-a.yaml)/[B](releases/compose.version-b.yaml)
+  dördüncü overlay'leri; gelecekteki komutlar henüz çalıştırılmadı.
 - [Statik test](../../tests/Deployment.Configuration.Test.py): gerçek Compose
   parser'ını kullanır; Engine, registry pull, .env veya user-secrets gerekmez.
 - [HTTPS hazırlığı ve kurulum komutları](HTTPS.md): isteğe bağlı üçüncü
@@ -997,3 +1004,27 @@ PROJECT_STATUS değişti; index boş, yeni dosya yok. Uygulama/Compose/TLS/relea
 değişmediğinden build veya yeni runtime deneyi yapılmadı. Kanıtlar kullanıcı
 tarafından yürütülen yukarıdaki deneye aittir; development kaynaklarına işlem
 gönderilmedi, snapshot ve gerçek env/SQL/key dosyaları repository'ye eklenmedi.
+
+## Güncelleme/rollback release hazırlığı — 16 Ekim 2026
+
+Başlangıç main/69fe741 ve çalışma alanı temizdi. Aktif release.json ve ilk üç
+Compose dosyası korunarak [ayrı rehber](UPDATE-ROLLBACK.md) hazırlandı.
+A kaynak1b52633776279b1661a7cac53392d385cbf10444/digest çifti dönüş hedefidir.
+B kaynak69fe741fba69de8834789cc2e657fedbb5e6c3dd için başarılı run38890534827,
+iki publishing job'ı ve registry manifest/config SHA256/revision/source/linux-amd64
+salt okunur doğrulandı. Tam iki çift [release kaydında](releases/update-rollback.json).
+
+Backend/frontend source tree, migration/model/paket/API/config/Dockerfile,
+ana Compose ve monitoring aynı; yeni şema veya migration gerekmez. Yeni kullanıcı
+özelliği yok. Image'lar yalnız metadata farkı değil: layer/rootfs değişmiş;
+config'te .NET/ASP.NET10.0.12→10.0.13, Nginx1.30.5→1.30.6 ve NJS1.0.1→1.0.2
+doğrulandı. Mutable base tag rebuild farkı runtime kabulünü gerekli kılar;
+tam binary/package audit yapılmadı.
+
+Statik testler önce eksik selector dosyalarında beklenen iki hata verdi; ardından
+7/7 PASS. Gerçek Compose parser/sahte env ile A modeli korunuyor, B yalnız iki
+image'ı değiştiriyor, A tekrar başlangıç modelini sağlıyor. VM B pull/nginx -t,
+A→B→A, aynı kaydın korunması ve HTTPS/CRUD kabulü **NOT VERIFIED**. Plan API sonra
+frontend recreate içerir; Nginx upstream DNS yenilenir. Diğer dört servise işlem,
+migration veya volume temizliği yok. Bu görevde VM/Engine kaynağına erişilmedi;
+gerçek env/user-secrets/TLS okunmadı, yeni yayın/commit/push yapılmadı.

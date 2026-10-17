@@ -1,5 +1,6 @@
 """Real Compose model checks; no Engine, registry pull or development env required."""
 
+import copy
 import json
 import os
 from pathlib import Path
@@ -16,11 +17,15 @@ class DeploymentConfigurationTests(unittest.TestCase):
     def setUp(self):
         self.credentials = ["fixture-" + secrets.token_hex(24) for _ in range(2)]
 
-    def model(self, deployment, *, https=False, tls_directory="fixture", expect_failure=False):
+    def model(self, deployment, *, https=False, tls_directory="fixture", expect_failure=False,
+              selection=None):
         if deployment:
             self.assertTrue((DEPLOYMENT / "compose.deploy.yaml").is_file(), "Deployment override is missing")
         if https:
             self.assertTrue((DEPLOYMENT / "compose.https.yaml").is_file(), "HTTPS override is missing")
+        if selection:
+            selector = DEPLOYMENT / "releases" / f"compose.version-{selection}.yaml"
+            self.assertTrue(selector.is_file(), "Release selection override is missing: " + selection)
         credentials = self.credentials
         settings = dict([
             ("POSTGRES_USER", "fixture_user"), ("POSTGRES_DB", "fixture_db"),
@@ -54,6 +59,8 @@ class DeploymentConfigurationTests(unittest.TestCase):
                 command += ["--project-name", "development-fixture"]
             if https:
                 command += ["-f", str(DEPLOYMENT / "compose.https.yaml")]
+            if selection:
+                command += ["-f", str(selector)]
             try:
                 quiet = subprocess.run(command + ["config", "-q"], cwd=ROOT,
                                        env=environment, capture_output=True, timeout=30)
@@ -159,6 +166,32 @@ class DeploymentConfigurationTests(unittest.TestCase):
         for value in (None, ""):
             with self.subTest(tls_directory=value):
                 self.model(True, https=True, tls_directory=value, expect_failure=True)
+
+    def test_version_a_selector_preserves_the_entire_https_deployment_model(self):
+        with tempfile.TemporaryDirectory(prefix="fullstackops-release-config-") as directory:
+            tls_directory = (Path(directory) / "missing-tls").as_posix()
+            baseline = self.model(True, https=True, tls_directory=tls_directory)
+            selected = self.model(True, https=True, tls_directory=tls_directory, selection="a")
+            self.assertTrue(selected == baseline, "Version A changes the deployment model; values withheld")
+
+    def test_version_b_selector_changes_only_both_images_and_a_restores_the_model(self):
+        with tempfile.TemporaryDirectory(prefix="fullstackops-release-config-") as directory:
+            tls_directory = (Path(directory) / "missing-tls").as_posix()
+            baseline = self.model(True, https=True, tls_directory=tls_directory)
+            candidate = self.model(True, https=True, tls_directory=tls_directory, selection="b")
+            record = json.loads((DEPLOYMENT / "releases/update-rollback.json").read_text(encoding="utf-8"))
+            expected = copy.deepcopy(baseline)
+            for name in ("api", "frontend"):
+                reference = record["versions"]["B"]["images"][name]["reference"]
+                self.assertRegex(reference, rf"^ghcr\.io/ensaraslannn/fullstack-ops-lab-{name}@sha256:[0-9a-f]{{64}}$")
+                self.assertNotEqual(reference, baseline["services"][name]["image"])
+                expected["services"][name]["image"] = reference
+                self.assertEqual(record["versions"]["A"]["images"][name]["reference"],
+                                 baseline["services"][name]["image"])
+            self.assertTrue(candidate == expected,
+                            "Version B changes more than the two images; model values withheld")
+            restored = self.model(True, https=True, tls_directory=tls_directory, selection="a")
+            self.assertTrue(restored == baseline, "Version A does not restore the model; values withheld")
 
     def test_local_tls_material_is_ignored_but_https_example_is_trackable(self):
         paths = ["infrastructure/deployment/tls-private/notes.txt",

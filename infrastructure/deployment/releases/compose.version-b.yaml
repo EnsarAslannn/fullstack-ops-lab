@@ -1,0 +1,5 @@
+services:
+  api:
+    image: ghcr.io/ensaraslannn/fullstack-ops-lab-api@sha256:8174fee9ab9cfd308403425cdf10656a6fe7b92f78d3b32ec6485a71554ba367
+  frontend:
+    image: ghcr.io/ensaraslannn/fullstack-ops-lab-frontend@sha256:1e4142e2da1f02ab503ea993c1ddbd9b9723268d51a32862f40a0d53170d19e7

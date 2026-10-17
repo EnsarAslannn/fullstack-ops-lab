@@ -6,9 +6,17 @@ Mandatory technical final acceptance — Completed (6 October 2026, same-host cl
 
 ## Current Phase
 
-Optional Deployment Lab — PostgreSQL recreate persistence acceptance completed after local HTTPS acceptance; update/rollback, backup/restore and final lab acceptance pending; mandatory technical acceptance completed, manual section32 learning review pending
+Optional Deployment Lab — update/rollback release selection and static preparation completed; A remains active, B VM pull and A-to-B-to-A runtime acceptance pending; backup/restore and final lab acceptance pending; mandatory technical acceptance completed, manual section32 learning review pending
 
 ## Current Step
+
+Update/rollback preparation only completed on16October2026 from clean main/69fe741fba69de8834789cc2e657fedbb5e6c3dd. Active A source1b52633776279b1661a7cac53392d385cbf10444 and its API/frontend digests remain unchanged in release.json. B candidate source69fe741fba69de8834789cc2e657fedbb5e6c3dd: successful publish run38890534827 and both job digests verified; anonymous GHCR manifest/config SHA256, OCI source/revision and linux/amd64 checked for both pairs. Full references/jobs/config digests are in infrastructure/deployment/releases/update-rollback.json. No image publication or VM pull.
+
+A/B backend/frontend trees, migrations/EF model/packages/API/configuration/Dockerfiles, base Compose/monitoring and publisher are identical. No schema migration or new user feature. Image layers/rootfs differ; public config versions show .NET/ASP.NET10.0.12->10.0.13, Nginx1.30.5->1.30.6 and NJS1.0.1->1.0.2. This is not a metadata-only image difference or comprehensive binary/package audit. B VM runtime remains NOT VERIFIED despite successful source-build CI and publisher checks.
+
+Added separate A/B image-only fourth overlays and UPDATE-ROLLBACK.md: API then frontend --no-build/--no-deps/--pull never/--force-recreate with bounded wait; preserve HTTPS/env and four infrastructure containers. One unchanged sentinel record across all three stages, separate disposable CRUD records, identity/readiness/HTTPS assets/contract and baseline data/history checks planned. Failure returns explicitly to A; image rollback does not reverse migrations. Static tests RED for two missing selectors, then7/7 PASS: A preserves full HTTPS model, B changes only two images, selecting A restores the model. Real env/user-secrets/TLS not read; no Engine resource/VM/stack/tunnel operations, migration, data changes, new publication or commit/push. B pull/nginx-t, transitions, record preservation, outage measurement, backup/restore and final lab acceptance pending. Evidence: [update/rollback guide](infrastructure/deployment/UPDATE-ROLLBACK.md) and deployment plan section23.
+
+## Previous Step — PostgreSQL Recreate Acceptance
 
 Guided user-executed deployment PostgreSQL recreate persistence acceptance completed (16 October 2026), from clean repository HEAD fe8c5b88ac0d98d7d185e9aabb4871d7c562ec20. Same selected application source1b52633776279b1661a7cac53392d385cbf10444/GHCR digest pair, three Compose files/two env sources and HTTPS configuration preserved. Initial six running/healthy; READ ONLY Task count0/IDs[]/empty-row SHA256 and one InitialCreate20260928113912/EF10.0.12 history recorded. Unique HTTPS POST201/ID4/relative Location, exact six fields/null description/false completion and snapshot saved outside Git; pre-recreate direct-DB GET200 matched every field.
 
@@ -307,7 +315,7 @@ Maintenance review — 10 October 2026: fixed registry acceptance source consist
 
 ## Next Goal
 
-Next optional proposed small step: review the PostgreSQL recreate persistence evidence, then only when requested prepare plan step7's compatible release-pair and migration-compatibility checks for a later update/rollback experiment. Do not select/change images or start the experiment automatically. Current source/digests/release.json, HTTPS stack/tunnels, development sources and volumes stay unchanged. Update/rollback, backup/restore and final deployment lab acceptance remain pending. Historical migration/HTTP-cache/monitoring and manual-browser evidence stay dated; Schannel revocation limit/manual learning unchanged. No tag/release or production deployment acceptance.
+Next optional small step, only when requested: transfer the three public releases/ files and guide to the VM; validate the unchanged deployment/HTTPS model and explicit A/B digest access/local identity, then B temporary nginx-t. Review results before any A-to-B-to-A recreate or HTTP write test. Active release.json/A, HTTPS stack/tunnels, development env/user-secrets and volumes remain unchanged. Update/rollback runtime, backup/restore and final deployment lab acceptance remain pending. Historical migration/HTTP-cache/monitoring/manual-browser and PostgreSQL recreate evidence retain their original dates; Schannel revocation limit/manual learning unchanged. No automatic image change/new publishing, production deployment, tag/release or final closure.
 
 ## Blockers
 

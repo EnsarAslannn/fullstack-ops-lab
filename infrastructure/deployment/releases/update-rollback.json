@@ -1,0 +1,90 @@
+{
+  "verified_on": "2026-10-16",
+  "purpose": "Preparation only: A -> B -> A, no schema migration",
+  "active_release_record": "../release.json",
+  "active_release_record_changed": false,
+  "versions": {
+    "A": {
+      "role": "Current VM release and return target",
+      "source_sha": "1b52633776279b1661a7cac53392d385cbf10444",
+      "run_id": 38239884132,
+      "run_url": "https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/38239884132",
+      "run_conclusion": "success",
+      "selector": "compose.version-a.yaml",
+      "images": {
+        "api": {
+          "reference": "ghcr.io/ensaraslannn/fullstack-ops-lab-api@sha256:2ccb0ecce9dc7cbe9da418b4f0a952b8122be336299fd3b888539b5d07a05afd",
+          "revision": "1b52633776279b1661a7cac53392d385cbf10444",
+          "config_digest": "sha256:d0772a713ae19cf8137e4e12febb448085068865f1e11017386635dbe5dbb1be",
+          "platform": "linux/amd64",
+          "publishing_job_id": 114783166985
+        },
+        "frontend": {
+          "reference": "ghcr.io/ensaraslannn/fullstack-ops-lab-frontend@sha256:e0c77449225c4cd602e8f3b2af43a68ca3ad1578ce6428ba8ddcccf1fa612627",
+          "revision": "1b52633776279b1661a7cac53392d385cbf10444",
+          "config_digest": "sha256:77e41e9f348a862637aebd76fde87dc072d0bd948bf66fa2174d950fe57c9077",
+          "platform": "linux/amd64",
+          "publishing_job_id": 114783167245
+        }
+      }
+    },
+    "B": {
+      "role": "Candidate only, VM pull and runtime NOT VERIFIED",
+      "source_sha": "69fe741fba69de8834789cc2e657fedbb5e6c3dd",
+      "run_id": 38890534827,
+      "run_url": "https://github.com/EnsarAslannn/fullstack-ops-lab/actions/runs/38890534827",
+      "run_conclusion": "success",
+      "selector": "compose.version-b.yaml",
+      "images": {
+        "api": {
+          "reference": "ghcr.io/ensaraslannn/fullstack-ops-lab-api@sha256:8174fee9ab9cfd308403425cdf10656a6fe7b92f78d3b32ec6485a71554ba367",
+          "revision": "69fe741fba69de8834789cc2e657fedbb5e6c3dd",
+          "config_digest": "sha256:50c4f087fd0defaf5d48c31189db9e4658a23fa4d6213e71a07ccfe376c4bb06",
+          "platform": "linux/amd64",
+          "publishing_job_id": 116939751826
+        },
+        "frontend": {
+          "reference": "ghcr.io/ensaraslannn/fullstack-ops-lab-frontend@sha256:1e4142e2da1f02ab503ea993c1ddbd9b9723268d51a32862f40a0d53170d19e7",
+          "revision": "69fe741fba69de8834789cc2e657fedbb5e6c3dd",
+          "config_digest": "sha256:f2901836ddd6c3791e76278a1b7df1a7742da09c249878625a4d5cbaabb9bc3d",
+          "platform": "linux/amd64",
+          "publishing_job_id": 116939752066
+        }
+      }
+    }
+  },
+  "source_comparison": {
+    "backend_tree_both": "756d85ac65acc905941ad3fcda004fe9cc7b5402",
+    "frontend_tree_both": "bbedcb285aeaaa4669ea9c45409954ffc555d739",
+    "application_and_dockerfile_sources_identical": true,
+    "base_compose_monitoring_and_publisher_identical": true,
+    "changed_paths_scope": "Deployment documentation/configuration/static tests and .gitignore, outside both Docker build contexts",
+    "new_user_feature": false,
+    "schema_migration_required": false,
+    "existing_migration": "20260928113912_InitialCreate",
+    "ef_version": "10.0.12",
+    "migration_sql_checksum": "sha256:ce23c018c2000cc8143df02f0fb8d2525de0717385a8c29f84b4888507bd5b53"
+  },
+  "registry_comparison": {
+    "manifest_and_config_sha256_verified": true,
+    "oci_revision_source_and_platform_verified": true,
+    "access": "Anonymous HTTPS manifest/config reads; no Docker pull, login, package visibility change or VM access",
+    "metadata_only_image_change": false,
+    "layer_digests_and_rootfs_diff_ids_changed": true,
+    "public_runtime_version_changes": {
+      "ASPNET_VERSION": {"A": "10.0.12", "B": "10.0.13"},
+      "DOTNET_VERSION": {"A": "10.0.12", "B": "10.0.13"},
+      "NGINX_VERSION": {"A": "1.30.5", "B": "1.30.6"},
+      "NJS_VERSION": {"A": "1.0.1", "B": "1.0.2"}
+    },
+    "limit": "Image config/version and layer comparison, not an exhaustive binary/package audit or B deployment runtime acceptance"
+  },
+  "runtime_status": {
+    "historical_A_acceptance": "See ../README.md and ../HTTPS.md; not repeated in this preparation",
+    "B_vm_digest_pull_and_container_identity": "NOT VERIFIED",
+    "A_to_B_and_B_to_A": "NOT VERIFIED",
+    "same_record_preservation_and_https_contract_each_stage": "NOT VERIFIED",
+    "four_infrastructure_container_ids_preserved": "NOT VERIFIED",
+    "outage_duration": "NOT VERIFIED"
+  }
+}
