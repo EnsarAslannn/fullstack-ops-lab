@@ -1,6 +1,6 @@
 # Deployment Lab — image-only VM kurulumu ve kabul kayıtları
 
-16 Ekim 2026 güncel durum: hazırlık/migration/HTTP-cache ve 15 Ekim asset/monitoring
+17 Ekim 2026 güncel durum: hazırlık/migration/HTTP-cache ve 15 Ekim asset/monitoring
 kabulüne ek olarak **yerel HTTPS etkinleştirme, uyarısız manuel tarayıcı/asset ve
 HTTPS CRUD kabulü PASS**. Frontend aynı seçilmiş image ile yalnız bir kez TLS için
 yeniden oluşturuldu; diğer beş container kimliği korundu, final altısı healthy.
@@ -11,8 +11,12 @@ yeni PostgreSQL container ID'si ve HTTPS tekil GET ile test görevinin altı ala
 korundu. Diğer beş ID aynı, altısı healthy; test kaydı temizlendi.
 Aktif A kaynak SHA/digestleri aynı. **16 Ekim güncelleme/rollback release seçimi ve
 statik hazırlığı tamamlandı**; [A/B kanıtı ve geçiş planı](UPDATE-ROLLBACK.md)
-ayrı kayıttadır. B henüz VM'ye çekilmedi veya uygulanmadı. Update/rollback runtime,
-backup/restore ve lab kapanışı bekliyor.
+ayrı kayıttadır. **17 Ekim public aktarım/hash, B digest pull/revision/platform,
+A image korunması, gerçek env ile model ve izole B Nginx/TLS kontrolü PASS**;
+[ayrıntılı VM ön kontrolü](UPDATE-ROLLBACK.md#8-rehberli-vm-aktarımı-b-image-ve-nginx-kontrolü--17-ekim-2026).
+İlk Compose run denemesi exit124 verdi; ayrı doğrudan create/start tanısı geçti,
+timeout nedeni bilinmiyor. Aktif altı servis aynı ID'lerle A/healthy kaldı.
+A→B→A runtime, backup/restore ve lab kapanışı bekliyor.
 Deployment lab bütünüyle tamamlanmadı. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
@@ -1028,3 +1032,33 @@ A→B→A, aynı kaydın korunması ve HTTPS/CRUD kabulü **NOT VERIFIED**. Plan
 frontend recreate içerir; Nginx upstream DNS yenilenir. Diğer dört servise işlem,
 migration veya volume temizliği yok. Bu görevde VM/Engine kaynağına erişilmedi;
 gerçek env/user-secrets/TLS okunmadı, yeni yayın/commit/push yapılmadı.
+
+## B image aktarımı ve Nginx ön kontrolü — 17 Ekim 2026
+
+Kullanıcı Windows/Ubuntu SSH komutlarıyla [bölüm8'deki ön kontrolü](UPDATE-ROLLBACK.md#8-rehberli-vm-aktarımı-b-image-ve-nginx-kontrolü--17-ekim-2026)
+tamamladı. Başlangıç repository9371046/Git temiz; VM172.30.249.139 ve altı
+healthy servis/A image kimliği doğrulandı. Yalnız UPDATE-ROLLBACK.md ve üç
+releases/ public dosyası mevcut hedeflerin yokluğu kontrolünden sonra SCP ile
+aktarıldı; dört Windows/VM SHA256 eşleşti. Bu kayıt eklenince yerel rehber
+değişmiştir; kaydedilen hash aktarım anına aittir. Env/TLS/kaynak ağacı ezilmedi.
+
+B API/frontend exact digest pull ve sonraki RepoDigests/source69fe741/linux-amd64
+inspect PASS; A source1b52633 çiftinin iki local referansı da korundu. Tam
+kimlikler [release kaydında](releases/update-rollback.json). Gerçek deployment/TLS
+env ile mevcut HTTPS/A/B config-q PASS; A modeli aynı, B yalnız API/frontend
+image'larını değiştiriyor; build yok, port/env/mount/ağ/volume hedefleri aynı.
+
+İlk Compose run nginx-t denemesi 90s/exit124 ile başarısızdı; test container'ı
+temizlendi. Aynı B frontend digest'i, üç gerçek read-only bind ve app ağıyla
+doğrudan Docker create ve start --attach aşamaları ayrı30s sınırda PASS;
+syntax is ok/test is successful mesajları kontrol edildi. Bu farklı tanı başarılı
+oldu; ilk timeout'un aşaması/kök nedeni NOT VERIFIED. Geçici iki test container'ı
+kalmadı. B API başlatılmadı; çalışan frontend değişmedi ve test port yayınlamadı.
+
+Son altı ID başlangıçla aynı; running/healthy/RestartCount0. API/frontend hâlâ A;
+frontend18081/18443, monitoring19090/13000 yalnız VM loopback, internal üç serviste
+host portu yok. Stack çalışır bırakıldı; tünellere işlem yapılmadı, Windows
+listener'ları yeniden ölçülmedi. Task/SQL/migration/recreate/cache temizliği veya
+volume silme yok. Agent VM'ye bağlanmadı/private dosyaları okumadı; development
+kaynakları, env/TLS ve seçilmiş A/B kayıtları korunuyor. A→B→A, aynı kaydın
+korunması/HTTPS kabulü/kesinti ölçümü ve backup/restore/final lab bekliyor.

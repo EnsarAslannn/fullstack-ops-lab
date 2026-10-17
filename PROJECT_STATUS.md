@@ -6,9 +6,17 @@ Mandatory technical final acceptance — Completed (6 October 2026, same-host cl
 
 ## Current Phase
 
-Optional Deployment Lab — update/rollback release selection and static preparation completed; A remains active, B VM pull and A-to-B-to-A runtime acceptance pending; backup/restore and final lab acceptance pending; mandatory technical acceptance completed, manual section32 learning review pending
+Optional Deployment Lab — guided public transfer, B VM digest/image identity, real Compose model and isolated B frontend Nginx/TLS prechecks completed; six existing services remain A; A-to-B-to-A runtime, backup/restore and final lab acceptance pending; mandatory technical acceptance completed, manual section32 learning review pending
 
 ## Current Step
+
+Guided user-executed B image/TLS prechecks completed on17October2026 from clean main/9371046e7f4e9f0ec2b99461d08937cd59272be1. VM Running; unresponsive Hyper-V console/root cause unresolved, but SSH172.30.249.139/hostname/eth0 UP and all six healthy confirmed without reboot/network changes. Current API/frontend A exact refs/ImageIDs/source1b52633776279b1661a7cac53392d385cbf10444 verified. Four public files only transferred by SCP after absent-target checks; Windows/VM SHA256 matched. No source-tree/env/TLS overwrite. Transfer hashes refer to the pre-documentation-update bytes, not this subsequently edited local guide.
+
+B API/frontend digest pulls and subsequent RepoDigests/ImageID/source69fe741fba69de8834789cc2e657fedbb5e6c3dd/linux-amd64 metadata PASS; A exact local references retained. Real deployment/TLS env config-q and captured model comparison PASS for existing HTTPS/A/B: A identical, B changes only two image fields, no builds, same mounts/ports/env/network/volume targets. Initial Compose run nginx-t timed out90s/exit124 FAIL; test fullstackops-deploy-lab-b-check-41c59847b851 removed, six IDs/health unchanged. Direct Docker create then start --attach with same B frontend/actual three readonly mounts/app network passed separate30s bounds and both Nginx success messages. Test fullstackops-deploy-lab-b-diag-d4d520b5a025 removed; original timeout phase/root cause NOT VERIFIED, not retroactively PASS.
+
+Final six IDs match initial: postgres b67a87f2d83f, frontend e401eb7fbff5, api4d572817ca12, prometheus84eaf1ceebb5, redis d98d34cc73c5, grafana ed9398e62129. All running/healthy/RestartCount0; API/frontend still A, unchanged loopback-only bindings, no test containers. No recreate/build/new publication/migration/Task/cache/volume modification or development-source usage. Agent did not connect to VM/read private files; user executed commands. Stack left running, tunnels untouched; Windows listeners not remeasured. This passes only B image/TLS prechecks, not B service runtime, A-to-B-to-A, HTTPS/CRUD/readiness/same-record acceptance or downtime measurement. Selected release records unchanged. Details: [VM precheck record](infrastructure/deployment/UPDATE-ROLLBACK.md#8-rehberli-vm-aktarımı-b-image-ve-nginx-kontrolü--17-ekim-2026) and deployment plan section24. Backup/restore/final lab/manual learning pending; no commit/push.
+
+## Previous Step — Update/Rollback Preparation
 
 Update/rollback preparation only completed on16October2026 from clean main/69fe741fba69de8834789cc2e657fedbb5e6c3dd. Active A source1b52633776279b1661a7cac53392d385cbf10444 and its API/frontend digests remain unchanged in release.json. B candidate source69fe741fba69de8834789cc2e657fedbb5e6c3dd: successful publish run38890534827 and both job digests verified; anonymous GHCR manifest/config SHA256, OCI source/revision and linux/amd64 checked for both pairs. Full references/jobs/config digests are in infrastructure/deployment/releases/update-rollback.json. No image publication or VM pull.
 
@@ -315,7 +323,7 @@ Maintenance review — 10 October 2026: fixed registry acceptance source consist
 
 ## Next Goal
 
-Next optional small step, only when requested: transfer the three public releases/ files and guide to the VM; validate the unchanged deployment/HTTPS model and explicit A/B digest access/local identity, then B temporary nginx-t. Review results before any A-to-B-to-A recreate or HTTP write test. Active release.json/A, HTTPS stack/tunnels, development env/user-secrets and volumes remain unchanged. Update/rollback runtime, backup/restore and final deployment lab acceptance remain pending. Historical migration/HTTP-cache/monitoring/manual-browser and PostgreSQL recreate evidence retain their original dates; Schannel revocation limit/manual learning unchanged. No automatic image change/new publishing, production deployment, tag/release or final closure.
+Next optional small step, only when requested after reviewing these prechecks: prepare A baseline HTTPS acceptance and an owned unchanged sentinel record for the later controlled A-to-B-to-A experiment. Use separate disposable CRUD records and compare the sentinel's six fields through the direct-DB single GET at each stage. No switch is authorized by completion of prechecks alone. Active release.json/A and chosen A/B digests, HTTPS/env, four infrastructure services and volumes stay protected. Original Compose run90s timeout remains unresolved; successful direct temporary B Nginx/TLS check has separate evidence. B service runtime/transition/readiness/HTTPS/data preservation/downtime, backup/restore/final lab/manual learning remain pending. Historical evidence dates and Schannel revocation/browser limits remain explicit; no new publication/production/tag/release or automatic next step.
 
 ## Blockers
 

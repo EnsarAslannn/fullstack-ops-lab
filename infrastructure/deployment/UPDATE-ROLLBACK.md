@@ -1,10 +1,13 @@
 # Deployment — A → B → A hazırlığı
 
-**16 Ekim 2026: yalnız release seçimi ve statik hazırlık tamamlandı.** Bu rehberdeki
-VM pull, recreate ve HTTP yazma komutları henüz çalıştırılmadı. Mevcut VM A'da;
-[aktif release.json](release.json), env, TLS, volume ve tüneller değiştirilmedi.
-Bu, [deployment planı](../../docs/deployment-plan.md) adım7'nin hazırlığıdır;
-runtime, yedek/restore ve final lab kabulü açık kalır.
+**17 Ekim 2026: public dosya aktarımı, B digest pull/image kimliği, gerçek env ile
+model karşılaştırması ve izole B frontend Nginx/TLS kontrolü tamamlandı.** İlk
+Compose run denemesi exit124 ile süre sınırına ulaştı; doğrudan Docker ile ayrı
+create/start aşamaları geçti. Ayrıntılı sonuç ve sınırlar bölüm8'dedir.
+Mevcut altı servis aynı kimliklerle A'da; [aktif release.json](release.json), env,
+TLS ve deployment kaynakları değiştirilmedi. A→B→A geçişi/HTTP yazma testi,
+yedek/restore ve final lab kabulü bekliyor. Bu rehber
+[deployment planı](../../docs/deployment-plan.md) adım7 kapsamındadır.
 
 ## 1. Seçilen çiftler ve yayın kanıtı
 
@@ -148,6 +151,11 @@ Eksik pull, yanlış ref/platform veya karışık A/B çifti varsa recreate yap�
 **Ubuntu SSH, B için geçici syntax kontrolü**; önce iki image kimliği doğrulanır.
 Gerçek TLS mount'ları ve mevcut deployment ağı kullanılır, port yayınlanmaz:
 
+**17 Ekim sonuç notu:** Aşağıdaki Compose run yöntemi 90 saniyelik sınırda
+exit124 verdi; bu yöntemin başarılı olduğu iddia edilmez veya otomatik tekrar
+önerilmez. Aynı image/gerçek mount'larla başarılı `docker create` ve
+`docker start --attach` tanısı bölüm8'de kayıtlıdır.
+
 ```bash
 tls_check="fullstackops-deploy-lab-b-nginx-check-$(date +%s)-$$"
 deployment b run --rm --no-deps --pull never -T \
@@ -252,6 +260,10 @@ için bu planın uyumluluk kararı geçerli değildir; yedek/restore ayrı kabul
 
 ## 7. Temizlik ve statik doğrulama kaydı
 
+Bu bölümün hazırlık/test sonuçları **16 Ekim** tarihine aittir. Sonraki VM pull
+ve Nginx sonuçları bölüm8'dedir; aşağıdaki tarihsel NOT VERIFIED kayıtları güncel
+VM ön kontrolünün yerine kullanılmaz.
+
 Gelecekteki deney sonunda yalnız bu görevin benzersiz kalıcılık/CRUD kayıtlarını
 ID/title/createdAt ile sahiplik kontrolünden sonra sil; DELETE204 ve GET404
 doğrula. Başlangıç kayıtlarının alanları/history korunsun; kimlik sequence'i geri
@@ -279,6 +291,126 @@ nginx -t, A→B→A, HTTPS kabulü, kayıt korunması ve kesinti ölçümü yap�
 Yeni image yayınlanmadı; commit/push yok. Sonraki en küçük adım bu public dosyaları
 VM'ye aktarmak, model/kimlik kontrolü ve yalnız digest pull hazırlığını rehberli
 yapmaktır; recreate ayrıca sonuçlar incelendikten sonra başlatılır.
+
+## 8. Rehberli VM aktarımı, B image ve Nginx kontrolü — 17 Ekim 2026
+
+Başlangıç repository HEAD `9371046e7f4e9f0ec2b99461d08937cd59272be1`, Git temiz.
+Komutları kullanıcı Windows PowerShell ve Ubuntu SSH terminalinde çalıştırıp
+sonuçları paylaştı; agent VM'ye bağlanmadı veya private dosyaları okumadı.
+Hyper-V konsolu girişe yanıt vermedi; Windows kontrolünde VM Running, IP listesi
+boştu. Son bilinen IP ile SSH çalıştı; hostname fullstackopslabvm ve eth0
+172.30.249.139/20 UP doğrulandı. Konsol sorununun kök nedeni belirlenmedi;
+VM/Docker restart, ağ veya Hyper-V ayarı değişikliği yapılmadı.
+
+### Aktarım ve image kimlikleri
+
+Hedefte dört dosyanın da bulunmadığı kontrol edildi. Windows'tan yalnız rehber
+ve üç releases/ dosyası SCP ile aktarıldı; mevcut VM kaynak ağacı/env/TLS üzerine
+yazılmadı. Ubuntu `sha256sum --check` dört dosyada OK verdi:
+
+| Aktarılan dosya | Windows/VM SHA256 |
+| --- | --- |
+| UPDATE-ROLLBACK.md | FE93E1D5CAFC9AAA10598CC981DFCFB7E969E2DC4FCA04A4E8FC7B5A020F44A3 |
+| releases/update-rollback.json | 4ADEB162DEE0EAB959B8EFD8250E998E244894FFF9246A93F4369FF7345E9F9B |
+| releases/compose.version-a.yaml | 83D417068F414F91B2A665F6558C6A614172D2AD81D7330DE3425EDB30F76793 |
+| releases/compose.version-b.yaml | 06FAB3986E630DAF48350C5BEFDA23CAA95CE6462085F1AE928DB2B7CA0A1EF5 |
+
+Hash'ler bu kabul kaydı eklenmeden **önce aktarılan dosya byte'larına** aittir.
+Windows çalışma kopyasının satır sonlarını da kapsar; Git blob kimliği değildir.
+Bu sonuç dokümantasyonu eklendiğinde yerel rehber değişti; VM'deki rehber yeniden
+aktarılmadı. Diğer üç release dosyası ve aktif release.json değiştirilmedi.
+
+İlk inspect çalışan API/frontend'in bölüm1'deki tam A referanslarını, local image
+kimliklerini ve source1b52633776279b1661a7cac53392d385cbf10444 etiketini doğruladı.
+Ardından yalnız B API/frontend için `timeout 180s sudo docker pull IMAGE@DIGEST`
+çalıştırıldı; build yapılmadı. API çıktısı Downloaded/digest sonucunu gösterdi,
+API pull exit code'u ayrıca paylaşılmadı; sonraki inspect kimliği doğruladı.
+Frontend pull son PASS satırıyla tamamlandı. İki B image'ının RepoDigests alanı
+bölüm1'deki tam referansla, revision69fe741fba69de8834789cc2e657fedbb5e6c3dd ve
+linux/amd64 ile eşleşti. Bu Engine'de local ImageID'ler de ilgili manifest
+digest'lerine eşitti; bunun tüm Engine/storage türlerinde zorunlu olduğu iddia
+edilmez. A'nın iki exact digest referansı ayrıca inspect edildi: yerelde mevcut,
+doğru A revision ve linux/amd64; image silme/prune veya yeni yayın yapılmadı.
+
+### Gerçek env ile model kontrolü
+
+Ubuntu'da Python subprocess stdout/stderr'i yalnız bellekte yakalayarak iki env
+dosyası ve ilk üç Compose dosyasıyla mevcut HTTPS modelini; dördüncü A/B
+overlay'leriyle iki seçim modelini okudu. Üçünde de config-q başarılı:
+
+- A modeli mevcut HTTPS modeliyle tamamen aynı; aynı project ve altı servis.
+- Her iki seçimde API/frontend build alanları yok; image'lar release kaydıyla aynı.
+- A modelinin yalnız iki image alanı B'ye çevrilince model B ile tamamen eşit.
+- HTTPS mount'ları, portlar, env, ağ, diğer dört servis ve volume hedefleri aynı.
+
+Çözümlenmiş configuration paylaşılmadı veya dosyaya yazılmadı. Bu statik model
+karşılaştırmasıdır; B servislerinin başlatıldığı veya readiness/CRUD kabulünün
+yapıldığı anlamına gelmez.
+
+### Nginx denemeleri ve ayrılan sonuçlar
+
+| Deneme | Gerçek sonuç | Kabul sınırı |
+| --- | --- | --- |
+| Dördüncü B overlay ile Compose run, no-deps/pull never/gerçek TLS, 90s sınır | FAIL: exit124; fullstackops-deploy-lab-b-check-41c59847b851 temizlendi, altı başlangıç container'ı aynı/healthy | Hangi aşamada beklediği ve kök neden NOT VERIFIED; ham çıktı korunmadı/paylaşılmadı |
+| Doğrudan Docker create, B frontend exact digest/pull never, 30s sınır | PASS; fullstackops-deploy-lab-b-diag-d4d520b5a025 oluşturuldu | Container oluşturma aşaması bu ayrı denemede başarılı |
+| Aynı geçici container'da Docker start --attach, nginx -t, 30s sınır | PASS; exit0 dalı ve hem syntax is ok hem test is successful mesajları doğrulandı | B Nginx gerçek config/certificate/key dosyalarını okuyabildi; HTTP sunucusu olarak servis kabulü değil |
+| Son temizlik | PASS; doğrudan test container'ı kaldırıldı, b- test prefix'li ps yalnız başlık verdi | İki denemenin container'ları kalmadı; yalnız bu test kaynakları kaldırıldı |
+
+Başarılı tanıda önce `docker create --pull never --network
+fullstackops-deploy-lab_app --entrypoint nginx ... B_FRONTEND@DIGEST -t`, ardından
+`docker start --attach TEST_NAME` çalıştırıldı; her aşamanın çıktısı bellekte
+yakalandı, başarısızlıkta raw çıktı gösterilmeden aşama/exit code raporlandı.
+Bu doğrudan tanı sırasında ek image build/pull veya çalışan frontend recreate
+yapılmadı; önceden çekilip doğrulanmış aynı B image kullanıldı.
+Kullanılan üç bind çalışan A frontend'inden salt okunur inspect ile doğrulandı:
+
+| VM kaynak | Container hedefi | Erişim |
+| --- | --- | --- |
+| ~/fullstack-ops-lab/infrastructure/deployment/nginx/https.conf | /etc/nginx/conf.d/default.conf | read-only |
+| ~/.local/share/fullstackops-deploy-lab/tls/server.crt | /etc/nginx/deployment-tls/server.crt | read-only |
+| ~/.local/share/fullstackops-deploy-lab/tls/server.key | /etc/nginx/deployment-tls/server.key | read-only |
+
+Test container'ı port yayınlamadı; mevcut app ağına bağlandı. CA/private key
+aktarımı veya key içeriği gösterimi yapılmadı. Doğrudan testin geçmesi, önceki
+Compose timeout'unun nedenini kanıtlamaz veya o denemeyi PASS yapmaz.
+
+### Son envanter, korunma ve bekleyen kabul
+
+| Servis | Başlangıç ve son container ID başlangıcı | Son state/health/RestartCount | Son VM host bind |
+| --- | --- | --- | --- |
+| postgres | b67a87f2d83f | running/healthy/0 | Yok |
+| frontend | e401eb7fbff5 | running/healthy/0 | 127.0.0.1:18081→80,127.0.0.1:18443→443 |
+| api | 4d572817ca12 | running/healthy/0 | Yok |
+| prometheus | 84eaf1ceebb5 | running/healthy/0 | 127.0.0.1:19090→9090 |
+| redis | d98d34cc73c5 | running/healthy/0 | Yok |
+| grafana | ed9398e62129 | running/healthy/0 | 127.0.0.1:13000→3000 |
+
+Son inspect API/frontend ImageID'lerinin hâlâ **A** olduğunu gösterdi. Diğer dört
+serviste recreate/restart/image değişikliği komutu çalıştırılmadı. Tüm container
+kimlikleri başlangıçla aynı; başlangıç RestartCount ayrıca ölçülmediği için son0
+değeri geçmişin sürekli takibi olarak sunulmaz. İstek/kesinti süresi ölçülmedi.
+
+Mevcut stack çalışır bırakıldı; SSH tünellerini açma/kapama/değiştirme işlemi yok.
+Windows tünel listener'ları bu adımda yeniden ölçülmedi. Development Docker
+Desktop/env/user-secrets/volume'ları kullanılmadı. Yeni Task/SQL/migration,
+recreate, veri silme veya cache temizleme komutu yok; PostgreSQL veri/history
+hash'i bu adımda yeniden sorgulanmadı. Mevcut env/TLS ve volume hedefleri korundu.
+
+Bu küçük adım **B image/TLS ön kontrolü** olarak tamamlandı. B API servis
+container'ı çalıştırılmadı, frontend B yalnız nginx-t için geçici çalıştı.
+A→B→A, her aşamanın HTTPS asset/CRUD/readiness kabulü, aynı test kaydının korunması,
+kesinti ölçümü, backup/restore ve final lab kabulü NOT VERIFIED. Bölüm5 tablosu
+bu nedenle henüz PASS yapılmaz. release kaydındaki birleşik B pull/container
+identity durumunun NOT VERIFIED olması B servislerinin henüz oluşturulmamasıyla
+ilgilidir; bu bölümde doğrulanan image metadata/pull sonucu ayrı kanıttır.
+Commit/push yapılmadı; sonraki geçiş ayrıca kullanıcı isteğiyle başlatılacak.
+
+Yerel dokümantasyon kontrolleri: repository secret leakage exit0, dört değişen
+Markdown belgede107 yerel dosya/anchor bağlantısı ve git diff --check PASS.
+Yalnız dört Markdown değişti, index boş; aktif release, A/B JSON/overlay'ler ve
+mevcut Compose/HTTPS/Nginx kaynakları HEAD ile aynı. Üç public release dosyasının
+byte hash'i aktarım kanıtıyla aynı. Uygulama/config değişmediği için build veya
+başka runtime deneyi agent tarafından çalıştırılmadı.
 
 ## Kaynak dosyalar
 

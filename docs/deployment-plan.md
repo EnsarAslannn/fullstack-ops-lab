@@ -1,6 +1,6 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
-**Plan tarihi:** 11 Ekim 2026. **Güncel durum (16 Ekim):** Önceki hazırlık/migration/HTTP-cache/asset/monitoring/yerel HTTPS ve PostgreSQL recreate kalıcılığı PASS. Seçili aktif A SHA/digest çifti ve HTTPS kaynakları aynı. Adım7 release seçimi/statik hazırlığı tamamlandı; B VM pull ve A→B→A runtime kabulü henüz yapılmadı. Backup/restore ve lab kapanışı bekliyor. Tarihli kanıtlar bölüm12–22, yeni hazırlık bölüm23'tedir; HTTPS Schannel/manual browser sınırları değişmedi.
+**Plan tarihi:** 11 Ekim 2026. **Güncel durum (17 Ekim):** Önceki hazırlık/migration/HTTP-cache/asset/monitoring/yerel HTTPS ve PostgreSQL recreate kalıcılığı PASS. Aktif A SHA/digest çifti ve HTTPS kaynakları aynı. Adım7 release seçimi/statik hazırlığına ek olarak public aktarım/hash, B digest pull/image kimliği, model karşılaştırması ve doğrudan izole B Nginx/TLS kontrolü PASS. İlk Compose run exit124 timeout nedeni açık; mevcut altı servis aynı ID'lerle A/healthy. A→B→A runtime, backup/restore ve lab kapanışı bekliyor. Kanıtlar bölüm12–24'tedir; HTTPS Schannel/manual browser sınırları değişmedi.
 
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
@@ -153,7 +153,7 @@ Hedef RPO **24 saat**; kurtarma süresi henüz ölçülmedi. VM/PC kapalıysa g�
 
 ## 9. En küçük uygulama adımları ve kabul kapıları
 
-Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. Adım1–4 kabulü 13–15 Ekim, adım5 yerel HTTPS kabulü 15–16 Ekim kanıtlarıyla karşılanır. Adım6 monitoring kısmı15 Ekim, PostgreSQL recreate kalıcılığı16 Ekim'de tamamlandı. Adım7 yalnız release seçimi/statik hazırlık düzeyinde; runtime ile adım8/9 henüz uygulanmadı. Geçmiş kanıtlar bugün yeniden çalıştırılmış gibi sunulmaz.
+Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. Adım1–4 kabulü 13–15 Ekim, adım5 yerel HTTPS kabulü 15–16 Ekim kanıtlarıyla karşılanır. Adım6 monitoring kısmı15 Ekim, PostgreSQL recreate kalıcılığı16 Ekim'de tamamlandı. Adım7 release seçimi/statik hazırlığı ve17Ekim B image/izole Nginx ön kontrolü düzeyinde; A→B→A runtime ile adım8/9 henüz uygulanmadı. Geçmiş kanıtlar bugün yeniden çalıştırılmış gibi sunulmaz.
 
 | Adım | Yapılacak iş | Kabul kanıtı |
 | --- | --- | --- |
@@ -163,7 +163,7 @@ Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz
 | 4 — GHCR runtime | Altı servisi çekilen image'larla başlat, kimliklerini eşleştir | Altı healthy; internal live/ready200; HTML/JS/CSS200; CRUD/Location/altı JSON alanı/nullable/400/404; cache miss/hit/TTL/invalidation |
 | 5 — Yerel HTTPS | Mevcut frontend Nginx'e read-only config/leaf mount, lab CA ve localhost SSH | PASS; sertifika/trust/nginx -t, frontend-only recreate, uyarısız manuel browser/asset ve HTTPS contract; iptal durumu NOT VERIFIED, Schannel best-effort sınırı bölüm21'de |
 | 6 — Kalıcılık ve gözlem | PostgreSQL recreate, Prometheus ve Grafana kontrolleri | PASS; aynı image/volume'da yeni PostgreSQL ID, test ID4/altı alan tekil GET ile korundu, aynı API ready200/RestartCount0 ve cleanup; bölüm22. Monitoring kabulü ayrı15 Ekim kanıtıdır, burada yeniden ölçülmedi |
-| 7 — Güncelleme/rollback | A/B çift seçimi ve statik hazırlık PASS; kontrollü geçiş/dönüş bekliyor | Release/registry/source/model kanıtı bölüm23; VM pull, container identity, HTTP/veri koruması ve kesinti ölçümü NOT VERIFIED |
+| 7 — Güncelleme/rollback | A/B seçimi, statik hazırlık ve B VM image/izole Nginx ön kontrolü PASS; geçiş/dönüş bekliyor | Bölüm23–24: digest/revision/platform/model ve altı A ID koruması PASS; Compose run timeout açık; B servis kimliği, A→B→A HTTP/veri koruması/kesinti ölçümü NOT VERIFIED |
 | 8 — Yedek/restore | Günlük yedek planı ve yeni test DB'ye bir restore | Başarılı dump/checksum, güncel yedek zamanı; ayrı restore'da görev/history doğrulaması; owned cleanup |
 | 9 — Lab kapanışı | Komutlar, runtime kanıtları, limitler ve kaynak envanteri | Development .env/user-secrets/volume değişmemiş; yalnız lab stack'i down; asıl lab verisi korunmuş |
 
@@ -581,3 +581,43 @@ HTTPS/asset/CRUD, dört altyapı container kimliği/kayıt korunması ve kesinti
 digest erişimi/kimliği ve geçici B nginx -t hazırlığını rehberli doğrulamaktır;
 geçiş sonuç incelemesinden sonra ayrı yapılır. Backup/restore/final lab ve manuel
 öğrenme açık; secret kaynakları ve çalışan VM/tünellerine dokunulmadı.
+
+## 24. Rehberli B image ve TLS ön kontrolü — 17 Ekim 2026
+
+Kullanıcı komutları çalıştırıp sonuçları paylaştı; agent VM'ye bağlanmadı.
+Repository9371046/Git temiz, VM Running ve SSH172.30.249.139/hostname/eth0 UP,
+altı mevcut healthy ve A ref/ImageID/revision doğrulandı. Hyper-V konsolu giriş
+almadı ama SSH çalıştı; VM/Docker restart veya ağ değişikliği yapılmadı.
+
+Yalnız rehber ve üç public releases/ dosyası SCP ile aktarıldı; dört SHA256 OK.
+Kaynak ağaç/env/TLS ezilmedi. B API/frontend exact digest pull, RepoDigests,
+revision69fe741fba69de8834789cc2e657fedbb5e6c3dd ve linux/amd64 doğrulandı.
+A source1b52633776279b1661a7cac53392d385cbf10444 exact referansları local kaldı.
+Tam referanslar aynı [kayıtta](../infrastructure/deployment/releases/update-rollback.json);
+aktarılmış rehber hash'i sonraki yerel dokümantasyon eklemesinden öncesine aittir.
+
+Gerçek iki env/üç Compose ve dördüncü A/B overlay'leriyle üç config-q PASS.
+JSON yalnız bellekte karşılaştırıldı: A mevcut HTTPS modelinin tamamıyla aynı,
+B yalnız iki image alanını değiştiriyor; altı servis/build yok/readonly mount/
+port/env/ağ/volume koruması PASS. Değerler veya ham config çıktısı gösterilmedi.
+
+Compose run --rm/--no-deps/--pull never ile nginx-t ilk90s denemesi exit124 FAIL;
+test container'ı temizlendi ve altı ID/health korundu. Çalışan frontend'in üç
+read-only bind'i ve app ağı incelendikten sonra aynı B frontend ile doğrudan
+Docker create ve start --attach ayrı30s sınırlarla PASS; Nginx syntax/TLS okuma
+başarı mesajları kontrol edildi, ikinci test container'ı temizlendi. Önceki
+timeout'un aşaması/kök nedeni doğrulanmadı; alternatifin geçmesi ilk denemeyi
+PASS yapmaz. [Tam kanıt, hash ve envanter](../infrastructure/deployment/UPDATE-ROLLBACK.md#8-rehberli-vm-aktarımı-b-image-ve-nginx-kontrolü--17-ekim-2026).
+
+Son postgres b67a87f2d83f, frontend e401eb7fbff5, api4d572817ca12,
+prometheus84eaf1ceebb5, redis d98d34cc73c5, grafana ed9398e62129 başlangıçla
+aynı; altısı running/healthy/RestartCount0. API/frontend A, loopback portları
+aynı, test prefix'li ps boş. Stack açık, tünellere işlem yok; Windows listener
+durumu yeniden ölçülmedi. Build/recreate/migration/Task/cache veya volume
+değişikliği yapılmadı; development ve secret kaynakları korunuyor.
+
+Bu yalnız B image/TLS ön kabulüdür. B API servis container'ı, A→B→A ve
+HTTPS/CRUD/readiness/veri koruması/kesinti ölçümü bekliyor. Sonraki görev ayrıca
+istenirse A başlangıç kabulü ve sahipli test kaydının hazırlanması; ardından
+sonuç kapılarıyla kontrollü geçiş/dönüştür. Backup/restore/final lab açık;
+bu görevde commit/push yok.
