@@ -2,6 +2,11 @@
 
 **Plan tarihi:** 11 Ekim 2026. **Güncel durum (17 Ekim):** Önceki hazırlık/migration/HTTP-cache/asset/monitoring/yerel HTTPS ve PostgreSQL recreate kalıcılığı PASS. Adım7 rehberli A→B→A runtime kabulü de PASS: yalnız API/frontend her yönde recreate, doğru digest/revision, B ve A dönüşünde HTTPS/asset/CRUD, aynı ID5 ve final veri/history koruması. Final A aktif, altı healthy, dört altyapı container'ı aynı; yalnız test kayıtları/dosyaları temizlendi, stack ve tünel açık. Aktif A SHA/digestleri ve HTTPS kaynakları aynı. İlk Compose run/nginx-t exit124 nedeni ve gerçek kesinti süresi NOT VERIFIED. Backup/restore ve lab kapanışı bekliyor. Kanıtlar bölüm12–25'tedir; HTTPS Schannel/manual browser sınırları değişmedi.
 
+**18 Ekim ek durumu:** Adım8 için [izole yedek/restore hazırlığı](../infrastructure/deployment/BACKUP-RESTORE.md)
+ve bağımsız test Compose modeli hazır; yalnız statik kabul. Gerçek dump, ikinci
+kopya, restore/sequence/cleanup ve günlük job henüz yapılmadı; bölüm26.
+17 Ekim sonuçları bugün yeniden ölçülmüş sayılmaz; aktif A ve çalışan VM korunur.
+
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
 ## 1. Amaç ve kullanıcı kararları
@@ -142,6 +147,10 @@ Hazırlık tamamlanınca digest'leri sabit deployment dosyasıyla `docker compos
 
 ## 8. Günlük yedek ve ayrı restore pratiği
 
+18 Ekim [uygulama rehberi ve kabul kapıları](../infrastructure/deployment/BACKUP-RESTORE.md)
+hazırlandı. Bağımsız restore Compose modeli statik olarak doğrulandı; aşağıdaki
+runtime işlemleri ve zamanlama henüz uygulanmadı.
+
 Hedef RPO **24 saat**; kurtarma süresi henüz ölçülmedi. VM/PC kapalıysa günlük job çalışmaz; son başarılı yedek zamanı denetlenir, yedek 24 saatten eskiyse hedef sağlandı sayılmaz.
 
 - Deployment PostgreSQL'in kendi araçlarıyla `pg_dump` custom format önerilir; parola komut argümanına yazılmaz. Binary dump önce Linux/PG container içinde dosyaya yazılır, sonra güvenli dosya kopyasıyla alınır; Windows PowerShell 5.1 text pipeline'ından binary geçirilmez.
@@ -164,7 +173,7 @@ Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz
 | 5 — Yerel HTTPS | Mevcut frontend Nginx'e read-only config/leaf mount, lab CA ve localhost SSH | PASS; sertifika/trust/nginx -t, frontend-only recreate, uyarısız manuel browser/asset ve HTTPS contract; iptal durumu NOT VERIFIED, Schannel best-effort sınırı bölüm21'de |
 | 6 — Kalıcılık ve gözlem | PostgreSQL recreate, Prometheus ve Grafana kontrolleri | PASS; aynı image/volume'da yeni PostgreSQL ID, test ID4/altı alan tekil GET ile korundu, aynı API ready200/RestartCount0 ve cleanup; bölüm22. Monitoring kabulü ayrı15 Ekim kanıtıdır, burada yeniden ölçülmedi |
 | 7 — Güncelleme/rollback | PASS; A/B seçimi ve rehberli A→B→A; final A açık | Bölüm23–25: doğru image kimlikleri, API sonra frontend, B/A dönüşü HTTPS asset/CRUD ve aynı ID5; dört altyapı container'ı, veri/history korundu, owned cleanup PASS. Önceki nginx-t timeout nedeni ve sürekli kesinti ölçümü NOT VERIFIED |
-| 8 — Yedek/restore | Günlük yedek planı ve yeni test DB'ye bir restore | Başarılı dump/checksum, güncel yedek zamanı; ayrı restore'da görev/history doğrulaması; owned cleanup |
+| 8 — Yedek/restore | Statik hazırlık PASS; günlük yedek ve yeni hedef restore henüz yok | Bölüm26: ayrı model/ignore/required env testleri PASS; dolu dump/Windows SHA/altı alan/history/sequence/cleanup ve zamanlama runtime NOT VERIFIED |
 | 9 — Lab kapanışı | Komutlar, runtime kanıtları, limitler ve kaynak envanteri | Development .env/user-secrets/volume değişmemiş; yalnız lab stack'i down; asıl lab verisi korunmuş |
 
 [Mevcut registry kabul script'i](../tests/Module11.Compose.Smoke.py), [registry guard testleri](../tests/Module11.RegistryRuntime.Test.py), [CRUD smoke](../tests/Phase0B.Tasks.Smoke.ps1) ve [Module 8 testi](../tests/Module8.Readiness.Smoke.ps1) yeniden kullanılabilecek temeldir. CI Lab.prepare rastgele test env/volume oluşturur ve cleanup bunları siler: kalıcı deployment volume'unda **olduğu gibi çalıştırılmaz**. Sadece uygun assertion'lar veya ayrı, disposable ön kabul için kullanılır; hosted PASS gerçek VM deployment'ın yerine geçmez.
@@ -667,3 +676,37 @@ hâlâ NOT VERIFIED; başarılı runtime bunu açıklamaz. Monitoring yeniden ko
 Adım7 tamamlandı; adım8 yedek/restore ve9 final lab, manuel öğrenme ve internet/
 production kabulü açık. Sonraki küçük adım yalnız ayrıca istenirse adım8 için
 izole yedek/restore hazırlığı; bu görevde başlanmadı. Commit/push yapılmadı.
+
+## 26. İzole PostgreSQL yedek/restore hazırlığı — 18 Ekim 2026
+
+Yalnız hazırlık; temiz main/4a11d0c6684b10e4fdf94b21127af9901be21c5f.
+[Rehber](../infrastructure/deployment/BACKUP-RESTORE.md),
+[bağımsız Compose](../infrastructure/deployment/compose.restore.yaml),
+[placeholder örneği](../infrastructure/deployment/restore.env.example) ve
+[statik test](../tests/Deployment.BackupRestore.Configuration.Test.py) eklendi.
+Aktif A/release/digestler ve deployment/HTTPS Compose kaynakları değiştirilmedi.
+
+Kaynak PostgreSQL kendi18 pg_dump aracıyla custom archive; canlı volume dosyası
+kopyalanmaz. VM Git dışı700/600 dosyalar ve Windows kullanıcı ACL'li ikinci SCP
+kopyası/SHA256 karşılaştırması. Başarı zamanı, image kimliği/hash ve snapshot'lar
+private manifest'te; env/credential yok. --no-owner/--no-privileges restore
+ownership'i yeni hedef role verir; role parola kurtarması bu dump'ın kapsamı değil.
+Kaynağın doğrulanacak exact local PG ImageID'si/pull-never ile tek restore servisi;
+farklı RUN_ID/project/container/internal network/yeni volume, sıfır host portu,
+deployment volume bind yok. Kök Compose ile birleştirme veya kaynağa restore yok.
+
+Kabul için önce source baseline, ayrı HTTPS sentinel POST/snapshot, sakin pencere
+dump öncesi/sonrası veri/history; sonra hedefte altı alan/row hash/history/şema ve
+generated ID>max sequence INSERT. Probe ROLLBACK satırı kaldırır; sequence
+tüketimi geri alınmaz ve yalnız atılacak restore ortamındadır. Sahiplik label'lı
+restore kaynaklarının temizliği ile source sentinel DELETE204/GET404 ayrıldı;
+mevcut veri, tamamlanmış backup setleri, altı servis/A/HTTPS korunacak.
+
+Günlük02:00/son yedi başarılı günlük set, ayrı dump/ikinci-kopya başarı zamanları,
+bounded timeout/nonzero/failure kontrolü önerildi; timer/unit kurulmadı. PC/VM
+kapalı veya ikinci kopya eskiyken24h hedefi garanti değil; aynı host off-site değil.
+Yeni4 statik test önce eksik config/ignore nedeniyle beklenen FAIL, sonra gerçek
+Compose parser'ıyla PASS. VM/Engine runtime işlemi, yeni kayıt/yedek/restore,
+zamanlama aktivasyonu, kaynak silme, commit/push yok. Adım8 runtime ve9 final lab
+bekliyor; sonraki küçük görev güncel VM envanteri/public dosya aktarımı ön
+kontrolü, ancak ayrıca istenirse.

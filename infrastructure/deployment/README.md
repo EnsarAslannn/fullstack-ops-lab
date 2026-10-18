@@ -1,5 +1,11 @@
 # Deployment Lab — image-only VM kurulumu ve kabul kayıtları
 
+**18 Ekim 2026:** [izole PostgreSQL yedek/restore rehberi](BACKUP-RESTORE.md),
+bağımsız restore modeli/örneği ve statik kontroller hazırlandı. Gerçek dump,
+Windows ikinci kopyası, restore, sequence ve cleanup kabulü **NOT VERIFIED**;
+zamanlama etkinleştirilmedi. Aşağıdaki 17 Ekim runtime kanıtı bugün tekrar
+çalıştırılmış sayılmaz. Aktif A/release/HTTPS/development kaynakları aynı.
+
 17 Ekim 2026 güncel durum: hazırlık/migration/HTTP-cache ve 15 Ekim asset/monitoring
 kabulüne ek olarak **yerel HTTPS etkinleştirme, uyarısız manuel tarayıcı/asset ve
 HTTPS CRUD kabulü PASS**. 15–16 Ekim HTTPS kabulünde frontend aynı seçilmiş image
@@ -46,6 +52,10 @@ korunur. Nginx frontend image'ının içinde kalır.
 - [HTTPS hazırlığı ve kurulum komutları](HTTPS.md): isteğe bağlı üçüncü
   [overlay](compose.https.yaml), [Nginx config](nginx/https.conf) ve
   [TLS path örneği](https.env.example); VM'de kullanıcı tarafından etkinleştirildi.
+- [Yedek/restore hazırlığı](BACKUP-RESTORE.md): yalnız yeni test hedefi için
+  [bağımsız Compose](compose.restore.yaml), [placeholder örneği](restore.env.example)
+  ve [statik test](../../tests/Deployment.BackupRestore.Configuration.Test.py).
+  Bu Compose deployment overlay'i değildir; kaynak volume'u bağlanmaz.
 
 API/frontend için `build: !reset null` kaynak build alanını siler. Sadece `image`
 eklemek build alanını kaldırmaz. `ports: !override` eski ve yeni port listelerinin
@@ -1122,3 +1132,35 @@ build/pull/yayın/migration/FLUSH/prune yok. Monitoring kabulü yeniden koşulma
 Plan adım7 tamamlandı; adım8 yedek/restore ve adım9 kapanış bekliyor. Bu yerel VM
 deneyi production/internet/benchmark veya manuel öğrenme PASS değildir.
 Commit/push yapılmadı.
+
+## İzole yedek/restore hazırlığı — 18 Ekim 2026
+
+Temiz main/4a11d0c6684b10e4fdf94b21127af9901be21c5f üzerinde yalnız hazırlık.
+[Rehber](BACKUP-RESTORE.md) çalışan source container'ın kendi PostgreSQL18
+pg_dump aracıyla custom mantıksal yedek, Git dışı700/600 saklama ve Windows'a
+ikinci SCP kopyası/SHA256 karşılaştırmasını tarif eder; canlı volume kopyalama yok.
+Kaynak PostgreSQL'in runtime'da yeniden doğrulanacak tam yerel ImageID'si restore
+için seçilir; mutable tag pull, A uygulama digest değişikliği veya build yok.
+
+Tek başına compose.restore.yaml farklı RUN_ID/project/container/internal network
+ve yeni Compose-managed volume kullanır; host portu veya source mount yok.
+Yeni restore credential'ı Git dışında; no-owner/no-privileges hedef role ownership
+verir, kaynak role parolaları yedeğe/config'e kopyalanmaz. Arşiv Task verisi ve
+owner adları içerebilir; hassas kabul edilir. Dump/JSON/env/log Git'e eklenmez.
+
+Kabul boş DB ile geçmez: benzersiz HTTPS sentinel ve altı alan, tam row hash,
+şema/identity ve migration history karşılaştırması; hedefte yeni INSERT ile
+ID>max/çakışmasız sequence kontrolü, sonra rollback/satır eşitliği planlandı.
+Sequence değeri transaction rollback ile geri alınmaz; yalnız geçici hedefte
+tüketilir. Restore kaynaklarının label kontrollü temizliği ve deployment'ta
+yalnız sahipli sentinel DELETE204/GET404 ayrı adımlar; tamamlanmış backup setleri
+korunur. Mevcut Tasks/history ve altı container başlangıç/final karşılaştırılır.
+
+Günlük02:00/son yedi başarılı günlük set önerisi var; job kurulmadı. VM kapalı
+veya Windows kopyası eskiyken24h RPO garanti edilmez; aynı host ikinci kopyası
+off-site değildir. Runtime dump/restore/sequence/cleanup ve zamanlama NOT VERIFIED.
+Yeni statik test4/4 PASS; öncesinde eksik dosya/ignore için beklenen RED görüldü.
+VM/development kaynağına bağlanılmadı; veri/credential/TLS/image değişikliği,
+yedek alma veya kaynak oluşturma/silme yok. Sonraki görev yalnız ayrıca istenirse
+güncel VM envanteri ve public restore dosyalarının aktarım ön kontrolüdür.
+Yedek/restore ve final deployment lab kabulü henüz tamamlanmadı; commit/push yok.

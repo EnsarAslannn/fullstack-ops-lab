@@ -1,0 +1,39 @@
+name: fullstackops-restore-${RESTORE_RUN_ID:?Set a unique restore run ID}
+
+services:
+  restore-postgres:
+    image: ${RESTORE_POSTGRES_IMAGE:?Set the verified local source PostgreSQL image ID}
+    pull_policy: never
+    container_name: fullstackops-restore-${RESTORE_RUN_ID:?Set a unique restore run ID}-postgres
+    environment:
+      POSTGRES_USER: ${RESTORE_USER:?Set an isolated restore role}
+      POSTGRES_DB: ${RESTORE_DB:?Set an isolated restore database}
+      POSTGRES_PASSWORD: ${RESTORE_PASSWORD:?Set an isolated restore credential}
+    labels:
+      io.fullstackops.lab: postgres-restore
+      io.fullstackops.restore-run: ${RESTORE_RUN_ID:?Set a unique restore run ID}
+    volumes:
+      - restore-data:/var/lib/postgresql
+    networks:
+      - restore
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+networks:
+  restore:
+    name: fullstackops-restore-${RESTORE_RUN_ID:?Set a unique restore run ID}-net
+    internal: true
+    labels:
+      io.fullstackops.lab: postgres-restore
+      io.fullstackops.restore-run: ${RESTORE_RUN_ID:?Set a unique restore run ID}
+
+volumes:
+  restore-data:
+    name: fullstackops-restore-${RESTORE_RUN_ID:?Set a unique restore run ID}-postgres
+    labels:
+      io.fullstackops.lab: postgres-restore
+      io.fullstackops.restore-run: ${RESTORE_RUN_ID:?Set a unique restore run ID}

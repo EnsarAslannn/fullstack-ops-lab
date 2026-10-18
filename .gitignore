@@ -27,3 +27,8 @@
 *.csr
 *.der
 *.srl
+
+**/backups-private/
+*.pgdump
+*.dump
+*.backup
