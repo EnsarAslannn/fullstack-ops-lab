@@ -3,8 +3,11 @@
 **18 Ekim 2026:** [izole PostgreSQL yedek/restore rehberi](BACKUP-RESTORE.md),
 bağımsız restore modeli/örneği ve statik kontroller hazırlandı. Gerçek dump,
 Windows ikinci kopyası, restore, sequence ve cleanup kabulü **NOT VERIFIED**;
-zamanlama etkinleştirilmedi. Aşağıdaki 17 Ekim runtime kanıtı bugün tekrar
-çalıştırılmış sayılmaz. Aktif A/release/HTTPS/development kaynakları aynı.
+zamanlama etkinleştirilmedi. Ardından [VM envanteri/public aktarım ön kontrolü](BACKUP-RESTORE.md#11-vm-envanteri-ve-public-aktarım--18-ekim-2026)
+PASS: A/altı healthy, PostgreSQL server/araç18.6, yerel image/mount, boş alan ve
+dört public dosyanın hash eşleşmesi doğrulandı; restore adları boş. Dump/restore
+başlatılmadı. Aşağıdaki 17 Ekim runtime deneyi tekrarlanmış sayılmaz.
+Aktif A/release/HTTPS/development kaynakları aynı.
 
 17 Ekim 2026 güncel durum: hazırlık/migration/HTTP-cache ve 15 Ekim asset/monitoring
 kabulüne ek olarak **yerel HTTPS etkinleştirme, uyarısız manuel tarayıcı/asset ve
@@ -1164,3 +1167,28 @@ VM/development kaynağına bağlanılmadı; veri/credential/TLS/image değişikl
 yedek alma veya kaynak oluşturma/silme yok. Sonraki görev yalnız ayrıca istenirse
 güncel VM envanteri ve public restore dosyalarının aktarım ön kontrolüdür.
 Yedek/restore ve final deployment lab kabulü henüz tamamlanmadı; commit/push yok.
+
+## Yedek/restore VM envanteri ve public aktarım — 18 Ekim 2026
+
+Kullanıcının rehberli SSH/PowerShell çıktılarıyla [ön kontrol PASS](BACKUP-RESTORE.md#11-vm-envanteri-ve-public-aktarım--18-ekim-2026).
+Başlangıç temiz main/5a00317614354d8c4377918d32d0def4432ee05f. VM172.30.249.139,
+Linux Engine ve aktif A exact ref/ImageID/revision doğrulandı. Altı container
+başlangıç/finalde aynı kimliklerle healthy; aynı üç volume listesi ve ağ kimlikleri
+korundu. Source PostgreSQL18.6/server/pg_dump/pg_restore, linux/amd64 yerel
+ImageID77f585114c32..., deployment volume → /var/lib/postgresql eşleşti. Container
+ayarlarıyla database/role eşleşmesi salt okunur sorgulandı, isim/parola yazdırılmadı;
+bu socket sorgusu TCP parola doğrulaması değildir. Database7976639 byte.
+
+VM Git dışı backups-private kökü henüz yok/43,30 GiB boş; Windows LOCALAPPDATA
+Git/OneDrive dışı kök henüz yok/432,09 GiB boş. İzinler ve gerçek dump boyutu/kopyası
+henüz doğrulanmadı. Dört yok-hedefe yalnız BACKUP-RESTORE.md, compose.restore.yaml,
+restore.env.example ve statik test SCP ile aktarıldı; SHA256 dört OK. Rehberin
+aktarılan hash'i bu son kayıt öncesine aittir. Kaynak/env/TLS/release topluca ezilmedi.
+
+RUN_ID4756810b5b43 için ayrı restore project/container/network/volume isimleri ve
+project etiketi boş; rezerve edilmedi, uygulama öncesi tekrar kontrol edilmeli.
+Kaynak local PG ImageID kullanılacak; deployment volume'u hedef olmayacak.
+Restore env, Task, dump, hedef kaynak veya backup klasörü oluşturulmadı; pull/build,
+recreate/migration/silme/zamanlama yok. Tünellere işlem yapılmadı; Windows erişimi
+yeniden ölçülmedi. Agent VM'ye bağlanmadı/private dosya okumadı. Dump/ikinci kopya,
+restore/sequence/cleanup ve final deployment kabulü NOT VERIFIED kalır.

@@ -1,15 +1,17 @@
 # Deployment — izole PostgreSQL yedek/restore hazırlığı
 
-**18 Ekim 2026: yalnız plan ve statik hazırlık. Runtime NOT VERIFIED.** Temiz
-`main/4a11d0c6684b10e4fdf94b21127af9901be21c5f` incelendi. Bu görevde VM erişimi,
+**18 Ekim 2026: envanter/public aktarım ön kontrolü PASS; dump/restore runtime
+NOT VERIFIED.** Güncel kullanıcı komut kanıtı [bölüm11](#11-vm-envanteri-ve-public-aktarım--18-ekim-2026)
+içindedir. İlk statik hazırlıkta temiz
+`main/4a11d0c6684b10e4fdf94b21127af9901be21c5f` incelendi; o aşamada VM erişimi,
 yedek alma, Task oluşturma, restore, kaynak temizleme veya zamanlama etkinleştirme
 yapılmadı. Son [A→B→A kabulü](UPDATE-ROLLBACK.md#9-rehberli-aba-runtime-kabulü--17-ekim-2026)
-17 Ekim'e aittir; bugün altı servisin durumu yeniden ölçülmüş sayılmaz.
+17 Ekim'e aittir; yeni envanter kontrolü o geçiş deneyini tekrarlamaz.
 Aktif A [release kaydı](release.json), digestler, HTTPS ve development korunur.
 
 [Plan adım8](../../docs/deployment-plan.md#8-günlük-yedek-ve-ayrı-restore-pratiği)
 için aşağıdaki gruplar daha sonra **rehberli ve sonuç beklenerek** uygulanacak.
-Komut örnekleri bu görevde çalıştırılmadı; tamamını tek seferde yapıştırma.
+Dump/restore komutları henüz çalıştırılmadı; tamamını tek seferde yapıştırma.
 
 ## 1. Ne yedeklenir, nereye geri yüklenir?
 
@@ -403,3 +405,88 @@ Kaynaklar: [kök Compose](../../compose.yaml), [deployment](compose.deploy.yaml)
 [API](../../src/backend/FullStackOpsLab.Api/Program.cs), [restore Compose](compose.restore.yaml),
 [örnek](restore.env.example), [statik test](../../tests/Deployment.BackupRestore.Configuration.Test.py),
 [deployment planı](../../docs/deployment-plan.md), [şartname](../../PROJECT_SPEC.md#advanced-lab-e--deployment).
+
+## 11. VM envanteri ve public aktarım — 18 Ekim 2026
+
+Bu kayıt, temiz ana repository `main/5a00317614354d8c4377918d32d0def4432ee05f`
+üzerinden rehberli olarak kullanıcının çalıştırdığı PowerShell/Ubuntu SSH
+komutlarına ve paylaştığı çıktılara dayanır. Agent VM'ye bağlanmadı, gerçek env
+veya private key okumadı. Önceki 17 Ekim A→B→A deneyinin tekrarı değildir.
+
+### Kaynak ve saklama konumu ön kontrolü
+
+| Kontrol | Gerçek sonuç |
+| --- | --- |
+| VM/erişim | Hyper-V Running, hostname fullstackopslabvm; eth0 UP 172.30.249.139/20; SSH başarılı. Hyper-V IP alanı boştu; guest çıktısıyla doğrulandı, ağ/reboot değişikliği yapılmadı |
+| Engine | unix:///var/run/docker.sock; VM'nin kendi Linux Engine'i |
+| Uygulama | API/frontend exact image referansları, ImageID ve revision aktif A/release.json ile eşleşti: kaynak1b52633776279b1661a7cac53392d385cbf10444; digest çifti değiştirilmedi |
+| Kaynak PostgreSQL | Project fullstackops-deploy-lab, service postgres; postgres:18-alpine; yerel ImageID sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873; linux/amd64 |
+| Araç uyumu | Server18.6, pg_dump18.6 ve pg_restore18.6; ileride restore aynı doğrulanmış yerel ImageID ile, mutable tag pull olmadan yapılacak |
+| Kaynak mount | volume/fullstackops-deploy-lab-postgres → /var/lib/postgresql; başlangıçta host portu yok |
+| Database/role | psql current_database/current_user, container'ın POSTGRES_DB/POSTGRES_USER ayarlarıyla eşleşti; değerler yazdırılmadı. Socket sorgusu yeni TCP parola kanıtı sayılmadı |
+| Boyut | pg_database_size 7976639 byte; pg_size_pretty 7790 kB; gerçek custom dump boyutu henüz bilinmiyor |
+| VM yedek kökü | /home/labadmin/.local/share/fullstackops-deploy-lab/backups-private; repository dışında, henüz yok; boş alan46494777344 byte/43,30 GiB |
+| Windows ikinci kopya kökü | C:\Users\Ensar\AppData\Local\FullStackOpsLab\backups-private; repository/OneDrive dışında, henüz yok; boş alan463948599296 byte/432,09 GiB |
+
+Boş alanlar ölçüm anına aittir; mevcut küçük database için yeterli başlangıç payı
+vardır, gelecekteki veri büyümesi veya gerçek dump boyutu garantisi değildir.
+Klasörler oluşturulmadı;700/600/NTFS ACL ve gerçek yedek ikinci kopyası bu adımda
+doğrulanmadı. Source sorguları salt okunurdu; Task/history snapshot'ı alınmadı.
+
+### Yalnız public dosyaların aktarımı
+
+VM'de dört hedefin de bulunmadığı doğrulandı. Windows PowerShell Get-FileHash,
+yalnız bu dört dosya için SCP, Ubuntu sha256sum --check kullanıldı; dördü de OK.
+VM'nin kaynak ağacı topluca güncellenmedi; mevcut env/TLS/release ezilmedi.
+
+| Aktarılan repository yolu | SHA256 (aktarılan byte'lar) |
+| --- | --- |
+| infrastructure/deployment/BACKUP-RESTORE.md | 554633bea05144ff99738a117411bbbd4ca4c72c86a995a9668e39e65505dd58 |
+| infrastructure/deployment/compose.restore.yaml | 3c71d13e1a4c652f4f7ac045d4068e8a84396cc832491ae45f9b4c61c40b9680 |
+| infrastructure/deployment/restore.env.example | af8d9f46533a1920dc20fd7ac11de1abb6ca277c3120c4238fe2abb45d09f506 |
+| tests/Deployment.BackupRestore.Configuration.Test.py | 6b7a02a9289116adad8d3e7267ef00ffb6c4fc694ab1f274efc8a3524cd728de |
+
+Bu hash'ler aktarım anındaki dosyaları tanımlar. Bu kabul kaydı sonradan ana
+repository rehberine eklendiğinden güncel BACKUP-RESTORE.md hash'i farklıdır;
+VM'deki rehber bu son dokümantasyon ekini almış sayılmaz. Gerçek env, TLS/CA,
+credential, dump veya uygulama build çıktısı aktarılmadı.
+
+### Restore adları ve kapanış karşılaştırması
+
+RUN_ID `4756810b5b43` seçildi. Project fullstackops-restore-4756810b5b43,
+container/volume fullstackops-restore-4756810b5b43-postgres ve network
+fullstackops-restore-4756810b5b43-net adları mevcut değildi; üç kaynak türünde
+Compose project etiketi de kullanılmıyordu. İsimler **rezerve edilmedi**; gerçek
+uygulama öncesi yokluk kontrolü tekrarlanmalı. Restore modeli tek başına kullanılır;
+deployment volume'u hedef değildir. Restore env/credential veya Docker kaynağı
+oluşturulmadı; fiilî restore mount/izolasyon kabulü henüz yapılmadı.
+
+Başlangıç ve kapanışta altı container healthy ve aynı tam kimliklerdeydi:
+
+| Servis | Başlangıç = kapanış container ID |
+| --- | --- |
+| frontend | 15a93fef4000eaad9d90637dcc50a1e97e8fa1c27efeef4b6d3adb5f764542c6 |
+| api | 8b3d9f24f6274bff0dc74fdd366b00f89c896897d0a16da3efbaedcd94ffdff9 |
+| postgres | b67a87f2d83ffc7119262239f0bc48d8b2bf141aca9f84b1f4b55d62e173f7f9 |
+| prometheus | 84eaf1ceebb5755fecab344c1f094eb6122f6d9ee75f5acc6c79a718c323b33b |
+| redis | d98d34cc73c5d0968958ac64a54ad76fbaadce0c78f73d17566da93c1439a582 |
+| grafana | ed9398e62129b273e98917346703b6fe1ffccab688114df6fa3800f3fdf53637 |
+
+İki volume listesinde yalnız aynı üç local deployment volume'u vardı: postgres,
+prometheus ve grafana. Bu liste volume içeriğinin/hash'inin ölçümü değildir.
+Deployment ağının kimliği dc2f465449d7c1546486c1deddd7aadf0f636428ec8e5d4cdff6213b5da9a21e
+korundu; bridge/host/none ağ kimlikleri de başlangıçla aynıydı. Restore kaynağı yoktu.
+Tüneller değiştirilmedi; Windows listener/HTTPS erişimi bu adımda yeniden ölçülmedi.
+
+**Ön kontrol PASS:** güncel envanter/A, source mount/araç/yerel image, konum/boş
+alan, public aktarım bütünlüğü ve isim çakışma kontrolü. **NOT VERIFIED:** gerçek
+dump, ikinci yedek kopyası/izinleri, restore/altı alan/history/sequence, deney
+cleanup'ı, günlük job ve final lab. Test kaydı/yedek oluşturma, migration, image
+pull/build, recreate, kaynak silme veya zamanlama etkinleştirme yapılmadı.
+Stack A'da çalışır bırakıldı; development kaynaklarına işlem yapılmadı.
+
+Ana repository'de bu kayıt sonrası restore statik testleri4/4, mevcut deployment
+statik testleri7/7, dört belgede125 yerel dosya/anchor bağlantısı, repository secret
+kontrolü ve git diff --check PASS. Testler sahte geçici ayarlarla yalnız Compose
+parser'ını kullandı; Engine/VM runtime testi değildir. Yalnız dört belge değişti;
+Compose/örnek/test/release dosyaları değişmedi, commit/push yapılmadı.

@@ -5,7 +5,9 @@
 **18 Ekim ek durumu:** Adım8 için [izole yedek/restore hazırlığı](../infrastructure/deployment/BACKUP-RESTORE.md)
 ve bağımsız test Compose modeli hazır; yalnız statik kabul. Gerçek dump, ikinci
 kopya, restore/sequence/cleanup ve günlük job henüz yapılmadı; bölüm26.
-17 Ekim sonuçları bugün yeniden ölçülmüş sayılmaz; aktif A ve çalışan VM korunur.
+Ardından güncel envanter/public aktarım ön kontrolü PASS: altı aynı container healthy,
+aktif A, source PostgreSQL18.6 ve dört dosyanın hash eşleşmesi doğrulandı; bölüm27.
+17 Ekim A→B→A deneyi tekrarlanmadı; dump/restore henüz başlamadı.
 
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
@@ -710,3 +712,29 @@ Compose parser'ıyla PASS. VM/Engine runtime işlemi, yeni kayıt/yedek/restore,
 zamanlama aktivasyonu, kaynak silme, commit/push yok. Adım8 runtime ve9 final lab
 bekliyor; sonraki küçük görev güncel VM envanteri/public dosya aktarımı ön
 kontrolü, ancak ayrıca istenirse.
+
+## 27. Yedek/restore VM envanteri ve public aktarım — 18 Ekim 2026
+
+Başlangıç temiz main/5a00317614354d8c4377918d32d0def4432ee05f. Kullanıcı komut
+çıktılarıyla [ön kontrol kaydı](../infrastructure/deployment/BACKUP-RESTORE.md#11-vm-envanteri-ve-public-aktarım--18-ekim-2026)
+PASS: SSH172.30.249.139/VM Engine, aktif A exact digest/revision/ImageID; kaynak
+PG18.6/server/pg_dump/pg_restore ve aynı yerel linux/amd64 ImageID77f585114c32...
+doğrulandı. fullstackops-deploy-lab-postgres → /var/lib/postgresql korunuyor.
+Database/role container ayarlarıyla eşleşti; socket sorgusu yeni TCP authentication
+kanıtı değil. Database7976639 byte; gerçek dump boyutu ölçülmedi.
+
+VM backups-private konumu Git dışında/henüz yok/43,30 GiB boş; Windows LOCALAPPDATA
+konumu Git/OneDrive dışında/henüz yok/432,09 GiB boş. Dört public guide/config/example/
+test dosyası yok-hedef kontrolünden sonra SCP ile aktarıldı, SHA256 dört OK; mevcut
+env/TLS/release ezilmedi. Aktarılan rehber hash'i son yerel dokümantasyon eki öncesini
+tanımlar. Restore RUN_ID4756810b5b43 isimleri ve project etiketi boş; rezerve değil.
+
+Final altı container başlangıçla aynı tam kimliklerde healthy, üç volume listesi
+ve ağ kimlikleri aynı. Tüneller değiştirilmedi, Windows erişimi yeniden ölçülmedi.
+Kaynaklara temizlik gerekmedi: restore kaynağı/credential, backup klasörü, Task,
+dump veya ikinci yedek kopyası oluşturulmadı; migration/pull/build/recreate/silme/
+zamanlama yok. Agent private dosya okumadı/VM'ye bağlanmadı. Adım8 yalnız bu ön
+kontrol kadar ilerledi; izinler, gerçek dump/kopya/restore/sequence/cleanup ve adım9
+final lab henüz NOT VERIFIED. Sonraki küçük adım ayrıca istenirse private çalışma
+alanı/restore ayarları ve sentinel öncesi source baseline hazırlığıdır; otomatik
+başlanmaz. Aktif A/HTTPS/development korunur; commit/push yok.

@@ -6,9 +6,17 @@ Mandatory technical final acceptance — Completed (6 October 2026, same-host cl
 
 ## Current Phase
 
-Optional Deployment Lab — A-to-B-to-A runtime acceptance completed17October2026; isolated PostgreSQL backup/restore preparation and static model checks completed18October2026. Actual dump/off-VM copy/restore/sequence/cleanup, scheduling and final deployment lab acceptance pending; mandatory technical acceptance completed, manual section32 learning review pending
+Optional Deployment Lab — A-to-B-to-A runtime acceptance completed17October2026; backup/restore preparation and guided VM inventory/public-file transfer prechecks completed18October2026. Actual dump/off-VM copy/restore/sequence/cleanup, scheduling and final deployment lab acceptance pending; mandatory technical acceptance completed, manual section32 learning review pending
 
 ## Current Step
+
+Guided user-executed VM inventory/public backup-restore file transfer prechecks PASS from clean main/5a00317614354d8c4377918d32d0def4432ee05f. VM Running/SSH172.30.249.139/eth0 UP and local Linux Engine confirmed; exact API/frontend A image references/ImageIDs/revision unchanged. PostgreSQL source project/service/volume mount correct; full local ImageID77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873/linux-amd64 retained, server/pg_dump/pg_restore all18.6. Read-only current_database/current_user match container settings without printing names/password; socket query is not new TCP credential acceptance. Database7976639 bytes.
+
+VM Git-external backups-private path absent/free43.30GiB; Windows LOCALAPPDATA Git/OneDrive-external path absent/free432.09GiB. Directories/permissions and actual backup size/copy not yet verified. Four absent-target public files only transferred by SCP and SHA256 four OK: guide, standalone restore Compose, placeholder example and static test. No env/TLS/release overwrite. Transfer guide hash refers to bytes before this subsequent documentation update. RUN_ID4756810b5b43 separate restore project/container/network/volume names and project labels unused; not reserved, recheck before creation. Planned target uses source local image, never deployment volume.
+
+Final six container IDs match initial and all healthy; same three volume-list entries and all network IDs. No source-data snapshot taken or content-equality claim; no Task/dump/restore credential/backup directory/Docker resource created, no pull/build/recreate/migration/scheduling/deletion. Tunnels unchanged, Windows listener/HTTPS not remeasured. Agent did not connect/read private files; development unchanged. Actual dump/off-VM copy/restore/sequence/cleanup and final lab NOT VERIFIED. Evidence: [guide section11](infrastructure/deployment/BACKUP-RESTORE.md#11-vm-envanteri-ve-public-aktarım--18-ekim-2026), deployment plan section27. No commit/push.
+
+## Previous Step — Backup/Restore Static Preparation
 
 Backup/restore preparation only on18October2026 from clean main/4a11d0c6684b10e4fdf94b21127af9901be21c5f. Added [guide](infrastructure/deployment/BACKUP-RESTORE.md), standalone compose.restore.yaml and placeholder restore.env.example; separate RUN_ID project/container/internal network/new volume, no host ports/build/source bind/external volume. Planned reuse of freshly verified source PostgreSQL18 local ImageID and its tools, no mutable pull or application digest change. Custom pg_dump,700/600 Git-external storage, Windows user-ACL SCP copy/hash, no-owner/no-privileges separate restore role and bounded failure gates documented; raw env/credentials not copied to archive/manifest. Backups still contain application data/possible owner metadata and remain private.
 
@@ -341,7 +349,7 @@ Maintenance review — 10 October 2026: fixed registry acceptance source consist
 
 ## Next Goal
 
-Next optional small step, only when requested: guided current VM/SSH/Engine and six-container inventory, PostgreSQL source image/tool-major/volume verification, then transfer only public backup/restore files and verify hashes. Review the new plan before generating private restore settings or creating a sentinel/dump/target. Keep active A/release pairs, HTTPS/env, all existing volumes and stack/tunnels protected. No actual dump/restore/scheduling/resource deletion or final acceptance follows automatically from static preparation. Step8 runtime/step9, prior nginx-t exit124 cause, continuous downtime, failed-update injection, revocation/manual learning and public/production acceptance remain open. No new publication/tag/release or commit/push.
+Next optional small step, only when requested: prepare Git-external private working paths/permissions and isolated restore settings, recheck RUN_ID4756810b5b43 name availability/source local image, then capture source baseline before any owned sentinel or dump. Inventory and four public-file transfers now passed; actual dump/off-VM backup copy/restore/sequence/cleanup have not. Keep active A/release pairs, HTTPS/env, all existing volumes and stack/tunnels protected. Step8 runtime/step9, prior nginx-t exit124 cause, continuous downtime, failed-update injection, revocation/manual learning and public/production acceptance remain open. No scheduling/resource deletion/final acceptance/new publication/tag/release or commit/push follows automatically.
 
 ## Blockers
 
