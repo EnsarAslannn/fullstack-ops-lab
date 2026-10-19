@@ -1,7 +1,9 @@
 # Deployment — izole PostgreSQL yedek/restore hazırlığı
 
-**18 Ekim 2026: envanter/public aktarım ön kontrolü PASS; dump/restore runtime
-NOT VERIFIED.** Güncel kullanıcı komut kanıtı [bölüm11](#11-vm-envanteri-ve-public-aktarım--18-ekim-2026)
+**19 Ekim 2026: mantıksal dump ve Windows ikinci kopyası PASS; restore/sequence/
+cleanup NOT VERIFIED.** Test görevi **ID=8 bilerek korunuyor**. Güncel kullanıcı
+kanıtı [bölüm12](#12-mantıksal-dump-ve-windows-ikinci-kopyası--19-ekim-2026),
+18 Ekim ön kontrolü [bölüm11](#11-vm-envanteri-ve-public-aktarım--18-ekim-2026)
 içindedir. İlk statik hazırlıkta temiz
 `main/4a11d0c6684b10e4fdf94b21127af9901be21c5f` incelendi; o aşamada VM erişimi,
 yedek alma, Task oluşturma, restore, kaynak temizleme veya zamanlama etkinleştirme
@@ -11,7 +13,9 @@ Aktif A [release kaydı](release.json), digestler, HTTPS ve development korunur.
 
 [Plan adım8](../../docs/deployment-plan.md#8-günlük-yedek-ve-ayrı-restore-pratiği)
 için aşağıdaki gruplar daha sonra **rehberli ve sonuç beklenerek** uygulanacak.
-Dump/restore komutları henüz çalıştırılmadı; tamamını tek seferde yapıştırma.
+Dump ve ikinci kopya bölüm12'deki oturumda çalıştırıldı; aşağıdaki örnekler
+tekrar dump almak veya mevcut dosyaları ezmek için kullanılmaz. Restore henüz
+çalıştırılmadı; grupları sonuç bekleyerek uygula, tamamını tek seferde yapıştırma.
 
 ## 1. Ne yedeklenir, nereye geri yüklenir?
 
@@ -220,6 +224,11 @@ kaybı/çalınmasına karşı bağımsız off-site güvence değildir.
 
 ## 6. Yeni hedef hazırlığı ve restore
 
+19 Ekim RUN_ID4756810b5b43 için private env/model ön kontrolü zaten geçti;
+aynı env'i yeniden üretme veya yedek/test görevi oluşturma. Sonraki ayrı restore
+oturumunda mevcut dosyaları/izinleri/hash'leri ve hedef adlarının yokluğunu
+doğrula; aşağıdaki up/restore komutları henüz çalıştırılmış değildir.
+
 **Ubuntu SSH:** [restore.env.example](restore.env.example) anahtarlarıyla yeni
 RUN_ID/.env.restore dışarıda600 hazırlanır. RESTORE_POSTGRES_IMAGE bölüm2'deki
 tam yerel image kimliği; restore_lab rol/database ve yeni güçlü rastgele parola.
@@ -369,12 +378,13 @@ source volume korunur. Hata halinde de son güvenli durum ayrı raporlanır.
 | Madde | Şimdiki durum | Gelecek runtime kanıtı |
 | --- | --- | --- |
 | Ayrı restore modeli/isimler/no-port/no-source-volume | Statik PASS | Yokluk kapısı, actual mount/labels/image ve yeni volume |
-| Zorunlu env, verilen ImageID'nin modele aktarımı, ignore sınırı | Statik PASS | Placeholder/regex, gerçek local ImageID/private env/izin ve18 server/araç eşleşmesi |
-| Mantıksal dump | NOT VERIFIED | Dolu/sentinel içeren source, pg_dump exit0, sakin pencere snapshot eşleşmesi |
-| VM+Windows kopyası | NOT VERIFIED | 700/600 ve NTFS ACL, boyut/SHA256 eşit, yeni UTC |
+| Zorunlu env, verilen ImageID'nin modele aktarımı, ignore sınırı | Statik PASS; 19 Ekim gerçek private env/model/yerel image/izin PASS | Fiilî restore container kimliği/bağlantısı henüz yok |
+| Mantıksal dump | PASS — 19 Ekim, bölüm12 | ID8 içeren custom dump, pg_dump exit0; dump öncesi/sonrası veri ve history aynı |
+| VM+Windows kopyası | PASS — 19 Ekim, bölüm12 | VM700/600, Windows ACL; manifest+11 dosya boyut/SHA256 aynı; doğrulama11:59:45.3912258 UTC |
 | Restore/sentinel/history/şema | NOT VERIFIED | Ayrı hedefte exit0, altı alan ve tam hash/history/katalog eşleşmesi |
 | Sequence | NOT VERIFIED | Hedefte generated ID>max, çakışma yok, probe sonrası aynı Task/history |
-| Cleanup ve kaynak koruması | NOT VERIFIED | Yalnız restore kaynakları/sahipli source Task temiz, backup setleri duruyor |
+| Kaynak koruması | PASS — 19 Ekim | Altı container aynı kimliklerde healthy; mevcut üç volume; ID8 korunuyor |
+| Cleanup | NOT VERIFIED; bilerek bekliyor | Restore hedefi henüz yok; sahipli ID8 restore kabulü için silinmedi; backup setleri korunacak |
 | Günlük job/retention/RPO | Plan; NOT VERIFIED | Job/failure/son başarı yaşı ve güncel ikinci kopya ayrıca uygulanıp doğrulanmalı |
 
 Statik komut **Windows PowerShell, repository kökü**; Engine/VM işlemi yapmaz:
@@ -386,7 +396,8 @@ py -3 tests/Deployment.Configuration.Test.py
 if ($LASTEXITCODE -ne 0) { throw 'Mevcut deployment configuration testleri basarisiz' }
 ```
 
-Yeni dört test önce eksik config/ignore nedeniyle beklenen FAIL; hazırlık sonrası
+18 Ekim statik hazırlık sonuçları (19 Ekim runtime kaydı bölüm12): yeni dört test
+önce eksik config/ignore nedeniyle beklenen FAIL; hazırlık sonrası
 gerçek Compose parser'ıyla4/4 PASS. İki run ID'nin kaynakları farklı, sadece yeni
 volume kullanılıyor, host portu/build/source bind yok, required ayar yokken config
 reddediliyor. Testler yalnız rastgele sahte credential fixture'ı kullanır ve
@@ -490,3 +501,120 @@ statik testleri7/7, dört belgede125 yerel dosya/anchor bağlantısı, repositor
 kontrolü ve git diff --check PASS. Testler sahte geçici ayarlarla yalnız Compose
 parser'ını kullandı; Engine/VM runtime testi değildir. Yalnız dört belge değişti;
 Compose/örnek/test/release dosyaları değişmedi, commit/push yapılmadı.
+
+## 12. Mantıksal dump ve Windows ikinci kopyası — 19 Ekim 2026
+
+Başlangıç Git temiz `main/3514d9bd361dbe68ccf4964a607c59405771fbbd`.
+Komutları kullanıcı Windows PowerShell ve Ubuntu SSH'de küçük gruplarla
+çalıştırıp gerçek sonuçları paylaştı; agent VM'ye bağlanmadı, private dosyaları
+okumadı veya deneyi ayrıca çalıştırmadı. Aktif A uygulama kaynağı
+1b52633776279b1661a7cac53392d385cbf10444 ve [seçilmiş digest çifti](release.json)
+korundu; yeni image seçilmedi/pull edilmedi/build edilmedi.
+
+### Erişim, private çalışma alanı ve model
+
+- VM IP172.30.249.139; altı servis aynı başlangıç kimlikleriyle healthy. PostgreSQL
+  project/service ve fullstackops-deploy-lab-postgres → /var/lib/postgresql mount'u
+  doğru; API/PostgreSQL/Redis host portu yok, frontend/monitoring yayınları loopback.
+- Windows HTTPS tüneli ilk kontrolde yoktu; VM127.0.0.1:18443 LISTEN doğrulandı.
+  Yalnız Windows127.0.0.1:18443 → VM127.0.0.1:18443 SSH tüneli açıldı, var olan
+  diğer tünellere/servislere işlem yapılmadı. Kullanıcı browser'da uyarısız açılış
+  bildirdi; otomatik browser/Console veya yeni JS/CSS kabulü yapılmış sayılmaz.
+- HTTPS POST/GET Schannel curl ile VERIFY0/IP127.0.0.1 geçti; komuta özel
+  ssl-revoke-best-effort kullanıldı. Zincir/hostname/geçerlilik açık kaldı;
+  [iptal kontrolü sınırı](HTTPS.md#14-https-etkinleştirme-ve-runtime-kabulü--1516-ekim-2026)
+  değişmedi, revocation NOT VERIFIED.
+- RUN_ID4756810b5b43 için VM backup kökü ve run klasörü labadmin/700 oluşturuldu.
+  Windows kökü ve run klasöründe inheritance kapalı/current-user FullControl;
+  manifest ve11 dosyada sahibi mevcut kullanıcı, Allow erişimi yalnız aynı hesap.
+  Bunlar erişim kısıtlamasıdır, şifreleme veya off-site koruma değildir.
+- VM'de yeni bağımsız restore credential'ı secrets.token_urlsafe(32) ile üretilip
+  yalnız Git dışındaki .env.restore dosyasına600 yazıldı; değerler gösterilmedi.
+  Gerçek env ile config-q ve yakalanan JSON model PASS: tek restore servisi,
+  doğrulanmış local PG ImageID/pull-never, build/host portu yok, ayrı internal ağ
+  ve yalnız yeni restore volume'u, doğru labels. Env/TLS dosyaları ezilmedi.
+  Bu parse kabulüdür; restore container/network/volume oluşturulmadı.
+
+### Test kaydı ve sakin veri penceresi
+
+| Aşama | Gerçek sonuç / UTC |
+| --- | --- |
+| Sentinel öncesi baseline | READ ONLY,0 Task/IDs[], boş satır SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; 11:34:24.809352 |
+| History | Tek 20260928113912_InitialCreate, EF10.0.12; baseline/dump öncesi/sonrası/final aynı |
+| HTTPS test görevi | POST201, ID8, Location /api/tasks/8; https://tasks.fullstackops.test:18443/api/tasks/8 olarak çözüldü |
+| HTTP sözleşmesi | Altı alan, description null/isCompleted false/geçerli zamanlar; doğrudan DB'ye giden tekil GET200/JSON ile POST snapshot'ının altı alanı aynı |
+| Snapshot aktarımı | Windows→VM yalnız sentinel.snapshot.json;223 byte, SHA25680f5fbca8aaeb8bc666cb51f15a9e58d355c4921f0bccde5894aca59fc37eba0; VM izin600 |
+| Dump öncesi | 1 Task/IDs[8], altı alan HTTPS snapshot ile eşit, history baseline ile aynı; 11:39:53.232320 |
+| Dump sonrası | Aynı sayı/ID/tam satır hash/altı alan/history; 11:44:24.411327 |
+| Veri hash'i | Önce/sonra/final 2ad79064002470f10e0f42391519d82308a449f4bf5bd7de8825b682aee6fe3d |
+| Son READ ONLY kontrol | Yalnız ID8, altı alan/history/hash aynı; 12:08:48.906339 |
+
+Snapshot SQL'i UTF-8 BOM'suz/600, REPEATABLE READ READ ONLY transaction ve UTC
+kullandı. SQL/API zamanları UTC zaman değeri olarak karşılaştırıldı. Başka mutation
+yapılmayan pencerede önce/sonra eşitlik görüldü; pg_dump kendi tutarlı snapshot'ını
+alır, ayrı SQL sorgularıyla ortak transaction snapshot'ı iddia edilmez. Başlangıçta
+başka Task yoktu; çok kayıtlı veri seti veya performans kabulü değildir.
+
+### Gerçek dump ve ikinci kopya
+
+| Madde | Kanıt |
+| --- | --- |
+| Source PostgreSQL | Yerel ImageID sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873/linux-amd64; server/pg_dump/pg_restore18.6 |
+| Dump yöntemi | Kaynak container'da pg_dump --format=custom --no-privileges --no-password --lock-wait-timeout=5s;180s outer sınır; yalnız /tmp/fullstackops-backup-4756810b5b43.pgdump |
+| Sonuç | pg_dump exit0, stdout/stderr boş; canlı volume dosyası kopyalanmadı |
+| VM kopyası | Docker cp ile özel run klasörüne database.pgdump.partial; container ve VM SHA256 eşit, labadmin/600 |
+| Arşiv listesi | Aynı18.6 pg_restore --list,60s sınır, exit0/stderr boş; tasks TABLE/DATA, migration history DATA ve identity sequence SET kaydı mevcut |
+| Tamamlanma | List kontrolü ve tekrar hash eşleşmesi sonrası aynı klasörde database.pgdump adına mv-n; partial kalmadı; izin600 |
+| Boyut | 3578 byte |
+| Dump SHA256 | f4eeadd74cacdf90ec68024117e9d015d8008531865a3b4ad8e5556ef0fcb687 |
+| Manifest | manifest.json2511 byte; SHA2564b29c61a0ea8022f56671f7103cdc92e106c99421820ebfee8baa61c924f38db |
+| Windows aktarımı | Önce manifest ayrı SCP/hash kontrolü; sonra10 dosya. Mevcut sentinel.snapshot.json boyut/hash eşit olduğu için korunup tekrar yazılmadı |
+| Windows bütünlüğü | Manifest hash'i ve11 dosyanın her birinin byte boyutu/SHA256 eşleşti; ACL kontrolünde bütünlük tekrar doğrulandı |
+| Windows kabul zamanı | 2026-10-19T11:59:45.3912258+00:00; windows-copy-verified.json özel Windows klasöründe, ACL kontrolü geçti |
+
+Saklanan konumlar:
+
+- VM: /home/labadmin/.local/share/fullstackops-deploy-lab/backups-private/4756810b5b43/
+- Windows: C:\Users\Ensar\AppData\Local\FullStackOpsLab\backups-private\4756810b5b43\
+
+Manifest'teki açık liste: database.pgdump, baseline.json, source.before.json,
+source.after.json, sentinel.snapshot.json, snapshot.sql, inventory.json,
+pg.versions.txt, dump.started-utc.txt, dump.completed-utc.txt ve
+archive.completed-utc.txt. Son üç zaman dosyası saklandı ve hash karşılaştırıldı;
+bu raporda çıktısı paylaşılmayan zaman değerleri tahmin edilmez. Manifest'in
+kendisi bu11 dosyaya ek olarak kopyalandı. Windows'ta ayrıca asıl HTTPS istek/yanıt
+dosyaları ve ikinci kopya kabul kaydı korunuyor. Env/credential/TLS/CA veya ham
+arşiv listesi/loglar Windows'a aktarılmadı. VM manifest'i kopyadan önce oluşturulmuş
+bir kayıttır; stage alanı korunur, Windows kabul zamanı ayrı receipt'tedir.
+
+### Kapanış, hata kaydı ve kalan işler
+
+İlk genel son kontrol RuntimeError verdi; ham stderr saklı olduğundan nedeni
+kesinleşmedi. Ardından sudo-v ve sınırlı tanıda SUDO/FRONTEND_INSPECT exit0/stderr
+yok. Ayrı container/volume/network tabloları ve aşaması belirtilen dar son SQL/
+dosya kontrolü geçti. Önceki hata geriye dönük PASS veya kesin sudo-cache sorunu
+sayılmaz; dump yeniden alınmadı, stack restart edilmedi.
+
+Son envanterde altı container bölüm11'deki tam kimliklerle healthy; A çifti ve
+yerel PG image aynı. Üç deployment volume adı korundu, yalnız mevcut ağ isimleri
+vardı; restore container/volume/network yok. VM manifest+11 dosya hash/boyut/600,
+klasörler700 ve restore env600 finalde tekrar geçti. Başlangıç0 Task'tan farklı
+olarak **yalnız sahipli ID8 bilerek bırakıldı**; veri/history korunma iddiası bu
+kontrollü eklemeyi kapsar, test kaydı temizlenmiş sayılmaz. Kaynak /tmp dump'ı da
+bu adımda silinmedi; ileride yalnız tam sahipli adla temizlik yapılacak.
+
+Tamamlanmış VM/Windows backup setlerini ve ID8'i koru. Sonraki ayrı görev,
+yokluk/image/izin kontrollerinden sonra izole hedefe gerçek restore, altı alan/
+şema/history/tam hash ve sequence kabulüdür; sonra yalnız hedef kaynakları ve
+sahipli ID8 temizlenir. **Restore/sequence/cleanup, günlük job/retention/RPO24h
+garantisi ve deployment final kabulü NOT VERIFIED.** Aynı host Windows kopyası
+off-site değildir; checksum/--list, gerçekten geri yüklenmiş database kanıtı
+yerine geçmez. Migration, mevcut deployment image/credential/TLS değişikliği, build/pull, mevcut
+servis recreate/stop, FLUSH/prune veya development kaynaklarına işlem yapılmadı.
+Yalnız bu rehber, deployment README, plan ve PROJECT_STATUS güncellendi;
+backup/private dosyalar Git'e alınmadı. Commit/push yapılmadı.
+
+Ana repository kapanış kontrolleri: restore statik test4/4 ve mevcut deployment
+statik test7/7 PASS; dört belgede133 yerel dosya/anchor bağlantısı, repository
+secret kontrolü ve git diff --check PASS. Bunlar sahte geçici ayarlarla Compose
+parser/dokümantasyon kontrolleridir; VM dump deneyi ayrıca tekrarlanmadı.

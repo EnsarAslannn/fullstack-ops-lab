@@ -1,5 +1,12 @@
 # Deployment Lab — image-only VM kurulumu ve kabul kayıtları
 
+**19 Ekim 2026:** [Gerçek mantıksal dump ve Windows ikinci kopyası PASS](BACKUP-RESTORE.md#12-mantıksal-dump-ve-windows-ikinci-kopyası--19-ekim-2026).
+Private klasör/env/model, ID8 içeren custom dump/--list, önce-sonra veri/history
+eşitliği ve manifest+11 dosya SCP/hash/ACL kontrolü doğrulandı. **ID8 restore için
+korunuyor; restore/sequence/cleanup ve final deployment kabulü hâlâ NOT VERIFIED.**
+A çifti, altı container ve üç mevcut volume korunuyor. Önceki tarihli kayıtlar
+aşağıda tarihsel kapsamlarıyla bırakıldı; günlük job etkinleştirilmedi.
+
 **18 Ekim 2026:** [izole PostgreSQL yedek/restore rehberi](BACKUP-RESTORE.md),
 bağımsız restore modeli/örneği ve statik kontroller hazırlandı. Gerçek dump,
 Windows ikinci kopyası, restore, sequence ve cleanup kabulü **NOT VERIFIED**;
@@ -1192,3 +1199,45 @@ Restore env, Task, dump, hedef kaynak veya backup klasörü oluşturulmadı; pul
 recreate/migration/silme/zamanlama yok. Tünellere işlem yapılmadı; Windows erişimi
 yeniden ölçülmedi. Agent VM'ye bağlanmadı/private dosya okumadı. Dump/ikinci kopya,
 restore/sequence/cleanup ve final deployment kabulü NOT VERIFIED kalır.
+
+## Mantıksal dump ve Windows ikinci kopyası — 19 Ekim 2026
+
+Başlangıç temiz main/3514d9bd361dbe68ccf4964a607c59405771fbbd. Rehberli kullanıcı
+komutlarının [ayrıntılı kanıtı](BACKUP-RESTORE.md#12-mantıksal-dump-ve-windows-ikinci-kopyası--19-ekim-2026)
+ayrı kaydedildi. VM172.30.249.139/aktif A exact digest/revision ve source PG mount'u
+doğrulandı. Eksik Windows HTTPS tüneli yalnız loopback18443 için yeniden açıldı;
+manuel browser uyarısız açıldı. POST201/ID8/relative Location doğru HTTPS originine
+çözüldü; tekil DB GET200/JSON ile altı alan/null description/false completion aynı.
+Schannel best-effort revocation sınırı değişmedi; yeni otomatik browser kabulü yok.
+
+VM Git dışı backups-private/4756810b5b43 kök/run700, dosyalar600; ayrı güçlü restore
+env600 üretildi, tek servis/no-build/pull-never/no-port/ayrı ağ-yeni volume modeli
+gerçek env ile parse edildi. Restore servisi/volume/network oluşturulmadı.
+Windows LOCALAPPDATA/FullStackOpsLab/backups-private/4756810b5b43 kök/run klasörleri
+inheritance kapalı/current-user FullControl; kopya dosyalarının sahibi ve Allow
+erişimi yalnız mevcut hesap. İzinler şifreleme veya off-site koruma değildir.
+
+READ ONLY baseline11:34:24.809352UTC count0/IDs[]/tek InitialCreate EF10.0.12.
+ID8 sonrası source.before11:39:53.232320 ve source.after11:44:24.411327UTC count1/
+IDs[8], tam satır hash/altı alan/history aynı; ayrı snapshot'lar pg_dump ile ortak
+transaction değildir. Source18.6 server/pg_dump/pg_restore; custom pg_dump exit0/
+boş stdout-stderr; yalnız container /tmp dosyası üretildi, canlı volume kopyalanmadı.
+Docker cp/partial600 ve kaynak/VM SHA256; pg_restore --list exit0/tasks-data/history/
+sequence kaydı; hash tekrar kontrolü sonrası database.pgdump3578 byte tamamlandı.
+SHA256 f4eeadd74cacdf90ec68024117e9d015d8008531865a3b4ad8e5556ef0fcb687.
+
+Manifest SHA2564b29c61a0ea8022f56671f7103cdc92e106c99421820ebfee8baa61c924f38db;
+manifest+11 dosya Windows'ta boyut/hash eşleşti. Snapshot zaten aynı olduğundan
+korundu,10 dosya SCP ile alındı. Windows kabul11:59:45.3912258UTC ve private
+windows-copy-verified.json; env/credential/TLS/CA/ham log Windows'a kopyalanmadı.
+İlk genel son kontrol RuntimeError nedeni belirsiz; sınırlı tanı ve ayrı son
+kontroller başarılı oldu, dump/stack tekrar çalıştırılmadı. Final12:08:48.906339UTC
+READ ONLY ID8/altı alan/history/hash aynı; VM dosyalarının hash/izinleri korundu.
+Altı container aynı kimliklerle healthy ve üç volume aynı; restore kaynağı yok.
+
+**ID8 ve iki tamamlanmış backup seti bilerek saklandı; silme/cleanup yapılmadı.**
+Kaynak /tmp dump'ı da bu adımda silinmedi. Aktif A/release/HTTPS/env/TLS/development
+korundu; yeni image/migration/volume veya zamanlama yok. Restore/şema/history/
+sequence/owned cleanup ve final lab sonraki ayrı kabuller; --list/hash gerçek
+restore kanıtı değildir. Windows aynı fiziksel hostta, günlük RPO garanti edilmez.
+Agent VM/private dosyaları okumadı; yalnız dört belge değişti, commit/push yok.

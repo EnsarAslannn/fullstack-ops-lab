@@ -9,6 +9,11 @@ Ardından güncel envanter/public aktarım ön kontrolü PASS: altı aynı conta
 aktif A, source PostgreSQL18.6 ve dört dosyanın hash eşleşmesi doğrulandı; bölüm27.
 17 Ekim A→B→A deneyi tekrarlanmadı; dump/restore henüz başlamadı.
 
+**19 Ekim ek durumu:** Adım8'de [mantıksal dump ve Windows ikinci kopyası](../infrastructure/deployment/BACKUP-RESTORE.md#12-mantıksal-dump-ve-windows-ikinci-kopyası--19-ekim-2026)
+PASS; özel klasör/env/model, gerçek custom dump/--list, source önce-sonra ve
+Windows hash/ACL kanıtları bölüm28'de. ID8 restore için saklanıyor; restore,
+sequence, cleanup, günlük job ve adım9 final lab tamamlanmadı.
+
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
 ## 1. Amaç ve kullanıcı kararları
@@ -738,3 +743,40 @@ kontrol kadar ilerledi; izinler, gerçek dump/kopya/restore/sequence/cleanup ve 
 final lab henüz NOT VERIFIED. Sonraki küçük adım ayrıca istenirse private çalışma
 alanı/restore ayarları ve sentinel öncesi source baseline hazırlığıdır; otomatik
 başlanmaz. Aktif A/HTTPS/development korunur; commit/push yok.
+
+## 28. Mantıksal yedek ve Windows ikinci kopyası — 19 Ekim 2026
+
+Temiz main/3514d9bd361dbe68ccf4964a607c59405771fbbd üzerinde kullanıcı rehberli
+PowerShell/SSH komutları çalıştırdı; [gerçek kanıtlar](../infrastructure/deployment/BACKUP-RESTORE.md#12-mantıksal-dump-ve-windows-ikinci-kopyası--19-ekim-2026).
+Aktif A/digest çifti ve PG yerel ImageID77f585114c32... korundu. Altı healthy/aynı
+container kimlikleri ve üç mevcut volume; SSH172.30.249.139. Yalnız eksik Windows
+HTTPS tüneli loopback18443 olarak açıldı, manuel browser uyarısız; otomatik yeni
+browser/asset/Console kabulü yok, Schannel revocation best-effort sınırı aynı.
+
+RUN_ID4756810b5b43 için Git dışı VM kök/run700, dosyalar600; bağımsız restore
+credential'ı600 dosyaya yazıldı, gerçek env ile yalnız tek izole model config-q/
+JSON kontrolü PASS. Restore kaynağı oluşturulmadı. Windows aynı RUN_ID klasörü
+Git/OneDrive dışında; inheritance kapalı/current-user ACL, dosyalarda yalnız aynı
+hesap Allow. Baseline11:34:24.809352UTC Task0/history1; HTTPS POST201 ID8 ve
+Location/tekil GET200/altı alan snapshot; dump öncesi11:39:53.232320 ve sonrası
+11:44:24.411327UTC Task1/IDs[8]/tam hash/history aynı. SQL READ ONLY ve UTC;
+pg_dump ile ortak snapshot veya çok kayıtlı veri seti kabulü değil.
+
+Source PG18.6 araçlarıyla custom pg_dump exit0/boş loglar, /tmp dosyası üretildi;
+volume fiziksel kopyası yok. VM partial600, kaynak/VM SHA256 ve pg_restore--list
+exit0/tasks-data/history/sequence kaydı sonrası database.pgdump3578 byte.
+SHA256 f4eeadd74cacdf90ec68024117e9d015d8008531865a3b4ad8e5556ef0fcb687.
+Manifest4b29c61a0ea8022f56671f7103cdc92e106c99421820ebfee8baa61c924f38db ve11
+dosyanın Windows boyut/SHA256 değerleri aynı;10 dosya SCP, mevcut snapshot hash
+eşitliğiyle korundu. Windows kabul11:59:45.3912258UTC/private receipt; env/TLS/
+credential/ham log aktarılmadı. Aynı fiziksel host kopyası off-site değildir.
+
+İlk genel final kontrol RuntimeError; nedeni NOT VERIFIED. Sudo/frontend dar
+tanısı ve ayrı envanter/SQL/dosya kontrolleri geçti; dump veya stack tekrarlanmadı.
+Final12:08:48.906339UTC ID8/altı alan/veri hash/history aynı; altı container ve
+mevcut volume'lar korundu, restore kaynağı yok. **ID8, VM/Windows backup setleri
+ve source /tmp dump'ı silinmedi.** Adım8 yalnız dump/ikinci kopya kadar ilerledi;
+restore/şema/history/sequence ve sahipli cleanup NOT VERIFIED. Ayrı yetkiyle bu
+izole restore kabulü sonraki küçük adımdır; mevcut kaynaklara restore yapılmaz.
+Adım9, günlük zamanlama/retention/RPO garantisi ve manuel öğrenme açık.
+Agent private dosya okumadı/VM'ye bağlanmadı; commit/push yok.
