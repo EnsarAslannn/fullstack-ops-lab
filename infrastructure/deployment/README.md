@@ -1,11 +1,20 @@
 # Deployment Lab — image-only VM kurulumu ve kabul kayıtları
 
-**19 Ekim 2026:** [Gerçek mantıksal dump ve Windows ikinci kopyası PASS](BACKUP-RESTORE.md#12-mantıksal-dump-ve-windows-ikinci-kopyası--19-ekim-2026).
-Private klasör/env/model, ID8 içeren custom dump/--list, önce-sonra veri/history
-eşitliği ve manifest+11 dosya SCP/hash/ACL kontrolü doğrulandı. **ID8 restore için
-korunuyor; restore/sequence/cleanup ve final deployment kabulü hâlâ NOT VERIFIED.**
-A çifti, altı container ve üç mevcut volume korunuyor. Önceki tarihli kayıtlar
-aşağıda tarihsel kapsamlarıyla bırakıldı; günlük job etkinleştirilmedi.
+**20 Ekim 2026:** [Kontrollü cleanup ve yedek koruması PASS](BACKUP-RESTORE.md#14-kontrollü-temizlik-ve-yedek-koruması--20-ekim-2026).
+Sahipli Task ID8 HTTPS GET/snapshot kapısından sonra DELETE204/GET404 ile silindi;
+yalnız restore container/ağ/volume kaldırıldı. Kaynak veri/history baseline ile
+aynı; altı container kimliği/image aynı, healthy/RestartCount0. VM/Windows
+manifest+11 dosya hash/izinleri korundu. Günlük zamanlama/retention/RPO ve
+deployment final kabulü açık; yedek/env/credential/TLS/kanıt dosyaları saklanıyor.
+
+**19 Ekim 2026:** [Mantıksal dump ve Windows ikinci kopyası](BACKUP-RESTORE.md#12-mantıksal-dump-ve-windows-ikinci-kopyası--19-ekim-2026)
+ardından [izole restore/veri/şema/history/sequence kabulü PASS](BACKUP-RESTORE.md#13-izole-restore-ve-sequence-kabulü--19-ekim-2026).
+Aynı yerel PostgreSQL18.6 image'ıyla yeni volume/internal ağ/no-port hedefte gerçek
+pg_restore ve ID8/altı alan/tam hash eşleşti; ID belirtilmeden9 üretildi, probe
+satırı rollback edildi, source sequence8 kaldı. **O oturumda ID8, restore
+kaynakları ve iki backup seti kullanıcı isteğiyle bırakıldı; cleanup ayrı
+20 Ekim kaydındadır.** A çifti, altı kaynak container kimliği/image/health ve kaynak volume
+korundu. Günlük job/retention/RPO uygulanmadı; tarihsel kayıtlar aşağıda bırakıldı.
 
 **18 Ekim 2026:** [izole PostgreSQL yedek/restore rehberi](BACKUP-RESTORE.md),
 bağımsız restore modeli/örneği ve statik kontroller hazırlandı. Gerçek dump,
@@ -39,7 +48,8 @@ kimlikleri, HTTPS HTML/JS/CSS, ayrı CRUD/Location/JSON/400/404 ve değişmeyen 
 kaydı doğrulandı. Final A aktif/altı healthy, dört altyapı container'ı aynı;
 test kayıtları/dosyaları temizlendi, veri/history başlangıçla aynı.
 [Güncel geçiş kanıtı](UPDATE-ROLLBACK.md#9-rehberli-aba-runtime-kabulü--17-ekim-2026).
-Sürekli erişim/kesinti süresi NOT VERIFIED; backup/restore ve lab kapanışı bekliyor.
+17 Ekim'de sürekli erişim/kesinti süresi ve backup/restore NOT VERIFIED kaldı;
+19 Ekim dump/restore sonuçları yukarıda ve sonraki tarihli kayıtlardadır.
 Deployment lab bütünüyle tamamlanmadı. Bu bir production
 deployment veya internet erişimi kabulü değildir.
 
@@ -1241,3 +1251,91 @@ korundu; yeni image/migration/volume veya zamanlama yok. Restore/şema/history/
 sequence/owned cleanup ve final lab sonraki ayrı kabuller; --list/hash gerçek
 restore kanıtı değildir. Windows aynı fiziksel hostta, günlük RPO garanti edilmez.
 Agent VM/private dosyaları okumadı; yalnız dört belge değişti, commit/push yok.
+
+## İzole restore ve sequence kabulü — 19 Ekim 2026
+
+Temiz main/76bdb2c638967dadd3206cf1103ef9453e1c5667 üzerinden kullanıcı Ubuntu
+SSH komutlarını gruplar halinde çalıştırdı; [ayrıntılı kabul tablosu ve korunan
+kaynaklar](BACKUP-RESTORE.md#13-izole-restore-ve-sequence-kabulü--19-ekim-2026).
+Agent VM'ye bağlanmadı/private dosya okumadı. Kaynak ID8, dump ve Windows
+kopyası tekrar üretilmedi; aktif A/release/HTTPS/env/TLS/development aynı kaldı.
+
+RUN_ID4756810b5b43 için ad/etiket yokluk kapısı ve gerçek env/config-q/model
+geçti. Kaynakla aynı yerel linux/amd64 PostgreSQL ImageID77f585114c32.../18.6;
+yalnız restore servisi no-build/no-deps/pull-never ile başlatıldı, exit0/no timeout,
+5.828s. Yeni local volume fullstackops-restore-4756810b5b43-postgres →
+/var/lib/postgresql; tek üyeli internal fullstackops-restore-4756810b5b43-net,
+host portu yok. Hedef container90c817d6a25b.../healthy; doğru restore_lab role/
+database/server ve sıfır public tablo önce salt okunur doğrulandı. Bu sorgu yeni
+TCP authentication kabulü değildir.
+
+Kayıtlı hedef/mount/ağ/image ve dump/manifest hash kapısından sonra pg_restore
+--exit-on-error --single-transaction --no-owner --no-privileges --no-password,
+binary stdin/180s sınır: exit0/no timeout,0.114s, stdout/stderr0 byte. Bu tek
+komut süresi RTO veya kaynak deployment kesinti ölçümü değildir.
+
+13:54:27.572348UTC restore count1/IDs[8], tam satır SHA256
+2ad79064002470f10e0f42391519d82308a449f4bf5bd7de8825b682aee6fe3d ve tek
+InitialCreate/EF10.0.12 history source.before/source.after ile aynı. Altı alan
+Windows HTTPS snapshot'ıyla eşit; null ve aware UTC zamanları korundu.
+13:55:49.327273UTC kataloglarda Task6 sütun/tip/nullable/default, BY DEFAULT
+identity/PK, history sütunları/PK eşit; hedef tablolar restore rolüne ait.
+Karşılaştırılan yapı SHA2563fbbbd404decc8ab7908aad214a3ebde5610ec61b4cb068028eeb9b3a95143bc.
+
+13:57:47.837576UTC yalnız restore'da id belirtilmeden9>max8 üretildi. Probe
+satırı ROLLBACK, veri/hash/history yine aynı; source sequence8/true, restore9/true.
+Sequence tüketimi rollback ile geri alınmaz; kaynakta INSERT/nextval/setval yok.
+13:59:00.616526UTC kaynak altı tam container ID/image aynı, healthy/RestartCount0,
+A çifti ve kaynak PostgreSQL volume/mount aynı; restore da healthy kaldı.
+14:00:06.805475UTC kaynak READ ONLY ID8/altı alan/hash/history/sequence değişmedi;
+dump3578/manifest2511/sentinel223 byte hash/600, private klasör700/env600 tekrar PASS.
+
+**Temizlik bu görevde yapılmadı.** Restore project fullstackops-restore-4756810b5b43,
+aynı önekli -postgres container/volume ve -net ağ ile kaynak ID8 bırakıldı.
+Tamamlanmış VM/Windows backup setleri, source /tmp dump ve private restore
+kanıtları korunuyor; Git'e alınmadı. Orijinal manifest'in stage ve tarihsel
+restore_status=NOT VERIFIED bilgisi değiştirilmedi; yeni kabul ayrı kayıtlarda. Windows kopyası
+bu oturumda yeniden aktarılmadı/ölçülmedi. Yeni API/browser/monitoring testi yok;
+mevcut stack/tünellere işlem yapılmadı.
+
+İzole restore ve sequence teknik kapıları geçti; sahipli cleanup ayrıca istenecek.
+Günlük timer/retention/failure kontrolü/RPO garantisi ve deployment final kabulü
+açık. Aynı host/tek sahte kayıt deneyi off-site veya production kurtarma kabulü
+değildir; önceki exit124/RuntimeError nedenleri çözülmüş sayılmaz. Commit/push yok.
+
+## Kontrollü temizlik ve yedek koruması — 20 Ekim 2026
+
+Kullanıcı ayrı cleanup görevi istedi; önceki dört modified belge korundu.
+[Gerçek kontrol/komut tablosu ve UTC zamanları](BACKUP-RESTORE.md#14-kontrollü-temizlik-ve-yedek-koruması--20-ekim-2026)
+rehberdedir. Ubuntu SSH VM172.30.249.139/hostname ve mevcut yedi container
+doğrulandı. Restore etiketleri/mount/ağ kimliği, tek volume kullanıcısı ve tek
+internal ağ üyesi doğru; kaynak PostgreSQL volume'undan farklıydı. Windows'ta
+boş18443 için yalnız loopback HTTPS SSH tüneli açıldı; kullanıcı URL'yi manuel
+uyarısız gördü. Curl verify0/best-effort; iptal durumu hâlâ NOT VERIFIED.
+
+15:26:40.2502233UTC sahipli ID8 GET200/JSON/altı alan, snapshot SHA256 ve özel
+Windows klasör ACL kapıları PASS.15:28:30.1881807UTC yalnız ID8 DELETE204/boş
+gövde, GET404.15:31:19.306181UTC tam kimlik/etiket/mount ve dump/manifest hash
+tekrar kontrolü sonrası restore container stop/rm, boş ağ network rm ve
+kullanılmayan volume rm exit0; üçünün yokluğu doğrulandı. Kaldırılan container/
+volume fullstackops-restore-4756810b5b43-postgres, ağ fullstackops-restore-4756810b5b43-net.
+
+15:32:45.854736UTC kaynak altı tam ID/image/ref aynı ve healthy/RestartCount0;
+A çifti ve PostgreSQL volume/mount korundu. READ ONLY Task0/IDs[]/boş satır hash
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 ve tek
+InitialCreate/EF10.0.12 history, sentinel-öncesi baseline ile aynı. Sequence8/true
+kaldı, sıfırlanmadı.15:34:00.604504UTC VM manifest+11 dosya boyut/hash/600,
+klasör700/env600/restore-cleanup kanıtları PASS.15:35:17.6280647UTC Windows
+manifest+11 dosya VM ile aynı boyut/hash; iki klasör inheritance kapalı ve
+dosyalarda owner/Allow yalnız mevcut kullanıcı; ek kanıtlar korundu.
+
+Dump3578 byte/SHA256f4eeadd74cacdf90ec68024117e9d015d8008531865a3b4ad8e5556ef0fcb687
+değişmedi. Kaynakta silinen ID8'in tarihsel yedek/snapshot'ta kalması normaldir.
+Yeni hash doğrulaması19 Ekim veri snapshot'ını güncellemez; yeni dump/kopya veya
+günlük backup başarısı değildir. Geçici dosya temizliği yapılmadı; yedek/manifest/
+snapshot/env/credential/TLS ve acceptance kayıtları korunur. Genel prune/down-v,
+image/build/pull/migration/sequence reset ve development işlemi yok.
+Agent VM/private dosyaları okumadı; sonuçlar kullanıcının komut çıktılarıdır.
+Stack ve HTTPS tüneli açık; cleanup tamamlandı, günlük timer/retention/failure/
+RPO ve deployment final kabulü bekliyor. Sürekli kesinti/production/off-site/
+manuel öğrenme kabulü eklenmedi. Yalnız dört belge değişti; commit/push yok.

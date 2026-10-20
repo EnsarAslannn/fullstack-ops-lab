@@ -11,8 +11,16 @@ aktif A, source PostgreSQL18.6 ve dört dosyanın hash eşleşmesi doğrulandı;
 
 **19 Ekim ek durumu:** Adım8'de [mantıksal dump ve Windows ikinci kopyası](../infrastructure/deployment/BACKUP-RESTORE.md#12-mantıksal-dump-ve-windows-ikinci-kopyası--19-ekim-2026)
 PASS; özel klasör/env/model, gerçek custom dump/--list, source önce-sonra ve
-Windows hash/ACL kanıtları bölüm28'de. ID8 restore için saklanıyor; restore,
-sequence, cleanup, günlük job ve adım9 final lab tamamlanmadı.
+Windows hash/ACL kanıtları bölüm28'de. Ardından [izole restore/veri/şema/history/
+sequence kabulü](../infrastructure/deployment/BACKUP-RESTORE.md#13-izole-restore-ve-sequence-kabulü--19-ekim-2026)
+PASS; bölüm29. ID8 ve restore kaynakları kullanıcı isteğiyle saklanıyor;
+cleanup, günlük job/retention/RPO ve adım9 final lab tamamlanmadı.
+
+**20 Ekim ek durumu:** Ayrı istenen [kontrollü cleanup](../infrastructure/deployment/BACKUP-RESTORE.md#14-kontrollü-temizlik-ve-yedek-koruması--20-ekim-2026)
+PASS; bölüm30. Sahipli ID8 DELETE204/GET404, yalnız restore container/ağ/volume
+kaldırıldı. Kaynak veri/history baseline'a döndü; sequence8, A/altı healthy
+korundu. İki yedek seti hash/izinle tekrar doğrulandı, dosyalar silinmedi.
+Günlük zamanlama/retention/RPO ve adım9 final lab açık.
 
 Kaynak incelemesi: `0613f581009d18fee22aa0e57b99fadd65697b56`. Başlangıç `main` çalışma alanı temiz ve `origin/main` ile eşleşiyordu. [Issue #3](https://github.com/EnsarAslannn/fullstack-ops-lab/issues/3) salt okunur incelendi; issue değiştirilmedi. Bu belge [şartnamenin](../PROJECT_SPEC.md) **Advanced Lab E — Deployment** isteğe bağlı kapsamına dayanır. Zorunlu final kabul ve bekleyen manuel öğrenme değerlendirmesi değiştirilmez.
 
@@ -155,8 +163,10 @@ Hazırlık tamamlanınca digest'leri sabit deployment dosyasıyla `docker compos
 ## 8. Günlük yedek ve ayrı restore pratiği
 
 18 Ekim [uygulama rehberi ve kabul kapıları](../infrastructure/deployment/BACKUP-RESTORE.md)
-hazırlandı. Bağımsız restore Compose modeli statik olarak doğrulandı; aşağıdaki
-runtime işlemleri ve zamanlama henüz uygulanmadı.
+hazırlandı. 19 Ekim gerçek dump/Windows ikinci kopya ve izole restore/veri/şema/
+history/sequence kabulü geçti; bölüm28–29. Ayrı cleanup20 Ekim'de tamamlandı;
+bölüm30. Günlük zamanlama/retention henüz uygulanmadı. Aşağıdaki yöntemler mevcut yedek
+ve restore hedefini tekrar oluşturma veya ezme komutu değildir.
 
 Hedef RPO **24 saat**; kurtarma süresi henüz ölçülmedi. VM/PC kapalıysa günlük job çalışmaz; son başarılı yedek zamanı denetlenir, yedek 24 saatten eskiyse hedef sağlandı sayılmaz.
 
@@ -165,11 +175,11 @@ Hedef RPO **24 saat**; kurtarma süresi henüz ölçülmedi. VM/PC kapalıysa g�
 - En az son yedi günlük lab yedeğini repository dışında, erişimi sınırlı dizinde saklamak önerilir; VM dışına ikinci kopya alınır. Aynı bilgisayarın disk kaybına karşı bu ikinci kopya bağımsız disaster-recovery garantisi değildir. Ücretli depolama gerektirmez.
 - Restore deneyi ayrı project ve **yeni boş test volume** kullanır. `pg_restore --exit-on-error` sonrası tasks/history ile bilinen sahte kayıt ID/alanlarını doğrula. Deployment veya development database'inin üstüne restore yapılmaz. [pg_restore](https://www.postgresql.org/docs/18/app-pgrestore.html).
 - Rol/credential kurtarma ayrı konudur: tek database dump'ı cluster rollerinin tamamını içermez. Restore hedefinin lab rolü ve ownership politikası önceden hazırlanır; rol secret'ı dump raporuna eklenmez.
-- Başarı veya başarısızlıkta yalnız restore deneyinin etiketli kaynakları temizlenir; asıl deployment volume'u ve yedekler kalır. Redis cache kaynak veri değildir, yedek hedefi değil; PostgreSQL esas veridir.
+- Temizlik ayrı istenen adımda yalnız restore deneyinin etiketli kaynaklarını hedefler; asıl deployment volume'u ve tamamlanmış yedekler kalır. Bu run'ın container/ağ/volume ve sahipli Task temizliği20 Ekim'de geçti; env/credential/TLS ve yedek dosyaları korunur. Redis cache kaynak veri değildir, yedek hedefi değil; PostgreSQL esas veridir.
 
 ## 9. En küçük uygulama adımları ve kabul kapıları
 
-Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. Adım1–4 kabulü 13–15 Ekim, adım5 yerel HTTPS kabulü 15–16 Ekim kanıtlarıyla karşılanır. Adım6 monitoring kısmı15 Ekim, PostgreSQL recreate kalıcılığı16 Ekim'de tamamlandı. Adım7 release/statik ve B image/TLS ön kontrolünden sonra17Ekim rehberli A→B→A runtime kabulüyle tamamlandı; adım8/9 henüz uygulanmadı. Geçmiş kanıtlar bugün yeniden çalıştırılmış gibi sunulmaz.
+Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. Adım1–4 kabulü 13–15 Ekim, adım5 yerel HTTPS kabulü 15–16 Ekim kanıtlarıyla karşılanır. Adım6 monitoring kısmı15 Ekim, PostgreSQL recreate kalıcılığı16 Ekim'de tamamlandı. Adım7 release/statik ve B image/TLS ön kontrolünden sonra17Ekim rehberli A→B→A runtime kabulüyle tamamlandı. Adım8 dump/kopya/restore/sequence kabulü19Ekim, kontrollü cleanup20Ekim'de geçti; günlük zamanlama/retention açık. Adım9 uygulanmadı. Geçmiş kanıtlar bugün yeniden çalıştırılmış gibi sunulmaz.
 
 | Adım | Yapılacak iş | Kabul kanıtı |
 | --- | --- | --- |
@@ -180,7 +190,7 @@ Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz
 | 5 — Yerel HTTPS | Mevcut frontend Nginx'e read-only config/leaf mount, lab CA ve localhost SSH | PASS; sertifika/trust/nginx -t, frontend-only recreate, uyarısız manuel browser/asset ve HTTPS contract; iptal durumu NOT VERIFIED, Schannel best-effort sınırı bölüm21'de |
 | 6 — Kalıcılık ve gözlem | PostgreSQL recreate, Prometheus ve Grafana kontrolleri | PASS; aynı image/volume'da yeni PostgreSQL ID, test ID4/altı alan tekil GET ile korundu, aynı API ready200/RestartCount0 ve cleanup; bölüm22. Monitoring kabulü ayrı15 Ekim kanıtıdır, burada yeniden ölçülmedi |
 | 7 — Güncelleme/rollback | PASS; A/B seçimi ve rehberli A→B→A; final A açık | Bölüm23–25: doğru image kimlikleri, API sonra frontend, B/A dönüşü HTTPS asset/CRUD ve aynı ID5; dört altyapı container'ı, veri/history korundu, owned cleanup PASS. Önceki nginx-t timeout nedeni ve sürekli kesinti ölçümü NOT VERIFIED |
-| 8 — Yedek/restore | Statik hazırlık PASS; günlük yedek ve yeni hedef restore henüz yok | Bölüm26: ayrı model/ignore/required env testleri PASS; dolu dump/Windows SHA/altı alan/history/sequence/cleanup ve zamanlama runtime NOT VERIFIED |
+| 8 — Yedek/restore | Dump/ikinci kopya/restore/veri/şema/history/sequence ve kontrollü cleanup PASS; günlük zamanlama/retention açık | Bölüm26–30: ayrı hedef kabulünden sonra sahipli ID8 DELETE204/GET404, yalnız restore container/ağ/volume kaldırıldı. Kaynak veri/history baseline ile aynı, altı ID/image/health ve sequence8 korundu; yedekler hash/izinle korundu, günlük RPO garanti edilmez |
 | 9 — Lab kapanışı | Komutlar, runtime kanıtları, limitler ve kaynak envanteri | Development .env/user-secrets/volume değişmemiş; yalnız lab stack'i down; asıl lab verisi korunmuş |
 
 [Mevcut registry kabul script'i](../tests/Module11.Compose.Smoke.py), [registry guard testleri](../tests/Module11.RegistryRuntime.Test.py), [CRUD smoke](../tests/Phase0B.Tasks.Smoke.ps1) ve [Module 8 testi](../tests/Module8.Readiness.Smoke.ps1) yeniden kullanılabilecek temeldir. CI Lab.prepare rastgele test env/volume oluşturur ve cleanup bunları siler: kalıcı deployment volume'unda **olduğu gibi çalıştırılmaz**. Sadece uygun assertion'lar veya ayrı, disposable ön kabul için kullanılır; hosted PASS gerçek VM deployment'ın yerine geçmez.
@@ -199,7 +209,7 @@ Normal kapatma `stop` veya project/env hedefi açık `down`; named volume'lar ko
 | Health, frontend ve CRUD | Gerçek VM/browser/HTTP kontrolü | Önceki health/HTTP-cache ile güncel asset/datasource/12 panel ve yeni örnek kabulü PASS; lab kapanışı bekliyor |
 | Güncelleme ve rollback | İki uyumlu digest çifti + schema uyum kapısı | PASS:17 Ekim A→B→A; B/A dönüşü HTTP/HTTPS, aynı ID5 ve final veri/history; kesintisiz çalışma veya migration rollback iddiası yok, bölüm25 |
 | Kayıt recreate sonrası korunur | Aynı lab external PostgreSQL volume'u | PASS;16 Ekim VM'de ID4/altı alan aynı, yeni PostgreSQL container ID, aynı volume/image; boş başlangıç ve kesinti gözlem sınırı bölüm22'de |
-| Image / migration rollback farkı | Veri silmeyen image dönüşü; destructive InitialCreate.Down uyarısı | Tasarım açık; restore NOT VERIFIED |
+| Image / migration rollback farkı | Veri silmeyen image dönüşü; destructive InitialCreate.Down uyarısı | Ayrım açık; image A→B→A ve ayrı database restore PASS. Migration rollback uygulanmadı |
 | Development ortamı korunur | Ayrı VM Engine/project/env/volume ve envanter | Rehberli kabul VM'de ayrı deployment kaynaklarıyla; Windows development Engine/verileri kullanılmadı |
 
 Kullanıcının cevaplarıyla bütçe, erişim, kesinti ve RPO belirlenmiştir. Aşağıdaki
@@ -780,3 +790,85 @@ restore/şema/history/sequence ve sahipli cleanup NOT VERIFIED. Ayrı yetkiyle b
 izole restore kabulü sonraki küçük adımdır; mevcut kaynaklara restore yapılmaz.
 Adım9, günlük zamanlama/retention/RPO garantisi ve manuel öğrenme açık.
 Agent private dosya okumadı/VM'ye bağlanmadı; commit/push yok.
+
+## 29. İzole restore ve sequence kabulü — 19 Ekim 2026
+
+Temiz main/76bdb2c638967dadd3206cf1103ef9453e1c5667 üzerinden kullanıcı Ubuntu
+SSH komutlarını gruplar halinde çalıştırdı; [ayrıntılı gerçek kanıtlar ve tam
+kaynak adları](../infrastructure/deployment/BACKUP-RESTORE.md#13-izole-restore-ve-sequence-kabulü--19-ekim-2026).
+Önceki3578 byte custom dump kullanıldı; yeni dump/sentinel yok. Aktif A kaynağı
+1b52633776279b1661a7cac53392d385cbf10444 ve digestleri değişmedi.
+
+Private hash/izin/env/model ve üç hedef adının/project etiketinin yokluğu geçti.
+Kaynağın exact yerel PostgreSQL ImageID77f585114c32.../linux-amd64/18.6 ile tek
+restore-postgres, no-build/no-deps/pull-never/90s health/120s dış sınır: exit0,
+timeout yok,5.828s. Yeni local restore volume ve tek üyeli internal ağ, doğru
+owner etiketleri, no-port doğrulandı. Hedef ID90c817d6a25b...; restore_lab database/
+role/18.6 ve başlangıçta public tablo0. Socket sorgusu yeni TCP parola kanıtı değil.
+
+Kayıtlı hedef kimliği/mount/ağ/image, boş database ve dump/manifest hash kapısı
+ardından binary stdin ile pg_restore --exit-on-error --single-transaction
+--no-owner --no-privileges --no-password:180s sınır, exit0/no timeout/0.114s ve
+boş stdout/stderr. Bu komut süresi uçtan uca kurtarma/deployment kesinti ölçümü değil.
+
+13:54:27.572348UTC count1/IDs[8]/altı alan/null/UTC zamanlar/tüm satır hash ve tek
+InitialCreate/EF10.0.12 history dump kayıtları/HTTPS snapshot ile eşleşti.
+13:55:49.327273UTC kaynak ve hedef katalogları/migration beklentisi: altı Task
+sütunu/tip/nullable/default, BY DEFAULT identity/PK, history sütunları/PK eşit;
+hedef tablolar restore rolüne ait. Yapı hash3fbbbd404decc8ab7908aad214a3ebde5610ec61b4cb068028eeb9b3a95143bc.
+13:57:47.837576UTC yalnız restore'da id belirtilmeden9>8 üretildi, probe satırı
+ROLLBACK; veri/history korundu. Kaynak sequence8/true, restore9/true. Sequence
+tüketimi rollback ile geri alınmaz; kaynak INSERT/nextval/setval yok.
+
+13:59:00.616526UTC kaynak altı tam container ID/image aynı, healthy/RestartCount0;
+A ve PostgreSQL volume/mount korundu, restore de healthy.14:00:06.805475UTC kaynak
+ID8/altı alan/count/ID/tam hash/history/sequence dump sonrası ve restore öncesi
+kayıtlarla aynı. Dump/manifest/sentinel boyut/SHA256/600 ve klasör700/env600 geçti.
+Windows ikinci kopyası yeniden aktarılmadı; önceki tarihli kabulü korunur.
+
+**Kullanıcı isteğiyle temizlik yok:** project fullstackops-restore-4756810b5b43,
+onun -postgres container/volume ve -net ağı; kaynak ID8, source /tmp dump,
+private restore kanıtları ve iki tamamlanmış backup seti korunuyor. Orijinal
+manifest'in tarihsel stage'i değiştirilmedi; yeni restore kabulü ayrı600 dosyalarda.
+Kaynak A/HTTPS/env/TLS/development ve tünellere işlem yapılmadı; build/pull,
+migration veya yeni browser/API/monitoring deneyi yok.
+
+Adım8 restore/veri/şema/history/sequence kapıları PASS; sahipli cleanup ayrı görev.
+Günlük timer/retention/failure/RPO ve adım9 final lab hâlâ açık. Tek sahte kayıt ve
+aynı fiziksel host, production/off-site/PITR veya manuel öğrenme PASS değildir.
+Önceki nginx-t exit124/son kontrol RuntimeError nedenleri belirsiz kalır.
+Agent VM'ye bağlanmadı/private dosya okumadı; commit/push yok.
+
+## 30. Kontrollü cleanup ve yedek koruması — 20 Ekim 2026
+
+Önceki dört modified belge korunarak kullanıcı rehberli PowerShell/Ubuntu SSH
+komutlarını çalıştırdı; [gerçek kanıt tablosu](../infrastructure/deployment/BACKUP-RESTORE.md#14-kontrollü-temizlik-ve-yedek-koruması--20-ekim-2026).
+Restore deneyi tekrarlanmadı, yeni dump alınmadı. VM172.30.249.139/altı kaynak
+container ve restore healthy; restore project/service/owner etiketleri, mount/
+ağ kimliği ve tek kullanıcı/üye kontrolü geçti, kaynak volume'dan farklıydı.
+Windows18443 boşluğu ardından yalnız loopback HTTPS SSH tüneli açıldı; manuel
+browser uyarısız. Schannel best-effort/revocation NOT VERIFIED sınırı değişmedi.
+
+15:26:40.2502233UTC GET200/JSON, altı alan ve Windows snapshot/ACL kapısı;
+15:28:30.1881807UTC yalnız sahipli ID8 DELETE204/boş gövde ve GET404.
+15:31:19.306181UTC yeniden kimlik/etiket/mount ve dump/manifest hash kapılarıyla
+restore container stop/rm, boş ağ network rm, kullanılmayan volume rm exit0.
+fullstackops-restore-4756810b5b43-postgres container/volume ve
+fullstackops-restore-4756810b5b43-net ağı yokluk kontrolünden geçti.
+
+15:32:45.854736UTC kaynak altı tam ID/image/ref aynı, healthy/RestartCount0;
+aktif A ve PostgreSQL volume/mount aynı. Task0/IDs[]/boş satır hash ve tek
+InitialCreate/EF10.0.12 history sentinel-öncesi baseline ile aynı. Source
+sequence8/true kaldı; tüketilen ID sıfırlanmadı.15:34:00.604504UTC VM manifest+11
+dosya boyut/SHA256/600 ve klasör700/env600;15:35:17.6280647UTC Windows aynı
+manifest+11 dosya boyut/hash, iki klasör protected ACL ve owner/Allow yalnız
+mevcut kullanıcı PASS. Ek karşılaştırma/restore/cleanup kanıtları da saklandı.
+
+Dump3578 byte ve orijinal manifest/snapshot'lar değişmedi; iki backup setinde
+ID8'in kalması tarihsel veri için doğrudur. Hash kontrolü yeni dump/güncel
+ikinci kopya üretmez ve günlük backup başarı yaşını yenilemez. Env/credential/
+TLS ve tamamlanmış yedek/kanıt dosyaları silinmedi; geçici dosya temizliği yok.
+Kaynak deployment down-v/prune/recreate, migration/build/pull/image değişikliği,
+sequence reset ve development işlemi yapılmadı. Stack ve tünel açık bırakıldı.
+Adım8 deney cleanup'ı tamamlandı; günlük timer/retention/failure/RPO, adım9 final
+lab ve manuel öğrenme açık. Agent VM/private dosyaları okumadı; commit/push yok.
