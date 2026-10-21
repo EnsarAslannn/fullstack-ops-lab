@@ -1,5 +1,10 @@
 # Deployment — izole PostgreSQL yedek/restore hazırlığı
 
+**21 Ekim 2026:** [Günlük backup script/service/timer hazırlığı](backup/README.md)
+ve14 yerel fixture testi PASS. VM'ye kurulum/gerçek otomatik dump/timer/retention
+uygulanmadı. Manuel kabul setleri korunur; günlük çalışma, Windows kopyasının
+güncelliği/RPO ve deployment final kabulü bekler.
+
 **20 Ekim 2026: kontrollü cleanup PASS.** Kaynak sahipli Task ID8 HTTPS DELETE204/
 GET404 ile silindi; yalnız restore container/ağ/volume kaldırıldı. Kaynak veri ve
 history baseline ile aynı, altı kaynak container aynı image/kimliklerle healthy;
@@ -371,29 +376,29 @@ değiştirilmez. Böylece kaynakta test kaydı silinmişken eski yedekten geri g
 normaldir. Final deployment altı servis/A/HTTPS/tüneller çalışır, ID/image ve
 source volume korunur. Hata halinde de son güvenli durum ayrı raporlanır.
 
-## 9. Günlük hedef, saklama ve başarısızlık kontrolü — öneri
+## 9. Günlük hedef, saklama ve başarısızlık kontrolü — dosya hazırlığı
 
-- Gelecek ayrı görevde VM'de günde bir kez02:00 Europe/Istanbul için basit
-  systemd oneshot/timer düşünülebilir; kurulum/enable veya credential'lı unit bu
-  hazırlıkta yok. Persistent=true açılışta kaçırılmış tetik için yardımcı olur;
-  VM kapalı olduğu günlerin tarihsel yedeklerini geriye dönük üretmez.
-- Zamanlanan yedek işi Task oluşturmaz; sentinel yalnız rehberli restore
-  doğrulaması içindir. Görev zamanlamasının uygulanması bu hazırlıktan ayrıdır.
-- [systemd timer](https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html)
-  davranışı çalışma anında VM sürümüyle doğrulanır. Yeni job tek instance çalışır;
-  çakışan çalışmayı lock ile reddeder, bounded timeout/nonzero exit uygular.
-- Son yedi günlük başarılı tam backup seti ve son doğrulanmış restore seti
-  tutulur. Eksik/başarısız yeni dump nedeniyle son iyi set silinmez. Purge ancak
-  yeni dump, checksum ve Windows ikinci kopyası doğrulanınca; yalnız backup_root
-  altındaki manifest sahibi setlere uygulanır. Bu görevde retention silme komutu yok.
-- last_dump_success_utc ile last_off_vm_copy_verified_utc ayrı tutulur. İkisi de
-  24 saatten genç değilse günlük veri kaybı hedefi sağlandı denmez. Partial dosya
-  veya başarısız işlem last-success'i güncellemez. Özel log yerelde incelenir;
-  günlük kontrol nonzero/timeout, dosya boyutu/hash ve son başarı yaşını gösterir.
-- Windows kopyası şimdilik rehberli SCP; VM timer'ı tek başına bunu otomatik
-  güncel tutmaz. VM/PC kapalıyken veya ikinci kopya eskiyken RPO24h garanti
-  edilemez. Bu lab WAL/PITR, remote off-site depolama veya production backup SLA'sı
-  değildir. Kurtarma süresi ve düzenli job/restore başarısı runtime'da ölçülecek.
+21 Ekim'de [ayrıntılı günlük işletim rehberi](backup/README.md), Python script ve
+systemd service/timer hazırlandı. Günlük02:00 **Europe/Istanbul**, Persistent=true
+ile açılışta bir telafi çalışması; geçmiş günlere tarihsel dump üretme yok.
+Kaynak doğrulama/custom dump/checksum/--list ve OS kilidi kullanılır; Task
+oluşturulmaz. Kurulum/enable, gerçek dump veya gerçek retention yapılmadı.
+
+Saklama kararı somutlaştırıldı: ayrı root-owned700
+`/var/lib/fullstackops-deploy-lab-backup/` altında son **yedi başarılı farklı gün**;
+aynı gün yeni dump yerine mevcut set/hash doğrulanır, son başarı zamanı tazelenmez.
+Retention sadece bu otomasyonun owner manifest'li doğrulanmış setlerini hedefler.
+Manuel backups-private/4756810b5b43 restore kabul seti ve Windows kopyaları bu
+işlemden ayrıdır ve silinmez. Dump/kopya/arşiv hatası retention başlatmaz.
+
+Önceki öneride VM purge için Windows kopya kapısı vardı. Yeni hazırlıkta Windows
+kopyası **manuel SCP**, VM retention'ı ise yalnız kendi yedi başarılı günlük setine
+bağlıdır; Windows onayı beklemez. Bu fark bilinçli ve günlük RPO garantisi değildir.
+`last-success.json` dump zamanı ve `last-attempt.json` güvenli exit/aşama kaydıdır;
+Windows kopya UTC/hash/ACL makbuzu ayrıca tutulur. VM/PC kapalı veya ikinci kopya
+eskiyse24h RPO garanti edilmez. İki kopya aynı fiziksel host'tadır; off-site/PITR/
+production SLA kabulü yok. Gerçek timer/catch-up/Linux flock/izin/günlük restore
+ve final lab kabulü **NOT VERIFIED**;14 Windows fixture testi runtime yerine geçmez.
 
 ## 10. Kabul tablosu ve yerel kontroller
 
@@ -407,7 +412,7 @@ source volume korunur. Hata halinde de son güvenli durum ayrı raporlanır.
 | Sequence | PASS — 19 Ekim, bölüm13 | ID belirtilmeden9>8; probe satırı ROLLBACK; hedef veri/history aynı, kaynak sequence8, restore9 |
 | Kaynak koruması | PASS — 19–20 Ekim, bölüm13–14 | Altı kaynak ID/image aynı, healthy/RestartCount0; kaynak volume/mount korundu. Sahipli ID8 silindikten sonra Task verisi/history sentinel-öncesi baseline ile aynı; source sequence8 sıfırlanmadı |
 | Cleanup | PASS — 20 Ekim, bölüm14 | Sahipli ID8 DELETE204/GET404; yalnız doğrulanmış restore container/network/volume kaldırıldı, yokluk geçti. Yedek/env/TLS/kanıtlar korundu |
-| Günlük job/retention/RPO | Plan; NOT VERIFIED | Job/failure/son başarı yaşı ve güncel ikinci kopya ayrıca uygulanıp doğrulanmalı |
+| Günlük job/retention/RPO | Dosya/fixture PASS — 21 Ekim; VM runtime ve RPO NOT VERIFIED | [Script/service/timer ve14 fixture testi](backup/README.md); gerçek job/catch-up/Linux kilidi/izinler, günlük arşiv restore'u ve manuel Windows kopyası ayrıca doğrulanmalı |
 
 Statik komut **Windows PowerShell, repository kökü**; Engine/VM işlemi yapmaz:
 

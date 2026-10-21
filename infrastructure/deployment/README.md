@@ -1,5 +1,11 @@
 # Deployment Lab — image-only VM kurulumu ve kabul kayıtları
 
+**21 Ekim 2026:** [Günlük PostgreSQL backup/retention hazırlığı](backup/README.md)
+tamamlandı;14 Windows fixture testi PASS. Script ve02:00 Europe/Istanbul systemd
+timer henüz VM'ye kurulmadı/etkinleştirilmedi. Gerçek otomatik dump/retention,
+timer/catch-up, Linux kilit/izin kabulü ve güncel manuel Windows ikinci kopyası
+bekliyor;24h RPO veya final deployment kabulü iddia edilmiyor.
+
 **20 Ekim 2026:** [Kontrollü cleanup ve yedek koruması PASS](BACKUP-RESTORE.md#14-kontrollü-temizlik-ve-yedek-koruması--20-ekim-2026).
 Sahipli Task ID8 HTTPS GET/snapshot kapısından sonra DELETE204/GET404 ile silindi;
 yalnız restore container/ağ/volume kaldırıldı. Kaynak veri/history baseline ile
@@ -76,6 +82,9 @@ korunur. Nginx frontend image'ının içinde kalır.
   [bağımsız Compose](compose.restore.yaml), [placeholder örneği](restore.env.example)
   ve [statik test](../../tests/Deployment.BackupRestore.Configuration.Test.py).
   Bu Compose deployment overlay'i değildir; kaynak volume'u bağlanmaz.
+- [Günlük yedek/retention](backup/README.md): ayrı root-owned hedef, günlük
+  [script](backup/daily-backup.py), systemd service/timer ve fixture testleri;
+  manuel kabul setlerini/Windows kopyalarını silmez. VM'ye uygulama bekliyor.
 
 API/frontend için `build: !reset null` kaynak build alanını siler. Sadece `image`
 eklemek build alanını kaldırmaz. `ports: !override` eski ve yeni port listelerinin

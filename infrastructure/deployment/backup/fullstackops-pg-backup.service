@@ -1,0 +1,15 @@
+[Unit]
+Description=FullStack Ops Lab deployment PostgreSQL daily backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+StateDirectory=fullstackops-deploy-lab-backup
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 /usr/local/lib/fullstackops-deploy-lab/daily-backup.py
+TimeoutStartSec=15min
+StandardOutput=journal
+StandardError=journal
