@@ -1,5 +1,12 @@
 # Günlük PostgreSQL yedekleme — kurulum ve kabul kayıtları
 
+**22 Ekim 2026, sonraki adım: günlük timer enabled/active; kontrollü kısa timer
+tetiklenmesi PASS.** [Etkinleştirme ve kaynak koruma kaydı](#günlük-timer-etkinleştirme-ve-kontrollü-tetik--22-ekim-2026).
+09:38:49UTC timer üzerinden yeni 22 Ekim seti tamamlandı; geçici ayar kaldırıldı,
+günlük02:00 Europe/Istanbul takvimi geri geldi. Gerçek02:00 olayı, reboot/catch-up
+ve çok günlük retention henüz doğrulanmadı. Bu yeni arşivin Windows kopyası ve
+restore'u yapılmadı; aşağıdaki21 Ekim arşivi kabulü ayrı kalır.
+
 **22 Ekim 2026: mevcut günlük arşivin manuel Windows kopyası, izole restore ve
 sahiplik kontrollü temizlik PASS.** [Gerçek sonuçlar](#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026)
 21 Ekim setine aittir; yeni dump alınmadı. Günlük arşiv boş `tasks` içerir;
@@ -137,7 +144,8 @@ fiziksel bilgisayarda: host/disk kaybına karşı bağımsız off-site yedek de�
 
 Bu bölüm yeniden kurulum için referanstır; mevcut kurulumun üzerine topluca
 uygulanmaz. 21 Ekim'de üç public dosya ayrı staging yolundan kuruldu; sonuçları
-aşağıdaki runtime kaydındadır. Timer etkinleştirme komutu çalıştırılmadı.
+aşağıdaki runtime kaydındadır. Timer21 Ekim'de kapalıydı;22 Ekim'de ayrı kullanıcı
+talebiyle etkinleştirildi ve kontrollü kısa tetik aşağıda kaydedildi.
 Her grup ayrı, kullanıcı sonucu görülerek uygulanır. **Windows PowerShell:**
 güncel IP/SSH ve stack envanterinden sonra yalnız bu klasördeki üç public script/
 unit dosyasını ayrı staging dizinine SCP ile gönder; iki tarafta SHA256 eşleştir.
@@ -189,8 +197,9 @@ systemctl list-timers fullstackops-pg-backup.timer --all
 ```
 
 Linux iki süreç flock fixture'ı 21 Ekim'de geçti; iki gerçek backup işinin aynı
-anda çalışması ayrıca denenmedi. Gerçek takvim tetiki ve missed-run catch-up
-henüz gözlenmedi. Otomatik retry yok: hata incelenip gerekirse aynı servis elle başlatılır.
+anda çalışması ayrıca denenmedi.22 Ekim kısa timer tetiki geçti; gerçek02:00
+takvim olayı ve missed-run catch-up henüz gözlenmedi. Otomatik retry yok:
+hata incelenip gerekirse aynı servis elle başlatılır.
 Geri alma: `sudo systemctl disable --now fullstackops-pg-backup.timer` yalnız
 gelecek tetikleri durdurur; zaten çalışan oneshot'ı durdurmaz. Mevcut işin
 bitmesini bekle, dump ortasında servisi öldürme. Script/state/yedek dizinini silme;
@@ -475,3 +484,103 @@ nedenleri çözülmüş sayılmaz. Yalnız belgeler güncellendi; commit/push ya
 Dokümantasyon kapanışında repository secret kontrolü, beş Markdown belgede182
 yerel dosya/anchor bağlantısı ve git diff --check PASS. Kod, Compose, script,
 unit, test ve release dosyaları değişmedi; ek VM deneyi/build/fixture çalıştırılmadı.
+
+## Günlük timer etkinleştirme ve kontrollü tetik — 22 Ekim 2026
+
+Temiz main/ef7b9353c485de177046bfa6cc75c3d42f935727 sonrasında kullanıcı
+Windows PowerShell ve Ubuntu SSH komutlarını küçük gruplarla uyguladı. Agent
+VM'ye bağlanmadı; kanıtlar paylaşılan gerçek komut sonuçlarıdır. Kurulu script,
+service ve timer SHA256 değerleri21 Ekim kurulum tablosuyla eşleşti. Başlangıçta
+timer disabled/inactive, DropInPaths boş, service inactive/dead/Result=success/
+ExecMainStatus0; altı kaynak container aynı kimliklerle healthy ve yalnız21 Ekim
+günlük seti vardı. Private timer-acceptance-F6gAx4mP klasöründe başlangıç kaydı alındı.
+
+### Takvim, gerçek tetik ve geçici ayarın kaldırılması
+
+- systemd-analyze verify exit0. Sistem timezone Etc/UTC, LocalRTC=no, NTP=yes,
+  NTPSynchronized=yes;09:28:34UTC =12:28:34 İstanbul. Saat/timezone değiştirilmedi.
+- Takvim parser'ı `*-*-* 02:00:00 Europe/Istanbul` için sonraki iki zamanı
+  22 ve23 Ekim23:00UTC olarak yorumladı. Bu, gerçek02:00 tetik kanıtı değildir.
+- 09:35:06UTC `sudo systemctl enable --now fullstackops-pg-backup.timer`:
+  enabled/active/waiting, Persistent=yes; sonraki günlük zaman22 Ekim23:00UTC
+  (23 Ekim02:00 İstanbul). İlk çıktıda LastTriggerUSec boştu.
+- Sonraki çıktıda LastTriggerUSec09:35:07 göründü;09:38:34 kontrolünde service
+  için eşleşen backup result journal satırı yoktu ve last-success hâlâ21 Ekim'di.
+  Bu tek alan başarılı backup veya Persistent catch-up kanıtı sayılmadı; bu erken
+  değerin nedeni doğrulanmadı.
+- Uzun bekleme yerine yalnız /run/systemd/system/fullstackops-pg-backup.timer.d/
+  90-lab-acceptance.conf oluşturuldu: OnActiveSec=60s ve AccuracySec=1s.
+  OnCalendar silinmedi; günlük takvim ve Persistent ayarı korundu. Mevcut override
+  bulunmadığı ve service inactive olduğu kontrol edildi; dosya hash'i saklandı.
+  Unit verify/daemon-reload sonrası yalnız timer restart edildi, service elle
+  başlatılmadı.09:37:48UTC kısa test başlangıcı; list-timers09:38:48UTC hedefini gösterdi.
+- 09:38:34UTC kontrolü hedef zamandan önceydi; sonuç olmadığı için PASS verilmedi.
+  Sonraki09:40:54UTC kontrolünde LastTriggerUSec09:38:49, service Result=success/
+  ExecMainStatus0/inactive/dead ve aynı saniyede güvenli journal satırı görüldü:
+  `backup result=completed exit=0 removed_sets=0`. Bu, kontrollü timer kaynaklı
+  çalışmadır; manuel service start sonucu veya gerçek02:00 olayı değildir.
+- Geçici dosya hash kapısı geçti, yalnız o dosya kaldırıldı. daemon-reload/verify
+  ve yalnız timer restart sonrasında DropInPaths boş; günlük02:00 Europe/Istanbul,
+  AccuracyUSec=1min, Persistent=yes, enabled/active/waiting ve sonraki zaman
+  22 Ekim23:00UTC geri geldi. Son kontrol geçici dosyanın yokluğunu doğruladı;
+  yalnız21 ve22 Ekim setleri mevcut. Kurulu kalıcı timer dosyası aynı kaldı;
+  kısa test ayarını içeren dosya kaldırıldı ve DropInPaths boş döndü.
+
+### Yeni arşiv ve mevcut kaynakların korunması
+
+| Kontrol | Paylaşılan gerçek sonuç |
+| --- | --- |
+| Yeni set | 2026-10-22;3477 byte; SHA256 ae714637463c8f4821d4b4ba0338cf9ae7fdd38bc52d2002ef235d85fbb6bb56 |
+| Tamamlanma | 2026-10-22T09:38:49.770524+00:00; manifest ve last-success eşit; last-attempt completed/exit0/removed_sets0 |
+| Dosya kabulü | Root/set700, manifest/dump/state dosyaları600; owner/size/hash kapıları geçti; partial set yok |
+| Arşiv okunabilirliği | Aynı kaynak PostgreSQL container'ında binary stdin ile pg_restore --list exit0/stderr boş; tasks/history TABLE DATA ve sequence SET mevcut |
+| Kaynak kimliği | Manifest kaynak container/image/volume ile eşleşti; altı container başlangıç ID'leriyle running/healthy/RestartCount0; seçilmiş A API/frontend ImageID'leri aynı |
+| Kaynak veri | Aynı hash'i doğrulanmış READ ONLY SQL; psql exit0. Task0/IDs[]/boş satır SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, history ve sequence8/true başlangıçla aynı |
+| Eski günlük set | 21 Ekim dump ve manifest başlangıç SHA256 listesiyle OK; yeni22 Ekim seti bunların üzerine yazmadı |
+| Eski manuel VM seti | 4756810b5b43 dump/manifest hash'leri aynı; manual ve timer kanıt klasörleri mevcut kullanıcı/700, toplam56 dosya mevcut kullanıcı/600; env içeriği okunmadı |
+| Windows eski kopyalar | Manuel dump3578/manifest2511 ve21 Ekim günlük dump3477/manifest616 boyut/hash/ACL PASS; dört klasörde kalıtım kapalı, sahip/Allow yalnız mevcut hesap; dosya/ACL değiştirilmedi |
+
+Yeni arşiv --list/hash kontrolü gerçek restore değildir.22 Ekim arşivinin Windows
+ikinci kopyası ve restore'u **NOT VERIFIED**.21 Ekim boş günlük arşiv restore'u
+ve19 Ekim dolu manuel arşiv restore'u kendi tarihli kanıtları olarak korunur.
+Kaynak önce/sonra SQL ölçümleri pg_dump ile ortak transaction/snapshot değildir.
+Bu adımda Task yazma/silme, restore, migration, stack recreate/build/pull, image/
+credential/TLS/development değişimi veya backup silme yapılmadı. HTTPS/tünellere
+işlem uygulanmadı. Yalnız sahipli geçici timer dosyası kaldırıldı; özel kanıt
+dosyaları ve yedekler Git dışında saklanıyor.
+
+**Açık sınırlar:** gerçek02:00 tetiklenmesi, VM reboot/missed-run catch-up, gerçek
+çok günlük retention ve iki gerçek backup işiyle eşzamanlılık/hata senaryoları
+doğrulanmadı. removed_sets0, retention silme kabulü değildir. Windows kopyası
+manuel kalır; yeni setin kopyası otomatik oluşmaz.24h RPO veya kesintisiz çalışma
+garantisi yok; VM/Windows aynı fiziksel bilgisayarda, off-site koruma değildir.
+Önceki exit124/RuntimeError nedenleri ve deployment final/manuel öğrenme kabulü açık.
+
+### Sonraki doğal takvim kontrolü ve devre dışı bırakma
+
+Bir sonraki doğal hedef **23 Ekim 2026 02:00 İstanbul / 22 Ekim 23:00 UTC**.
+AccuracySec=1min nedeniyle tam saniye garantisi verilmez. VM o sırada açık kalırsa
+**23:02UTC sonrasında**, Ubuntu SSH terminalinde yalnız okuma:
+
+```bash
+systemctl show fullstackops-pg-backup.timer -p LastTriggerUSec -p NextElapseUSecRealtime -p ActiveState -p UnitFileState
+sudo journalctl -u fullstackops-pg-backup.service --since '2026-10-22 23:00:00 UTC' --utc --no-pager -o short-iso --grep='backup result='
+sudo python3 /usr/local/lib/fullstackops-deploy-lab/daily-backup.py --status
+```
+
+Bu gelecek kontrol henüz yapılmadı. Aynı gün set varsa already-complete yeni dump
+sayılmaz; sonucu journal/manifest ile ayır. Hata/eksik kayıtta körlemesine yeniden
+başlatma. Timer başarı sonunda **enabled/active** bırakıldı. İstenirse Ubuntu SSH:
+
+```bash
+sudo systemctl disable --now fullstackops-pg-backup.timer
+```
+
+Bu komut gelecekteki tetikleri durdurur; çalışan oneshot'ı durdurmaz, yedekleri silmez.
+Bu kabul sırasında çalıştırılmadı. Kalıcı unit/script ve seçilmiş release digestleri
+değiştirilmedi; commit/push yapılmadı.
+
+Yerel belge kapanışı: repository secret kontrolü, beş Markdown dosyasında184
+yerel dosya/başlık bağlantısı ve git diff --check PASS. Yalnız beş belge değişti;
+script/unit/Compose/release/test dosyaları değişmedi, ek VM deneyi veya fixture/build
+çalıştırılmadı. Bu yerel kontroller gelecekteki takvim olayının kanıtı değildir.

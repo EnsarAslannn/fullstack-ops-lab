@@ -1,5 +1,11 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
+**22 Ekim timer ek durumu:** [Etkinleştirme ve kontrollü kısa timer tetiki PASS](../infrastructure/deployment/backup/README.md#günlük-timer-etkinleştirme-ve-kontrollü-tetik--22-ekim-2026);
+bölüm34. Timer enabled/active, günlük02:00 Europe/Istanbul; geçici60s ayarı
+kaldırıldı.09:38:49UTC yeni22 Ekim seti completed/exit0/removed_sets0; kaynak
+veri/history/sequence ve altı container korundu. Gerçek02:00/reboot-catch-up/
+çok günlük retention, yeni setin Windows kopyası/restore'u ve adım9 açık.
+
 **22 Ekim ek durumu:** [Mevcut günlük arşivin manuel Windows kopyası ve izole restore/cleanup kabulü PASS](../infrastructure/deployment/backup/README.md#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026);
 bölüm33. Yeni dump yok; 21 Ekim setinin boş Task verisi/hash/history/şema/sequence
 kabulü, hedef-only ID9/rollback ve kontrollü kaynak temizliği geçti. Kaynak veri/
@@ -197,7 +203,7 @@ Hedef RPO **24 saat**; kurtarma süresi henüz ölçülmedi. VM/PC kapalıysa g�
 
 ## 9. En küçük uygulama adımları ve kabul kapıları
 
-Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. Adım1–4 kabulü 13–15 Ekim, adım5 yerel HTTPS kabulü 15–16 Ekim kanıtlarıyla karşılanır. Adım6 monitoring kısmı15 Ekim, PostgreSQL recreate kalıcılığı16 Ekim'de tamamlandı. Adım7 release/statik ve B image/TLS ön kontrolünden sonra17Ekim rehberli A→B→A runtime kabulüyle tamamlandı. Adım8 dump/kopya/restore/sequence kabulü19Ekim, kontrollü cleanup20Ekim'de geçti; günlük zamanlama/retention açık. Adım9 uygulanmadı. Geçmiş kanıtlar bugün yeniden çalıştırılmış gibi sunulmaz.
+Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz. Bu tablo ilk planın sırasını korur. Adım1–4 kabulü 13–15 Ekim, adım5 yerel HTTPS kabulü 15–16 Ekim kanıtlarıyla karşılanır. Adım6 monitoring kısmı15 Ekim, PostgreSQL recreate kalıcılığı16 Ekim'de tamamlandı. Adım7 release/statik ve B image/TLS ön kontrolünden sonra17Ekim rehberli A→B→A runtime kabulüyle tamamlandı. Adım8 dump/kopya/restore/sequence kabulü19Ekim, kontrollü cleanup20Ekim'de geçti;22 Ekim timer etkinleştirme/kısa tetik kabulü geçti. Gerçek02:00/reboot-catch-up/çok günlük retention açık. Adım9 uygulanmadı. Geçmiş kanıtlar bugün yeniden çalıştırılmış gibi sunulmaz.
 
 | Adım | Yapılacak iş | Kabul kanıtı |
 | --- | --- | --- |
@@ -208,7 +214,7 @@ Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz
 | 5 — Yerel HTTPS | Mevcut frontend Nginx'e read-only config/leaf mount, lab CA ve localhost SSH | PASS; sertifika/trust/nginx -t, frontend-only recreate, uyarısız manuel browser/asset ve HTTPS contract; iptal durumu NOT VERIFIED, Schannel best-effort sınırı bölüm21'de |
 | 6 — Kalıcılık ve gözlem | PostgreSQL recreate, Prometheus ve Grafana kontrolleri | PASS; aynı image/volume'da yeni PostgreSQL ID, test ID4/altı alan tekil GET ile korundu, aynı API ready200/RestartCount0 ve cleanup; bölüm22. Monitoring kabulü ayrı15 Ekim kanıtıdır, burada yeniden ölçülmedi |
 | 7 — Güncelleme/rollback | PASS; A/B seçimi ve rehberli A→B→A; final A açık | Bölüm23–25: doğru image kimlikleri, API sonra frontend, B/A dönüşü HTTPS asset/CRUD ve aynı ID5; dört altyapı container'ı, veri/history korundu, owned cleanup PASS. Önceki nginx-t timeout nedeni ve sürekli kesinti ölçümü NOT VERIFIED |
-| 8 — Yedek/restore | Manuel dolu arşiv kabulü, günlük kurulum/manuel service ve günlük boş arşiv Windows kopyası/restore/cleanup PASS; timer kapalı | Bölüm26–33:21 Ekim günlük dump3477 byte,22 Ekim kopya/hash/ACL, gerçek restore/şema/history/sequence ve hedef-only ID9/rollback. Kaynaklar korundu; yalnız restore container/ağ/volume temizlendi. Takvim/catch-up/çok günlük retention, otomatik Windows kopyası ve RPO açık |
+| 8 — Yedek/restore | Manuel dolu ve21 Ekim boş günlük arşiv kabulü PASS; timer enabled/active, kontrollü kısa tetik PASS | Bölüm26–34: yeni22 Ekim seti completed/exit0/removed_sets0,3477 byte/hash/--list. Eski yedekler/kaynak veri/altı container korundu; geçici timer ayarı kaldırıldı. Gerçek02:00/reboot-catch-up/çok günlük retention, yeni setin kopya/restore'u ve RPO açık |
 | 9 — Lab kapanışı | Komutlar, runtime kanıtları, limitler ve kaynak envanteri | Development .env/user-secrets/volume değişmemiş; yalnız lab stack'i down; asıl lab verisi korunmuş |
 
 [Mevcut registry kabul script'i](../tests/Module11.Compose.Smoke.py), [registry guard testleri](../tests/Module11.RegistryRuntime.Test.py), [CRUD smoke](../tests/Phase0B.Tasks.Smoke.ps1) ve [Module 8 testi](../tests/Module8.Readiness.Smoke.ps1) yeniden kullanılabilecek temeldir. CI Lab.prepare rastgele test env/volume oluşturur ve cleanup bunları siler: kalıcı deployment volume'unda **olduğu gibi çalıştırılmaz**. Sadece uygun assertion'lar veya ayrı, disposable ön kabul için kullanılır; hosted PASS gerçek VM deployment'ın yerine geçmez.
@@ -1043,3 +1049,48 @@ catch-up/çok günlük retention/otomatik ikinci kopya,24h RPO ve adım9 final l
 manuel öğrenme açık. VM/Windows aynı fiziksel host, off-site değil. Önceki
 exit124/RuntimeError nedenleri çözülmüş sayılmaz. Stack/HTTPS/tüneller/development
 korundu; yalnız belgeler güncellendi, commit/push yapılmadı.
+
+## 34. Günlük timer etkinleştirme ve kontrollü tetik — 22 Ekim 2026
+
+Temiz main/ef7b9353c485de177046bfa6cc75c3d42f935727 üzerinden, kullanıcı Ubuntu
+SSH ve Windows PowerShell komutlarını sonuç paylaşarak uyguladı. [Ayrıntılı
+timer/journal/arşiv ve koruma kanıtları](../infrastructure/deployment/backup/README.md#günlük-timer-etkinleştirme-ve-kontrollü-tetik--22-ekim-2026).
+Kurulu script/unit hash'leri eşleşti; systemd verify exit0. Etc/UTC sisteminde
+NTP=yes/NTPSynchronized=yes; saat/timezone değiştirilmeden günlük02:00 İstanbul
+= önceki UTC günü23:00 takvimi doğrulandı.
+
+09:35:06UTC enable --now sonrası timer enabled/active/waiting. İlk çıktıda
+tetik yoktu. Sonradan görünen09:35:07 LastTrigger tek başına başarılı iş/catch-up
+kanıtı sayılmadı;09:38:34'te backup journal satırı yoktu, son başarı21 Ekim'di.
+Bu erken alan değerinin nedeni doğrulanmadı. Yalnız /run altındaki sahipli
+90-lab-acceptance.conf ile OnActiveSec=60s/AccuracySec=1s eklendi; günlük takvim
+silinmedi.09:37:48UTC yalnız timer restart edildi; manuel service start yok.
+09:38:49UTC gerçek kısa timer tetiki, journal completed/exit0/removed_sets0 ve
+service success/status0 görüldü. Yeni2026-10-22 seti3477 byte,
+SHA256 ae714637463c8f4821d4b4ba0338cf9ae7fdd38bc52d2002ef235d85fbb6bb56,
+tamamlanma2026-10-22T09:38:49.770524+00:00; manifest/last-success eşit,
+owner/700/600/hash/--list exit0 ve tasks/history/sequence kayıtları PASS.
+
+Geçici dosya hash kontrolünden sonra yalnız o dosya kaldırıldı; reload/verify ve
+yalnız timer restart ile günlük02:00 Europe/Istanbul, Accuracy1min, Persistent=yes
+geri geldi. Final enabled/active/waiting, DropInPaths boş, geçici dosya yok;
+sonraki günlük hedef22 Ekim23:00UTC/23 Ekim02:00 İstanbul. Bu doğal hedef henüz
+gözlenmedi; rehberde23:02UTC sonrası salt okunur kontrol komutları verildi.
+
+Altı başlangıç container kimliği aynı/healthy/RestartCount0; seçilmiş A image
+çifti değişmedi. READ ONLY psql exit0: Task0/IDs[]/boş satır hash, history ve
+sequence8/true başlangıçla aynı.21 Ekim günlük dump/manifest hash'leri, eski
+manuel dump/manifest hash'leri korundu. VM'de manual/timer kanıt klasörleri700,
+56 dosya600; Windows'ta manuel ve21 Ekim günlük dump/manifest dört dosyanın
+boyut/hash/ACL'si ve dört özel klasörün sahiplik/Allow/kalıtım ayarları geçti.
+Bu sefer eski manuel11 karşılaştırma dosyasının tüm hash'leri tekrar ölçülmedi.
+Task/migration/stack/HTTPS/tünel/image/env/development değişikliği veya yedek
+silme yapılmadı; son durumda yalnız21 ve22 Ekim günlük setleri var.
+
+22 Ekim arşivinin Windows kopyası/restore'u açık; önceki21 Ekim boş günlük ve
+19 Ekim dolu manuel restore kanıtları ayrı kalır. Gerçek02:00/reboot-catch-up/
+çok günlük retention, iki gerçek iş eşzamanlılığı/hata enjeksiyonu,24h RPO ve
+adım9 final kabulü doğrulanmadı. VM/Windows aynı fiziksel host; kopya manuel.
+Önceki exit124/RuntimeError nedenleri çözülmüş sayılmaz. Timer açık bırakıldı;
+gerekirse Ubuntu SSH'de sudo systemctl disable --now fullstackops-pg-backup.timer
+gelecek tetikleri durdurur, çalışan işi/yedekleri kaldırmaz. Commit/push yok.

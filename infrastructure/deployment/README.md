@@ -1,5 +1,13 @@
 # Deployment Lab — image-only VM kurulumu ve kabul kayıtları
 
+**22 Ekim 2026, sonraki adım:** [Günlük timer enabled/active ve kontrollü kısa tetik PASS](backup/README.md#günlük-timer-etkinleştirme-ve-kontrollü-tetik--22-ekim-2026).
+60 saniyelik geçici tetik09:38:49UTC service completed/exit0/removed_sets0 üretti.
+Yeni22 Ekim arşivi3477 byte/hash doğrulandı; geçici ayar kaldırıldı, günlük02:00
+Europe/Istanbul geri geldi. Kaynak Task0/history/sequence8 ve altı aynı healthy
+container, eski VM/Windows kopyaları korundu. Gerçek02:00/reboot-catch-up/çok günlük
+retention ve yeni22 Ekim arşivinin Windows kopyası/restore'u henüz doğrulanmadı.
+24h RPO ve deployment final kabulü açık; aşağıdaki önceki kabul kayıtları tarihlidir.
+
 **22 Ekim 2026:** [Mevcut günlük yedeğin Windows kopyası ve izole restore kabulü PASS](backup/README.md#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026).
 21 Ekim3477 byte arşiv kullanıldı; yeni dump alınmadı. Boş tasks/hash, InitialCreate
 history, şema/ownership ve sequence8 doğrulandı; hedef-only probe ID9 üretti ve
