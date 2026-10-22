@@ -1,10 +1,12 @@
 # Deployment Lab — image-only VM kurulumu ve kabul kayıtları
 
-**21 Ekim 2026:** [Günlük PostgreSQL backup/retention hazırlığı](backup/README.md)
-tamamlandı;14 Windows fixture testi PASS. Script ve02:00 Europe/Istanbul systemd
-timer henüz VM'ye kurulmadı/etkinleştirilmedi. Gerçek otomatik dump/retention,
-timer/catch-up, Linux kilit/izin kabulü ve güncel manuel Windows ikinci kopyası
-bekliyor;24h RPO veya final deployment kabulü iddia edilmiyor.
+**21 Ekim 2026:** [Günlük backup VM kurulumu ve iki manuel service çalışması PASS](backup/README.md#rehberli-vm-kurulumu-ve-iki-manuel-çalışma--21-ekim-2026).
+Yeni günlük dump3477 byte/checksum/arşiv kontrolü geçti; aynı gün ikinci çalışma
+set/hash/mtime ve asıl başarı zamanını korudu. Linux kilit fixture'ı, izinler ve
+systemd verify/calendar geçti; timer **disabled/inactive** kaldı. Kaynak veri/altı
+container ve eski manuel VM/Windows yedekleri korundu. Gerçek takvim/catch-up/çok
+günlük retention, yeni günlük arşivin Windows kopyası/restore'u ve final kabul
+bekliyor;24h RPO garantisi yok. Windows ikinci kopyası manuel kalır.
 
 **20 Ekim 2026:** [Kontrollü cleanup ve yedek koruması PASS](BACKUP-RESTORE.md#14-kontrollü-temizlik-ve-yedek-koruması--20-ekim-2026).
 Sahipli Task ID8 HTTPS GET/snapshot kapısından sonra DELETE204/GET404 ile silindi;
@@ -84,7 +86,8 @@ korunur. Nginx frontend image'ının içinde kalır.
   Bu Compose deployment overlay'i değildir; kaynak volume'u bağlanmaz.
 - [Günlük yedek/retention](backup/README.md): ayrı root-owned hedef, günlük
   [script](backup/daily-backup.py), systemd service/timer ve fixture testleri;
-  manuel kabul setlerini/Windows kopyalarını silmez. VM'ye uygulama bekliyor.
+  manuel kabul setlerini/Windows kopyalarını silmez. VM kurulumu ve iki manuel
+  çalışma geçti; timer kapalı, zamanlanmış çalışma ve çok günlük retention bekliyor.
 
 API/frontend için `build: !reset null` kaynak build alanını siler. Sadece `image`
 eklemek build alanını kaldırmaz. `ports: !override` eski ve yeni port listelerinin
