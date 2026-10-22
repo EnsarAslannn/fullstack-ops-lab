@@ -1,5 +1,11 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
+**22 Ekim ek durumu:** [Mevcut günlük arşivin manuel Windows kopyası ve izole restore/cleanup kabulü PASS](../infrastructure/deployment/backup/README.md#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026);
+bölüm33. Yeni dump yok; 21 Ekim setinin boş Task verisi/hash/history/şema/sequence
+kabulü, hedef-only ID9/rollback ve kontrollü kaynak temizliği geçti. Kaynak veri/
+sequence8, altı aynı healthy container ve VM/Windows günlük/manuel yedekler korundu.
+Timer disabled/inactive; gerçek takvim/catch-up/çok günlük retention/RPO ve adım9 açık.
+
 **21 Ekim ek durumu:** Günlük backup hazırlığı/fixture kabulünden (bölüm31) sonra
 [VM kurulumu ve iki manuel service çalışması PASS](../infrastructure/deployment/backup/README.md#rehberli-vm-kurulumu-ve-iki-manuel-çalışma--21-ekim-2026);
 bölüm32. Gerçek günlük dump ve aynı gün koruma doğrulandı; timer disabled/inactive.
@@ -176,6 +182,9 @@ bölüm30. 21 Ekim [günlük backup dosyaları ve fixture kabulü](../infrastruc
 hazırlandı; bölüm31. VM kurulumu/iki manuel service çalışması aynı gün geçti;
 bölüm32. Timer kapalı, gerçek zamanlama/çok günlük retention bekliyor. Aşağıdaki yöntemler mevcut yedek
 ve restore hedefini tekrar oluşturma veya ezme komutu değildir.
+22 Ekim mevcut günlük setin Windows kopyası ve ayrı restore/sequence/cleanup
+kabulü de geçti; bölüm33. Bu günlük arşiv boş tasks içerir;19 Ekim dolu manuel
+arşivin kanıtından ayrıdır. Yeni dump veya retention silmesi yapılmadı.
 
 Hedef RPO **24 saat**; kurtarma süresi henüz ölçülmedi. VM/PC kapalıysa günlük job çalışmaz; son başarılı yedek zamanı denetlenir, yedek 24 saatten eskiyse hedef sağlandı sayılmaz.
 
@@ -199,7 +208,7 @@ Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz
 | 5 — Yerel HTTPS | Mevcut frontend Nginx'e read-only config/leaf mount, lab CA ve localhost SSH | PASS; sertifika/trust/nginx -t, frontend-only recreate, uyarısız manuel browser/asset ve HTTPS contract; iptal durumu NOT VERIFIED, Schannel best-effort sınırı bölüm21'de |
 | 6 — Kalıcılık ve gözlem | PostgreSQL recreate, Prometheus ve Grafana kontrolleri | PASS; aynı image/volume'da yeni PostgreSQL ID, test ID4/altı alan tekil GET ile korundu, aynı API ready200/RestartCount0 ve cleanup; bölüm22. Monitoring kabulü ayrı15 Ekim kanıtıdır, burada yeniden ölçülmedi |
 | 7 — Güncelleme/rollback | PASS; A/B seçimi ve rehberli A→B→A; final A açık | Bölüm23–25: doğru image kimlikleri, API sonra frontend, B/A dönüşü HTTPS asset/CRUD ve aynı ID5; dört altyapı container'ı, veri/history korundu, owned cleanup PASS. Önceki nginx-t timeout nedeni ve sürekli kesinti ölçümü NOT VERIFIED |
-| 8 — Yedek/restore | Manuel dump/restore/cleanup ve günlük kurulum/iki manuel service çalışması PASS; timer kapalı | Bölüm26–32: ID8 cleanup, kaynak ve eski VM/Windows yedek koruması PASS. Günlük dump3477 byte ve aynı gün koruma geçti; takvim/catch-up/çok günlük retention, yeni günlük arşiv restore'u/Windows kopyası ve RPO açık |
+| 8 — Yedek/restore | Manuel dolu arşiv kabulü, günlük kurulum/manuel service ve günlük boş arşiv Windows kopyası/restore/cleanup PASS; timer kapalı | Bölüm26–33:21 Ekim günlük dump3477 byte,22 Ekim kopya/hash/ACL, gerçek restore/şema/history/sequence ve hedef-only ID9/rollback. Kaynaklar korundu; yalnız restore container/ağ/volume temizlendi. Takvim/catch-up/çok günlük retention, otomatik Windows kopyası ve RPO açık |
 | 9 — Lab kapanışı | Komutlar, runtime kanıtları, limitler ve kaynak envanteri | Development .env/user-secrets/volume değişmemiş; yalnız lab stack'i down; asıl lab verisi korunmuş |
 
 [Mevcut registry kabul script'i](../tests/Module11.Compose.Smoke.py), [registry guard testleri](../tests/Module11.RegistryRuntime.Test.py), [CRUD smoke](../tests/Phase0B.Tasks.Smoke.ps1) ve [Module 8 testi](../tests/Module8.Readiness.Smoke.ps1) yeniden kullanılabilecek temeldir. CI Lab.prepare rastgele test env/volume oluşturur ve cleanup bunları siler: kalıcı deployment volume'unda **olduğu gibi çalıştırılmaz**. Sadece uygun assertion'lar veya ayrı, disposable ön kabul için kullanılır; hosted PASS gerçek VM deployment'ın yerine geçmez.
@@ -978,3 +987,59 @@ ayrıca doğrulanmalı. Windows SCP manuel kalır; VM kapalı/ikinci kopya eskiy
 RPO garantisi yok; aynı fiziksel host off-site değildir. Adım9 final kabul ve
 manuel öğrenme açık; önceki exit124/RuntimeError nedenleri çözülmüş sayılmaz.
 Commit/push yapılmadı; stack ve mevcut tüneller değiştirilmedi.
+
+## 33. Günlük arşivin Windows kopyası ve izole restore kabulü — 22 Ekim 2026
+
+Temiz `main/e0dd23cbb6bd360e49a7d0f306bf0bffaef9755a` sonrasında kullanıcı
+PowerShell/Ubuntu SSH komutlarını sonuç beklenerek uyguladı. [Ayrıntılı arşiv,
+hedef ve cleanup kanıtları](../infrastructure/deployment/backup/README.md#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026).
+Agent VM'ye bağlanmadı/private dosya okumadı. Script/unit5ab86228 ve aktif A
+revision1b52633776279b1661a7cac53392d385cbf10444/digestleri değişmedi.
+
+Mevcut 2026-10-21 seti3477 byte/hash43e0f6545c2a0f7bbf3fbe205910b8df603e261db3e9203cadfcb09639e8adeb;
+manifest616 byte/hash78f6e8fa1070709ace8b467dd3456eff583963e4f0aa8fb3bc036ad081932f5f.
+Asıl başarı21 Ekim09:55:36.710981UTC; last-success/manifest eşit. Tarihsel
+09:44:58.476113/10:04:31.155526UTC snapshot'ları aynı Task0/hash/history/sequence8
+durumunda ve dump zamanını çevreliyor; pg_dump ile ortak snapshot iddiası yok.
+Güncel22 Ekim kaynağı otomatik dump referansı yapılmadı; ayrı koruma baseline'ı alındı.
+
+RUN_ID4fd14392436e özel VM çalışma/staging dizinleri700, dosyalar600. Root backup
+izinleri açılmadan yalnız dump/manifest kopyalandı; Windows Git dışındaki
+backups-private/daily/2026-10-21 hedefine SCP exit0. Boyut/hash ve mevcut kullanıcı
+ACL/sahiplik kabulü07:08:30.7989435UTC; eski manuel kabul seti ezilmedi.
+
+Yeni fullstackops-restore-4fd14392436e project'i, aynı prefix-postgres container/
+yeni volume ve prefix-net internal ağ; host portu/build/pull/source mount yok.
+Kaynağın yerel PostgreSQL18.6/linux-amd64 image'ı77f585114c32... kullanıldı.
+Gerçek env/config/model, yokluk/etiket/image/mount/boş database kapıları geçti.
+Yalnız restore up --no-build/--no-deps/--pull never, bounded health: exit0/5.841s.
+VM staging'deki günlük arşiv binary stdin ile hedefe pg_restore exit-on-error/
+single-transaction/no-owner/no-privileges ile yüklendi: exit0/no timeout/0.113s/
+stdout0/stderr0. Windows geri aktarımı yapılmadı; byte eşitliği ayrıca doğrulandı.
+Bu süreler RTO/deployment kesintisi veya benchmark değildir.
+
+07:20:12.859694UTC restore Task0/IDs[]/boş satır hash, tek InitialCreate/EF10.0.12
+history ve sequence8/true tarihsel referanslarla aynı.07:21:40.523557UTC altı sütun/
+tip/nullable/default/identity BY DEFAULT, iki PK/history sütunları ve restore rolü
+ownership PASS; yapı hash20fb7d505d9bdf82013b347158a57013cbceed1d852ab91b07133a69071b96ba.
+07:22:54.982539UTC yalnız hedef INSERT9 üretti, satır rollback; veri/history aynı,
+restore sequence9.07:24:42.127387UTC kaynak sequence8 ve veri baseline ile aynı;
+altı kaynak container/image/port/mount/restart aynı/healthy, aktif A korunuyor.
+Günlük arşiv boş tasks içerir;19 Ekim ID8/altı alan dolu arşiv kanıtı ayrı kalır.
+
+07:26:22.288932UTC exact kimlik/etiket/mount/ağ ve asıl yedek hash kapılarından
+sonra yalnız restore container stop/rm.07:27:45.588770UTC aynı ID/etiketli boş ağ
+ve kullanılmayan sahipli volume kaldırıldı; üç yokluk kontrolü PASS. Kaynak
+deployment down-v/prune veya dosya/image silme yok.07:29:33.229274UTC kaynak altı
+container yine aynı/healthy; Task0/hash/history/sequence8, üç kaynak volume ve
+timer inactive/disabled korundu.07:31:04.665193UTC VM günlük/staging iki dosya ve
+manuel manifest+11 dosya hash/izin,07:32:20.1101891UTC Windows aynı dosyalar
+hash/ACL bakımından korundu. Asıl kopya zamanı tazelenmedi; ayrı kapanış makbuzları
+ve bağımsız restore env Git dışında tutuldu. Yeni dump/kaynak Task/servis tetiki yok.
+
+Bu belirli günlük arşivin kopya/restore/cleanup kabulü tamamlandı. Sonraki ayrı
+adım belge incelemesidir; ayrıca istenmeden timer etkinleştirilmez. Gerçek takvim/
+catch-up/çok günlük retention/otomatik ikinci kopya,24h RPO ve adım9 final lab/
+manuel öğrenme açık. VM/Windows aynı fiziksel host, off-site değil. Önceki
+exit124/RuntimeError nedenleri çözülmüş sayılmaz. Stack/HTTPS/tüneller/development
+korundu; yalnız belgeler güncellendi, commit/push yapılmadı.

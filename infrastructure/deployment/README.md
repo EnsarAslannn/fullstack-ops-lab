@@ -1,5 +1,13 @@
 # Deployment Lab — image-only VM kurulumu ve kabul kayıtları
 
+**22 Ekim 2026:** [Mevcut günlük yedeğin Windows kopyası ve izole restore kabulü PASS](backup/README.md#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026).
+21 Ekim3477 byte arşiv kullanıldı; yeni dump alınmadı. Boş tasks/hash, InitialCreate
+history, şema/ownership ve sequence8 doğrulandı; hedef-only probe ID9 üretti ve
+satırı rollback edildi, kaynak sequence8 kaldı. Yalnız yeni restore container/ağ/
+volume kaldırıldı. Altı kaynak container healthy ve aynı; kaynak veri ile günlük/
+manuel VM/Windows yedekler korundu. Timer disabled/inactive. Gerçek takvim/catch-up,
+çok günlük retention,24h RPO ve deployment final kabulü hâlâ açık; SCP manuel.
+
 **21 Ekim 2026:** [Günlük backup VM kurulumu ve iki manuel service çalışması PASS](backup/README.md#rehberli-vm-kurulumu-ve-iki-manuel-çalışma--21-ekim-2026).
 Yeni günlük dump3477 byte/checksum/arşiv kontrolü geçti; aynı gün ikinci çalışma
 set/hash/mtime ve asıl başarı zamanını korudu. Linux kilit fixture'ı, izinler ve
@@ -87,7 +95,8 @@ korunur. Nginx frontend image'ının içinde kalır.
 - [Günlük yedek/retention](backup/README.md): ayrı root-owned hedef, günlük
   [script](backup/daily-backup.py), systemd service/timer ve fixture testleri;
   manuel kabul setlerini/Windows kopyalarını silmez. VM kurulumu ve iki manuel
-  çalışma geçti; timer kapalı, zamanlanmış çalışma ve çok günlük retention bekliyor.
+  çalışma geçti; günlük arşivin Windows kopyası/izole restore/cleanup kabulü22 Ekim'de
+  tamamlandı. Timer kapalı, zamanlanmış çalışma ve çok günlük retention bekliyor.
 
 API/frontend için `build: !reset null` kaynak build alanını siler. Sadece `image`
 eklemek build alanını kaldırmaz. `ports: !override` eski ve yeni port listelerinin

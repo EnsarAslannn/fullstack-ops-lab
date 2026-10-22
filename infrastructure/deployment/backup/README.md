@@ -1,5 +1,11 @@
 # Günlük PostgreSQL yedekleme — kurulum ve kabul kayıtları
 
+**22 Ekim 2026: mevcut günlük arşivin manuel Windows kopyası, izole restore ve
+sahiplik kontrollü temizlik PASS.** [Gerçek sonuçlar](#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026)
+21 Ekim setine aittir; yeni dump alınmadı. Günlük arşiv boş `tasks` içerir;
+19 Ekim dolu manuel restore kanıtından ayrıdır. Timer **disabled/inactive**,
+gerçek takvim/catch-up/çok günlük retention ve deployment final kabulü açık.
+
 **21 Ekim 2026: VM kurulumu ve timer kapalıyken iki manuel service çalışması PASS.**
 İlk gerçek günlük dump ve aynı gün üzerine yazmadan doğrulama tamamlandı;
 [gerçek sonuçlar aşağıdadır](#rehberli-vm-kurulumu-ve-iki-manuel-çalışma--21-ekim-2026).
@@ -79,7 +85,9 @@ girmez. Kesilen işlem private partial/container tmp bırakabilir; sonraki ayrı
 tanıda tam isim/sahiplik kontrolüyle ele alınır, genel `/tmp` temizliği yapılmaz.
 Systemd işi zorla öldürürse son-attempt eski kalabilir; systemd Result/journal
 bu nedenle ayrıca kontrol edilir. `pg_restore --list` veya hash eşitliği gerçek
-restore kanıtı değildir; yeni günlük arşivden izole restore kabulü hâlâ bekler.
+restore kanıtı değildir. 21 Ekim arşivinin gerçek izole restore kabulü
+[22 Ekim kaydında](#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026) ayrıca doğrulandı;
+bu sonuç gelecekteki her arşivin restore edildiği anlamına gelmez.
 [pg_dump18](https://www.postgresql.org/docs/18/app-pgdump.html),
 [pg_restore18](https://www.postgresql.org/docs/18/app-pgrestore.html).
 
@@ -109,13 +117,15 @@ erişmez veya silmez. Root ağacına elle dosya/manuel yedek taşımayın.
 onayını beklemez: bu görevde önceki öneri somut olarak bu iki ayrı sorumluluğa
 ayrıldı. Güncel ikinci kopya sağlanmazsa VM'deki son7 sete rağmen RPO sağlandı denmez.
 
-Gelecek rehberli kopya adımı: seçili tamamlanmış günlük seti root manifest/hash ile
+Yeni bir set için rehberli kopya yöntemi: seçili tamamlanmış günlük seti root manifest/hash ile
 doğrula; yalnız dump+manifest'i labadmin'e ait Git dışı yeni700 staging dizinine
 `sudo install -o labadmin -g labadmin -m600` ile kopyala. Root backup dizininin
 izinlerini açma. SCP ile Windows'ta mevcut kullanıcıya özel ACL'li ayrı
 `LOCALAPPDATA/FullStackOpsLab/backups-private/daily/YYYY-MM-DD/` hedefine aktar;
 boyut/SHA256/ACL ve kopya UTC kontrolü yap. Env/TLS/credential taşıma, manuel
-4756810b5b43 kabul klasörünün üzerine yazma. Henüz staging/kopya yapılmadı.
+4756810b5b43 kabul klasörünün üzerine yazma. Bu akış 21 Ekim seti için 22 Ekim'de
+uygulandı; mevcut staging/kopyanın üzerine tekrar uygulanmaz. Kopya ve restore
+makbuzları ayrıdır; dump başarı zamanı Windows kopyasıyla yenilenmez.
 [Mevcut SCP/ACL ilkeleri](../BACKUP-RESTORE.md#5-vm-dışı-ikinci-kopya--windows-powershell).
 
 `last-success.json` dump zamanıdır, Windows kopya zamanı değildir; ayrı manuel
@@ -329,3 +339,139 @@ set korundu; yalnız geçici Linux kilit fixture'ı temizlendi.
   eskiyken24h RPO garantisi yok. İki kopya aynı fiziksel host'ta, off-site değildir.
   Deployment final kabulü ve manuel öğrenme değerlendirmesi açık. Önceki
   exit124/RuntimeError nedenleri çözülmüş sayılmaz. Commit/push yapılmadı.
+
+## Günlük arşivin Windows kopyası, izole restore ve temizlik — 22 Ekim 2026
+
+Temiz `main/e0dd23cbb6bd360e49a7d0f306bf0bffaef9755a` üzerinden kullanıcı,
+Windows PowerShell/Ubuntu SSH komutlarını küçük gruplarla çalıştırdı ve sonuçları
+paylaştı. Agent VM'ye bağlanmadı veya özel dosyaları okumadı. Backup script/unit
+kaynağı hâlâ 5ab86228; uygulama [aktif A](../release.json) revision'ı
+`1b52633776279b1661a7cac53392d385cbf10444` ve seçilmiş digest çiftinde kaldı.
+21 Ekim kabulü tekrarlanmadı; backup service/timer çalıştırılmadı, yeni dump yok.
+
+### Kullanılan arşiv ve tarihsel referans
+
+| Madde | Doğrulanan değer |
+| --- | --- |
+| Asıl set | /var/lib/fullstackops-deploy-lab-backup/2026-10-21; root sahibi, klasör700/dosyalar600 |
+| Dump | 3477 byte; SHA25643e0f6545c2a0f7bbf3fbe205910b8df603e261db3e9203cadfcb09639e8adeb |
+| Manifest | 616 byte; SHA25678f6e8fa1070709ace8b467dd3456eff583963e4f0aa8fb3bc036ad081932f5f |
+| Asıl tamamlanma | 2026-10-21T09:55:36.710981+00:00; last-success ve manifest aynı, zaman değiştirilmedi |
+| Dump öncesi/sonrası | 21 Ekim09:44:58.476113UTC ve10:04:31.155526UTC; Task0/IDs[]/boş satır hash/history/sequence aynı |
+| Tarihsel SQL | source.snapshot.sql901 byte; SHA256551a44bfae8b939e08a6fd104712278b524a4e059ef3e5f153529b3b49f63495; iki snapshot aynı SQL hash'ine bağlı |
+
+Önceki `daily-acceptance-5ab86228` kayıtlarının izin/hash/yapısı ve
+first-run/second-run makbuzlarının mevcut manifest ile eşitliği doğrulandı.
+Dump tamamlanma zamanı iki SQL ölçümü arasındadır; bunlar pg_dump ile ortak bir
+transaction/snapshot kullanmaz. Güncel kaynak verisi otomatik restore referansı
+sayılmadı. 22 Ekim07:03:15.868537UTC READ ONLY baseline da aynı boş Task durumu,
+tek `20260928113912_InitialCreate`/EF10.0.12 history ve sequence8/true döndürdü.
+Yeni oturum baseline'ı yalnız kaynak koruması için ayrıca saklandı.
+
+### Windows ikinci kopyası
+
+RUN_ID `4fd14392436e`; özel VM çalışma dizini
+`~/.local/share/fullstackops-deploy-lab/daily-restore-4fd14392436e/`700,
+kanıt/env dosyaları600. Asıl root yedek kökünün izinleri açılmadan yalnız dump ve
+manifest labadmin/600 olarak yeni `windows-export/`700 dizinine kopyalandı.
+Kaynak ve staging byte hash'leri aynı; development/env/TLS/CA aktarılmadı.
+
+Windows hedefi Git/OneDrive dışında
+`%LOCALAPPDATA%/FullStackOpsLab/backups-private/daily/2026-10-21/` olarak hazırlandı;
+mevcut manuel `4756810b5b43` klasörünün üzerine yazılmadı. SCP iki dosya için
+exit0; boyut/hash eşleşti. Root/daily/gün klasörlerinin ACL kalıtımı kapalı,
+sahip mevcut hesap; dosyalarda yalnız mevcut hesaba Allow erişimi doğrulandı.
+İlk kopya kabulü **2026-10-22T07:08:30.7989435+00:00**; özel
+`windows-copy-verified.json` makbuzu saklandı. Bu makbuzdaki restore_status,
+kopyalama anında NOT VERIFIED idi ve tarihsel kayıt olarak değiştirilmedi;
+sonraki gerçek restore makbuzları VM'de ayrıdır. SCP manuel kaldı.
+
+### Yeni hedef ve gerçek restore
+
+Bağımsız [restore Compose](../compose.restore.yaml) hash'i
+3c71d13e1a4c652f4f7ac045d4068e8a84396cc832491ae45f9b4c61c40b9680 eşleşti.
+Yeni rastgele restore credential600 dosyaya yazıldı; değerleri gösterilmedi.
+`env -i`, `COMPOSE_DISABLE_ENV_FILE=1`, açık project/env-file/tek Compose dosyasıyla
+config-q ve bellekte JSON model kontrolü geçti. Yalnız restore-postgres;
+build/pull/host portu/source bind/external volume yok. Adlar ve project etiketleri
+başlatma öncesinde boştu; deployment volume'u modelde bulunmadı.
+
+| Kaynak | Doğrulanan ad/kimlik |
+| --- | --- |
+| Project | fullstackops-restore-4fd14392436e |
+| Container | fullstackops-restore-4fd14392436e-postgres; ID977552b6406da22b151f41e1c731e0c7347da9d1ad090f633a6cd17c9a34f9d4 |
+| Yeni volume | fullstackops-restore-4fd14392436e-postgres → /var/lib/postgresql; local, restore-data etiketi; kaynak deployment volume'undan farklı |
+| Internal ağ | fullstackops-restore-4fd14392436e-net; ID6eb48535222c8c7f77cc5b2ecbeff176d8d1f525793d229fb475158d991e2218; başlangıçta yalnız hedef container üye |
+| Yerel image | sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873; kaynağın mevcut PostgreSQL18.6 image'ı, linux/amd64 |
+
+`up -d --no-build --no-deps --pull never --wait --wait-timeout 90 restore-postgres`
+120s dış sınırla **exit0/no timeout/5.841s** döndü. Gerçek target image/ref,
+project/service/lab/run etiketleri, tek doğru volume, internal ağ ve host portu
+yokluğu tekrar doğrulandı. READ ONLY sorgu beklenen restore role/database,
+server18.6, tasks/history yokluğu ve sıfır public tablo gösterdi. Bu socket sorgusu
+yeni TCP parola kabulü değildir. Container kimliği ve boşluk kapısı restore'dan
+hemen önce yeniden kontrol edildi.
+
+Arşiv VM `windows-export/database.pgdump` kopyasından binary stdin ile yalnız
+hedefe verildi; Windows kopyasının byte eşitliği ayrıca kanıtlandı, Windows'tan
+geri aktarım yapılmadı. `pg_restore --exit-on-error --single-transaction
+--no-owner --no-privileges --no-password --host=/var/run/postgresql` mevcut hedef
+role/database'i kullandı; --clean/--create veya kaynak database'e reconnect yok.
+**PG_RESTORE_EXIT=0, OUTER_TIMEOUT=False, 0.113s, stdout0/stderr0**. Süreler komut
+süreleridir; RTO, performans veya deployment kesinti süresi ölçümü değildir.
+
+### Veri, şema, history ve sequence kabulü
+
+| UTC (22 Ekim) | Gerçek sonuç |
+| --- | --- |
+| 07:20:12.859694 | READ ONLY restore snapshot exit0: Task0/IDs[]/satır SHA256e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, history ve sequence8/true; 21 Ekim öncesi/sonrası referanslarıyla aynı |
+| 07:21:40.523557 | Şema sorgusu exit0; altı Task sütunu/tip/nullable/false default, identity BY DEFAULT, iki PK ve history varchar150/32 sütunları InitialCreate beklentisine uygun; iki tablo/identity sequence restore rolünün sahipliğinde |
+| 07:22:54.982539 | Yalnız restore hedefinde ID belirtilmeyen INSERT9 üretti (mevcut max0); test satırı ROLLBACK. Sonra Task0/hash/history aynı; yalnız restore sequence9/true |
+| 07:24:42.127387 | Kaynak READ ONLY sorgusu exit0: Task0/history ve kaynak sequence8/true başlangıçla aynı; altı container kimlik/image/port/mount/restart kayıtları aynı ve healthy; aktif A korundu |
+
+Şema yapısının bu sorguda serileştirilen SHA256 değeri
+`20fb7d505d9bdf82013b347158a57013cbceed1d852ab91b07133a69071b96ba`;
+bu tüm database'in fiziksel veya eksiksiz katalog hash'i değildir. Sequence
+ilerlemesi rollback ile geri alınmaz; kaynakta INSERT/nextval/setval yapılmadı.
+Bu günlük arşiv **boş tasks** içerir; altı dolu satır alanı/sentinel kabulü
+iddia edilmez. [19 Ekim ID8 içeren manuel restore](../BACKUP-RESTORE.md#13-izole-restore-ve-sequence-kabulü--19-ekim-2026)
+ayrı arşiv/deneydir; dolu yeni dump üretmek için kapsam genişletilmedi.
+
+### Kontrollü temizlik ve korunan kopyalar
+
+- **07:26:22.288932UTC:** exact target ID/image/etiket/mount, tek volume kullanıcısı,
+  network ID/tek üye ve asıl dump/manifest hash kapıları geçti. Yalnız target
+  container stop (20s grace) ve rm exit0; container yokluğu doğrulandı.
+- **07:27:45.588770UTC:** kalan volume'un ad/driver/CreatedAt/etiketleri kayıtla
+  aynı ve kullanıcısı yok; ağ aynı ID/etiketlerle internal ve boş. Ağ ID ile,
+  volume yalnız açık adıyla kaldırıldı; exit0 ve üç kaynağın yokluğu geçti.
+  Genel prune, source down-v, image veya dosya silme yok; üç kaynak volume mevcut.
+- **07:29:33.229274UTC:** son READ ONLY source sorgusu exit0; Task0/IDs[]/boş
+  hash/history ve sequence8/true başlangıçla aynı. Altı container tam kimlik/image/
+  port/mount/restart kaydı aynı ve healthy. Timer inactive/disabled; stack/HTTPS/
+  tünel/development/release digestlerinde değişiklik yapılmadı. Sürekli erişim ölçülmedi.
+- **07:31:04.665193UTC:** VM asıl günlük set ve staging iki dosyasının boyut/hash/
+  600 izinleri aynı, asıl manifest/last-success zamanı korundu. Eski manuel
+  manifest+11 dosya boyut/hash/600 eşleşti; klasörler700, yeni kabul dosyaları ve
+  korunan restore env600. Env/credential içeriği bu koruma kontrolünde okunmadı.
+- **07:32:20.1101891UTC:** Windows günlük iki dosya ve eski manuel manifest+11
+  dosya boyut/hash/ACL kontrolleri geçti. Klasör kalıtımı kapalı; sahip/Allow
+  yalnız mevcut hesap. Asıl kopya makbuzu ve07:08:30.7989435UTC kopya zamanı
+  değişmedi; yeni cleanup-windows-verified makbuzu ayrıca saklandı.
+
+Asıl günlük set, VM staging, yeni bağımsız restore env, snapshot/karşılaştırma ve
+restore/cleanup kanıtları ile Windows günlük/manuel kopyalar Git dışında korundu.
+Kaynak Task oluşturma/silme, yeni dump, migration, image build/pull/değişimi,
+timer/service tetikleme, retention silmesi veya development işlemi yapılmadı.
+
+**PASS:** bu belirli günlük arşivin Windows kopyası, gerçek restore/veri/şema/
+history/sequence ve sahiplik kontrollü kaynak temizliği. **NOT VERIFIED:** gerçek
+timer tetiki/catch-up, çok günlük retention, otomatik Windows kopyası ve günlük
+24h RPO garantisi. Kopya yaşı ile backup yaşı ayrıdır; Windows'a kopyalama
+21 Ekim dump zamanını yenilemez. Aynı fiziksel host off-site koruma değildir.
+Deployment final kabulü ve manuel öğrenme açık; önceki exit124/RuntimeError
+nedenleri çözülmüş sayılmaz. Yalnız belgeler güncellendi; commit/push yapılmadı.
+
+Dokümantasyon kapanışında repository secret kontrolü, beş Markdown belgede182
+yerel dosya/anchor bağlantısı ve git diff --check PASS. Kod, Compose, script,
+unit, test ve release dosyaları değişmedi; ek VM deneyi/build/fixture çalıştırılmadı.

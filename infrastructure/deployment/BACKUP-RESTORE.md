@@ -1,5 +1,12 @@
 # Deployment — izole PostgreSQL yedek/restore hazırlığı
 
+**22 Ekim 2026:** [21 Ekim günlük arşivinin Windows kopyası, izole restore ve cleanup PASS](backup/README.md#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026).
+Günlük dump3477 byte korunarak yeni hedefe yüklendi; boş Task verisi/hash,
+şema/history ve sequence8 doğrulandı. Yalnız restore probe'u9 üretti; kaynak
+sequence8 kaldı. Deney container/ağ/volume kaldırıldı; kaynak altı container/veri
+ve VM/Windows günlük/manuel yedekler korundu. Yeni dump yok, timer kapalı;
+takvim/catch-up/çok günlük retention/RPO ve deployment final kabulü açık.
+
 **21 Ekim 2026:** [VM günlük backup kurulumu ve iki manuel service çalışması](backup/README.md#rehberli-vm-kurulumu-ve-iki-manuel-çalışma--21-ekim-2026)
 PASS. Yeni günlük dump3477 byte; ikinci çalışmada set/hash/mtime ve asıl başarı
 zamanı korundu. Timer disabled/inactive. Kaynak veri/altı container ve eski manuel
@@ -386,6 +393,9 @@ Kaynak doğrulama/custom dump/checksum/--list ve OS kilidi kullanılır; Task
 oluşturulmaz. Sonraki rehberli VM kurulumu ve timer kapalıyken ilk gerçek dump /
 aynı gün ikinci service çalışması geçti; [ayrıntılı runtime kaydı](backup/README.md#rehberli-vm-kurulumu-ve-iki-manuel-çalışma--21-ekim-2026).
 Timer enable/start ve gerçek çok günlük retention silmesi yapılmadı.
+21 Ekim setinin Windows kopyası, boş verili gerçek izole restore/sequence ve
+cleanup kabulü ise [22 Ekim kaydında](backup/README.md#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026)
+ayrıca PASS. Önceki dolu manuel restore arşiviyle karıştırılmaz; yeni dump alınmadı.
 
 Saklama kararı somutlaştırıldı: ayrı root-owned700
 `/var/lib/fullstackops-deploy-lab-backup/` altında son **yedi başarılı farklı gün**;
@@ -402,7 +412,7 @@ Windows kopya UTC/hash/ACL makbuzu ayrıca tutulur. VM/PC kapalı veya ikinci ko
 eskiyse24h RPO garanti edilmez. İki kopya aynı fiziksel host'tadır; off-site/PITR/
 production SLA kabulü yok. Linux iki süreç kilit fixture'ı,700/600 izinler ve
 systemd verify/calendar gerçek VM'de geçti. Gerçek timer/catch-up, çok günlük
-retention, yeni günlük arşivden restore/Windows kopyası ve final lab kabulü
+retention ve final lab kabulü
 **NOT VERIFIED**;14 Windows fixture testi runtime yerine geçmez.
 
 ## 10. Kabul tablosu ve yerel kontroller
@@ -417,7 +427,8 @@ retention, yeni günlük arşivden restore/Windows kopyası ve final lab kabulü
 | Sequence | PASS — 19 Ekim, bölüm13 | ID belirtilmeden9>8; probe satırı ROLLBACK; hedef veri/history aynı, kaynak sequence8, restore9 |
 | Kaynak koruması | PASS — 19–20 Ekim, bölüm13–14 | Altı kaynak ID/image aynı, healthy/RestartCount0; kaynak volume/mount korundu. Sahipli ID8 silindikten sonra Task verisi/history sentinel-öncesi baseline ile aynı; source sequence8 sıfırlanmadı |
 | Cleanup | PASS — 20 Ekim, bölüm14 | Sahipli ID8 DELETE204/GET404; yalnız doğrulanmış restore container/network/volume kaldırıldı, yokluk geçti. Yedek/env/TLS/kanıtlar korundu |
-| Günlük job/retention/RPO | Kurulum ve iki manuel service çalışması PASS — 21 Ekim; timer disabled/inactive | [Gerçek dump ve aynı gün koruma](backup/README.md#rehberli-vm-kurulumu-ve-iki-manuel-çalışma--21-ekim-2026); Linux kilit fixture/izin/unit parser PASS. Gerçek takvim/catch-up/çok günlük retention, yeni günlük arşivin restore'u/Windows kopyası ve RPO NOT VERIFIED |
+| Günlük arşiv kopya/restore/cleanup | PASS — 22 Ekim; boş tasks sınırı açık | [Gerçek sonuçlar](backup/README.md#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026): Windows boyut/hash/ACL, izole pg_restore exit0, dump dönemi Task0/hash/history/sequence8; şema/ownership ve hedef-only ID9/rollback. Yalnız yeni restore kaynakları silindi; kaynak sequence8, altı container ve günlük/manuel VM/Windows yedekler korundu |
+| Günlük job/retention/RPO | Kurulum ve iki manuel service çalışması PASS — 21 Ekim; timer disabled/inactive | [Gerçek dump ve aynı gün koruma](backup/README.md#rehberli-vm-kurulumu-ve-iki-manuel-çalışma--21-ekim-2026); Linux kilit fixture/izin/unit parser PASS. Gerçek takvim/catch-up/çok günlük retention, otomatik Windows kopyası ve RPO NOT VERIFIED; tek arşiv restore'u günlük otomasyon garantisi değildir |
 
 Statik komut **Windows PowerShell, repository kökü**; Engine/VM işlemi yapmaz:
 
