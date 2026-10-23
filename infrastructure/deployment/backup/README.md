@@ -1,5 +1,15 @@
 # Günlük PostgreSQL yedekleme — kurulum ve kabul kayıtları
 
+**23 Ekim 2026: gecikmiş başarılı çalışma ve mevcut arşiv kontrolü PASS; zamanında
+02:00 çalışması doğrulanmadı.** [Gerçek günlük kontrol sonuçları](#gecikmiş-günlük-çalışma-ve-arşiv-kontrolü--23-ekim-2026).
+Kullanıcı, Windows bilgisayarının hedef saatte kapalı veya uykuda olduğunu bildirdi.
+Başarılı iş 09:46:29 İstanbul'da görüldü; kesin reboot/Persistent catch-up veya
+uykudan dönüş mekanizması doğrulanmadı. Timer enabled/active/waiting kaldı.
+
+**22 Ekim 2026, doğal takvim ön kontrolü:** [SSH/saat ve timer bekleme durumu doğrulandı](#doğal-günlük-tetik-için-ön-kontrol--22-ekim-2026).
+Hedef 23 Ekim 02:00 İstanbul henüz gelmedi; gerçek günlük tetik kabulü bekliyor.
+Bu ön kontrol yeni backup veya catch-up çalışması kanıtı değildir.
+
 **22 Ekim 2026, sonraki adım: günlük timer enabled/active; kontrollü kısa timer
 tetiklenmesi PASS.** [Etkinleştirme ve kaynak koruma kaydı](#günlük-timer-etkinleştirme-ve-kontrollü-tetik--22-ekim-2026).
 09:38:49UTC timer üzerinden yeni 22 Ekim seti tamamlandı; geçici ayar kaldırıldı,
@@ -584,3 +594,110 @@ Yerel belge kapanışı: repository secret kontrolü, beş Markdown dosyasında1
 yerel dosya/başlık bağlantısı ve git diff --check PASS. Yalnız beş belge değişti;
 script/unit/Compose/release/test dosyaları değişmedi, ek VM deneyi veya fixture/build
 çalıştırılmadı. Bu yerel kontroller gelecekteki takvim olayının kanıtı değildir.
+
+## Doğal günlük tetik için ön kontrol — 22 Ekim 2026
+
+05f020242c43946556a1e1543f29db57592604e7 sonrasında temiz main üzerinde,
+kullanıcının salt okunur SSH sonuçları incelendi. Hostname fullstackopslabvm,
+eth0 172.30.249.139/20 ve VM saati 2026-10-22 13:25:13 UTC
+(16:25:13 Europe/Istanbul) olarak paylaşıldı. Henüz 22 Ekim 23:00 UTC /
+23 Ekim 02:00 İstanbul hedefi gelmedi.
+
+Timer UnitFileState=enabled, ActiveState=active, SubState=waiting ve
+DropInPaths boş. NextElapseUSecRealtime=2026-10-22 23:00:00 UTC;
+LastTriggerUSec=2026-10-22 09:38:49 UTC önceki kontrollü kısa teste ait.
+list-timers aynı sonraki/son zamanı gösterdi. Bu, bekleme durumu kanıtıdır;
+doğal 02:00 olayı gerçekleşmiş veya başarılı sayılmadı.
+
+Bu oturumda hedef olayın service journal'ı/sonucu, backup --status ve yeni günlük
+setin checksum/arşiv kabulü henüz incelenmedi. Kullanıcıya 23 Ekim 02:02 İstanbul /
+22 Ekim 23:02 UTC sonrasında rehberdeki salt okunur kontrollerle devam etmesi
+söylendi; uzun süre bekleyen komut çalıştırılmadı. VM'nin hedef saatte açık olup
+olmayacağı, reboot veya gecikmiş Persistent catch-up henüz bilinmiyor. Sonradan
+oluşacak bir işi zamanında 02:00 çalışması saymadan gerçek UTC journal/boot ve
+manifest zamanlarıyla ayırmak gerekiyor.
+
+Manuel service start, yeni dump, timer ayarı, stack/HTTPS/image/volume işlemi veya
+yedek silme yapılmadı. Agent VM'ye bağlanmadı; yalnız kullanıcı çıktıları kaydedildi.
+Bu ön kontrol için iki belge değişti; commit/push yok. Önceki kısa timer kabulü
+ve arşiv kanıtları kendi tarihleriyle korunuyor; yeni günlük kabul PASS değildir.
+
+## Gecikmiş günlük çalışma ve arşiv kontrolü — 23 Ekim 2026
+
+22 Ekim ön kontrolünün devamında, kullanıcı yalnız Ubuntu SSH terminalinde
+salt okunur komutları çalıştırdı. Ön kontrolden kalan iki belge değişikliği
+korundu. Agent VM'ye bağlanmadı; sonuçlar kullanıcının paylaştığı çıktılardır.
+
+### Zamanında çalışma ile gecikmiş işi ayırma
+
+Hedef **23 Ekim 02:00 Europe/Istanbul / 22 Ekim 23:00 UTC** idi.
+İlk kontrol saati 23 Ekim 06:52:04 UTC / 09:52:04 İstanbul:
+
+- Timer enabled/active/waiting, DropInPaths boş. LastTriggerUSec, hedef saat
+  yerine **23 Ekim 06:46:29 UTC / 09:46:29 İstanbul** gösterdi. Sonraki günlük
+  hedef 23 Ekim 23:00 UTC / 24 Ekim 02:00 İstanbul.
+- Service journal'ı 22 Ekim 22:55 UTC'den kontrol anına kadar, yalnız güvenli
+  `backup result=` satırlarıyla okundu. Paylaşılan tek sonuç 23 Ekim
+  06:46:29 UTC'deki `backup result=completed exit=0 removed_sets=0` idi.
+  Hedef 02:00 çevresinde başarılı backup sonucu bulunmadı.
+- Kullanıcı, Windows bilgisayarının 02:00 civarında **kapalı veya uykuda**
+  olduğunu bildirdi; bu gözlem kapalı ile uyku durumunu ayırmıyor ve VM'nin
+  tam durma/uyanma zamanını ölçmüyor. Geç işi zamanında 02:00 kabulü saymadık.
+- `uptime -s` çıktısı 2026-10-20 23:03:21 iken journal'ın mevcut boot kaydı
+  (737c3586...) ilk girdiyi 12 Ekim 13:06:02 UTC, son girdiyi 23 Ekim
+  06:53:18 UTC gösterdi. Bu farklı bilgilerden yeni reboot veya kesin kesinti
+  süresi çıkarılmadı. Sistem Etc/UTC ve NTPSynchronized=yes.
+- Gecikmiş iş, hostun yeniden kullanılabilir olması sonrası telafiyle uyumlu;
+  bu yalnız yorumdur. **Reboot sonrası Persistent catch-up ile uyku/VM duraklama
+  sonrası timer davranışı bu kanıtlarla ayrıştırılamadı.** Her ikisi de ayrı
+  mekanizma kabulü olarak NOT VERIFIED kalır; önceki kısa test tekrarlanmadı.
+
+### Service, status ve oluşmuş setin salt okunur kabulü
+
+| Kontrol | Paylaşılan gerçek sonuç |
+| --- | --- |
+| Service | Result=success, ExecMainStatus=0, inactive/dead; tamamlanmış oneshot |
+| Backup --status | Exit0; last_attempt_exit0; last_success_utc=2026-10-23T06:46:29.955908+00:00; sorgu anında yaş0.15 saat |
+| İkinci kopya durumu | windows_copy=manual-not-verified-by-this-job; otomatik Windows kopyası yok |
+| Mevcut set tarihleri | 2026-10-21, 2026-10-22 ve 2026-10-23; bu liste eski dosyaların byte eşitliği kanıtı değildir |
+| Yeni set | BACKUP_DAY=2026-10-23; dump3477 byte; SHA25635bdd2fc25b59cc0c8b37ecec2809c3b447cb3b2818d830da980c5be387a4b44 |
+| Tamamlanma | 2026-10-23T06:46:29.955908+00:00; manifest ve last-success eşit; completed/exit0/removed_sets0 |
+| Dosya güvenliği/bütünlüğü | Kurulu script SHA256 önceki kurulumla eşit; root/set sahiplik700, dump/manifest/state600, boyut/checksum kapıları PASS |
+| Arşiv okunabilirliği | Aynı kaynak PostgreSQL container'ında binary stdin ile pg_restore --list exit0/stderr boş; tasks/history TABLE DATA ve sequence SET mevcut |
+| Kaynak eşleşmesi | Manifest source container/image/volume değerleri çalışan kaynak PostgreSQL'in doğrulanmış project/service/health/no-port/volume bilgileriyle eşleşti |
+
+Doğrulama kodu backup script'ini import ederken bytecode yazımını kapattı;
+backup/retention fonksiyonları çağrılmadı. Yalnız checked_set/inspect ve arşiv
+listesi okundu. Manual service start, yeni dump komutu, restore, Task sorgusu/
+yazma/silme, timer restart/override/enable/disable, saat/timezone, stack/image/
+volume/TLS/development değişikliği veya yedek silme yapılmadı. Yeni23 Ekim seti
+komutlarla üretilmedi; mevcut otomatik işin ürünü olarak incelendi.
+
+**Sonuç:** gecikmiş başarılı iş, status ve bu arşivin hash/--list kabulü PASS.
+**Zamanında doğal 02:00 çalışması doğrulanmadı.** Kesin reboot/catch-up/uyku
+mekanizması, gerçek çok günlük retention silmesi, 22 ve23 Ekim arşivlerinin
+Windows kopyaları ve gerçek restore'ları NOT VERIFIED. Üç setin bulunması ve
+removed_sets0, son yedi gün retention kabulü değildir. Bu oturumda kaynak Task
+verisinin/altı container'ın tam koruma karşılaştırması veya eski VM/Windows
+kopyalarının byte/ACL kontrolleri tekrar edilmedi; önceki tarihli kanıtlar ayrı.
+Arşiv listesi restore edilmiş veri/şema/sequence kanıtı değildir. Manuel19 Ekim
+dolu ve21 Ekim boş günlük restore kabulü bu yeni arşivleri doğrulamaz.
+
+Timer **enabled/active/waiting**, aynı günlük takvimle bırakıldı; bir sonraki
+doğal hedef **24 Ekim 02:00 İstanbul / 23 Ekim 23:00 UTC**. Başka değişiklik
+yapmadan, kullanıcı ayrıca devam etmek isterse **24 Ekim 02:02 İstanbul**
+sonrasında Ubuntu SSH terminalinde:
+
+```bash
+date -u '+UTC: %Y-%m-%d %H:%M:%S'
+systemctl show fullstackops-pg-backup.timer -p UnitFileState -p ActiveState -p SubState -p LastTriggerUSec -p NextElapseUSecRealtime -p DropInPaths
+sudo journalctl -u fullstackops-pg-backup.service --since '2026-10-23 22:55:00 UTC' --utc --no-pager -o short-iso --grep='backup result='
+sudo python3 /usr/local/lib/fullstackops-deploy-lab/daily-backup.py --status
+```
+
+Bu gelecek kontrol yapılmadı. Zamanında kabul için Windows host ve VM hedef
+saatte çalışır durumda olmalı; SSH penceresini açık tutmak gerekmiyor. Host/VM
+uykudaysa geç işi yine ayrı kaydet. 24 saat RPO, sürekli erişim, çok günlük
+otomasyon veya off-site koruma garantisi yok; VM/Windows aynı fiziksel bilgisayarda.
+Yedekler ve private dosyalar Git'e eklenmedi; yalnız iki belge güncellendi,
+commit/push yapılmadı. Deployment final ve manuel öğrenme kabulü açık.
