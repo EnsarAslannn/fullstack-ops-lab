@@ -1,5 +1,12 @@
 # Günlük PostgreSQL yedekleme — kurulum ve kabul kayıtları
 
+**23 Ekim 2026, saat değişikliği ve kontrollü test PASS:** Kalıcı günlük saat
+**10:30 Europe/Istanbul**; repository ve VM timer dosyaları eşleşiyor.
+[Beş dakikalık test ve günlük takvime dönüş](#günlük-saati-1030-yapma-ve-beş-dakikalık-test--23-ekim-2026)
+iki ayrı already-complete/exit0 olayıyla doğrulandı. Geçici dosya kaldırıldı;
+timer enabled/active/waiting, sonraki zaman24 Ekim10:30 İstanbul.
+Doğal10:30 tetiklenmesi henüz gözlenmedi; aşağıdaki02:00 kayıtları tarihlidir.
+
 **23 Ekim 2026: gecikmiş başarılı çalışma ve mevcut arşiv kontrolü PASS; zamanında
 02:00 çalışması doğrulanmadı.** [Gerçek günlük kontrol sonuçları](#gecikmiş-günlük-çalışma-ve-arşiv-kontrolü--23-ekim-2026).
 Kullanıcı, Windows bilgisayarının hedef saatte kapalı veya uykuda olduğunu bildirdi.
@@ -39,8 +46,8 @@ Deployment A, HTTPS, release digestleri ve development kaynakları korunmuştur.
 - [service](fullstackops-pg-backup.service): root oneshot; yerel Docker socket'ine
   erişmek için root gerekir, labadmin'i docker grubuna eklemez. Credential unit'e
   yazılmaz. Root'a ait script ve unit dosyalarını yalnız yönetici değiştirebilir.
-- [timer](fullstackops-pg-backup.timer): her gün **02:00 Europe/Istanbul**
-  (bugünkü UTC+03:00 kurallarıyla 23:00 UTC, önceki UTC günü). VM timezone'u UTC
+- [timer](fullstackops-pg-backup.timer): her gün **10:30 Europe/Istanbul**
+  (bugünkü UTC+03:00 kurallarıyla aynı gün 07:30 UTC). VM timezone'u UTC
   olsa da takvim ve script'in gün anahtarı İstanbul'dur. UTC zamanlar metadata'dadır.
 - [Fixture testleri](../../../tests/Deployment.DailyBackup.Test.py): yalnız Docker
   subprocess sınırı taklit edilir; dosyalar, atomik terfi, hash, retention ve iki
@@ -167,7 +174,7 @@ doğrulanmış üç public dosyanın kaynak yolları buna göre seçilir:
 ```bash
 python3 --version
 python3 -c 'from zoneinfo import ZoneInfo; print(ZoneInfo("Europe/Istanbul"))'
-systemd-analyze calendar '*-*-* 02:00:00 Europe/Istanbul'
+systemd-analyze calendar '*-*-* 10:30:00 Europe/Istanbul'
 ```
 
 Unit verify, ExecStart dosyası kurulunca aşağıdaki grupta yapılır; hata varsa
@@ -701,3 +708,147 @@ uykudaysa geç işi yine ayrı kaydet. 24 saat RPO, sürekli erişim, çok günl
 otomasyon veya off-site koruma garantisi yok; VM/Windows aynı fiziksel bilgisayarda.
 Yedekler ve private dosyalar Git'e eklenmedi; yalnız iki belge güncellendi,
 commit/push yapılmadı. Deployment final ve manuel öğrenme kabulü açık.
+
+## Günlük saati 10:30 yapma ve beş dakikalık test — 23 Ekim 2026
+
+Kullanıcının ilk mesajındaki iki farklı saat, açık yanıtıyla **her gün10:30
+Europe/Istanbul** olarak netleşti. Tarih sabitlenmez: OnCalendar değeri
+`*-*-* 10:30:00 Europe/Istanbul`; UTC karşılığı aynı gün07:30. Bugünkü10:30
+geçtiği için son doğrulamada sonraki günlük zaman24 Ekim07:30UTC çıktı.
+Saat/timezone değiştirilmedi. Repository ve VM timer Description/OnCalendar
+güncellendi; script ve service aynı kaldı. Kullanıcı komutları küçük gruplarla
+çalıştırıp her sonucu paylaştı; agent VM'ye bağlanmadı.
+
+Aşağıdaki sıra uygulama yönteminin referansıdır; tamamlanmış deneyi yeniden
+çalıştırma.23 Ekim gerçek sonuçları sonraki tablodadır:
+
+1. Ubuntu SSH'de saat/senkronizasyon, kurulu üç dosyanın eski SHA256'ları,
+   DropInPaths/service/timer durumu, kaynak container'lar ve mevcut günlük setler
+   kontrol edilecek. Beklenmedik override veya çalışan backup varsa önce incelenecek.
+2. Yalnız yeni public timer Windows'tan ayrı staging'e aktarılıp SHA256
+   karşılaştırılacak; root-owned644 kurulu timer olarak uygulanacak. Script,
+   service, env/TLS/release ve yedek dosyaları aktarılmayacak veya değiştirilmeyecek.
+3. Günlük10:30 takvimi ve unit parser'ı doğrulanacak. Timer-origin test için yalnız
+   bu timer'ın /run altındaki benzersiz, önceden mevcut olmayan drop-in dosyası
+   kullanılacak. Geçici içerik:
+
+   ```ini
+   [Timer]
+   OnCalendar=
+   OnActiveSec=5min
+   AccuracySec=1s
+   Persistent=false
+   ```
+
+   Boş OnCalendar ataması günlük listeyi geçici sıfırlar; arkasından OnActiveSec
+   eklenir. Böylece test sırasında günlük10:30 ile çakışan ikinci tetik olmaz.
+   Persistent=false yalnız geçici test içindir. Reload/verify sonrası sadece timer
+   restart edilir; service elle başlatılmaz. Restart anı ve yaklaşık beş dakika
+   sonraki gerçek hedef VM çıktısından kaydedilecek; sabit geçmiş saat verilmeyecek.
+4. Öncesi/sonrası journal, timer LastTrigger ve service result/exit ile çalışma
+   doğrulanacak. Bugünün sağlam seti varsa **already-complete/exit0** beklenir;
+   dump/manifest size/hash/mtime ve asıl başarı UTC'si korunmalı. Yeni dump için
+   set silinmez, script koruması veya retention davranışı değiştirilmez.
+5. Yalnız hash'i ve sahipliği doğrulanmış bu geçici dosya kaldırılacak; reload/
+   verify ve yalnız timer restart ile kalıcı günlük10:30, Accuracy1min,
+   Persistent=true, boş DropInPaths ve enabled/active/waiting doğrulanacak.
+   Saat değişimi veya Persistent nedeniyle ayrı tetik olursa ayrıca kaydedilecek;
+   kısa test olayıyla karıştırılmayacak. Sonraki zaman gerçek VM çıktısından alınacak.
+6. Yedekler/veriler/container kimlikleri karşılaştırılacak; sonuçlar bu kayda
+   eklenecek. Beş dakikalık test doğal günlük10:30 olayını, kesin reboot/catch-up,
+   restore veya çok günlük retention davranışını kanıtlamaz. Windows ikinci kopyası
+   manuel,24h RPO garantisi yok; deployment image çifti ve diğer servisler korunur.
+
+Yerel mevcut backup fixture testleri gerekli Windows Temp izniyle **14/14 PASS**.
+İlk sandbox denemesinde Temp erişim hatası nedeniyle başarısızlıklar görüldü;
+başarılı izinli çalışma aynı testleri script değişmeden geçti. İlk denemenin bu
+görevde oluşmuş14 fixture dizini tam yol/oluşturulma zamanı/bağlantı kapılarıyla
+temizlendi; gerçek backup veya Docker kaynağına erişilmedi. Bu testler Linux
+unit/timer runtime kabulü değildir. Aşağıdaki ayrı kullanıcı çıktıları VM
+uygulaması, geçici tetik ve son takvim kontrolünün gerçek kanıtıdır.
+
+### VM uygulaması ve iki ayrı timer olayı
+
+Başlangıç temiz main/3d243ebcbb45a1cbc784bd361e9ba9a98c63692a. Üç kurulu
+dosyanın eski hash'leri eşleşti, override yok ve service inactive/dead idi;
+eski02:00 takvimi enabled/active/waiting olarak kaydedildi.23 Ekim arşivi
+3477 byte/SHA25635bdd2fc25b59cc0c8b37ecec2809c3b447cb3b2818d830da980c5be387a4b44
+doğrulandı;21/22/23 Ekim dump/manifest altı dosyanın hash'i, bugünkü dosyaların
+boyut/mtime/izin/sahibi ve last-success içeriği başlangıçta kaydedildi.
+Kanıtlar Git dışında `~/.local/share/fullstackops-deploy-lab/schedule-1030-4ZYtaKDZ/`
+altında700 klasör/umask077 ve600 dosyalardır. Altı container'ın tam kimlik/image/
+port/mount/restart bilgileri ve READ ONLY Task/history/sequence başlangıcı alındı.
+
+| Aşama | Gerçek sonuç |
+| --- | --- |
+| Public aktarım | Yalnız fullstackops-pg-backup.timer251 byte SCP ile özel staging'e aktarıldı; Windows/VM SHA2561b69a37b19f501b585c45bd76e0a1b6b530af72aaa39f1933467eaeb37dca5ae eşleşti |
+| İçerik/kurulum | LF/BOM'suz; eski dosyayla yalnız Description/OnCalendar02:00→10:30 farkı. systemd-analyze verify PASS; root:root644 kurulum sonrası yeni hash aynı, önceki public unit özel klasörde600 saklandı |
+| Takvim parser'ı | 07:47:33UTC /10:47:33 İstanbul; bugünkü saat geçmişti. Sonraki iki zaman24 ve25 Ekim07:30UTC, günlük10:30 İstanbul |
+| Geçici dosya | Yalnız /run/systemd/system/fullstackops-pg-backup.timer.d/90-lab-five-minute.conf; mevcut dosya/override yokluğu, service inactive ve altı backup hash kapısından sonra oluşturuldu. OnCalendar boş, OnActiveSec5min, Accuracy1s, Persistentfalse |
+| Testin planlanması | 07:50:33UTC; reload/verify ve yalnız timer restart. NEXT07:55:33UTC /10:55:33 İstanbul. Erken okuma kapısı sonuç vermeden durdu, manuel service start yapılmadı |
+| Beş dakikalık tetik | 07:55:34UTC /10:55:34 İstanbul;07:56:14 kontrolünde timer LastTrigger ile journal eşleşti: already-complete/exit0/removed_sets0; service success/status0/inactive/dead. Timer active/elapsed, tek tetik sonrasında beklenen durum |
+| Geçici ayarı kaldırma | DropInPaths tam eşleşmesi, dosya/hash ve yeni kalıcı timer hash kapıları geçti; yalnız bu dosya silindi.07:58:24UTC kayıt sonrası daemon-reload/verify ve yalnız timer restart |
+| Takvime dönüşte ek olay | 07:58:25UTC /10:58:25 İstanbul: timer running, o anda NEXT boş; job bitmeden sonuç verilmedi.08:02:51UTC kontrolünde ayrı journal already-complete/exit0/removed_sets0 ve service success/status0/inactive/dead doğrulandı |
+| Son günlük durum | enabled/active/waiting; DropInPaths boş, geçici dosya yok, Persistentyes/Accuracy1min. OnCalendar `*-*-* 10:30:00 Europe/Istanbul`; sonraki zaman24 Ekim07:30UTC /10:30 İstanbul, LastTrigger07:58:25UTC |
+
+Kalıcı10:30 ayarı geri geldiğinde bugünkü10:30 zaten geçmişti ve Persistent=true
+yeniden etkinleşti. Bu sıradaki ek tetik geçmiş takvimin telafisiyle uyumludur;
+bu bir yorumdur. İki farklı UTC/journal olayı ayrı kaydedildi; ek olayı beş
+dakikalık testin ikinci koşusu veya VM reboot/catch-up deneyi saymadık.
+Yeni doğal günlük10:30 olayı henüz gözlenmedi. `systemctl restart` yalnız timer
+için kullanıldı; service elle başlatılarak timer kabulü üretilmedi.
+
+### Yedek, veri ve container koruması
+
+- Her iki journal sonucu **already-complete**; yeni dump üretilmedi, set silinmedi,
+  scriptin aynı-gün koruması veya retention kuralı değiştirilmedi. last-success
+  **2026-10-23T06:46:29.955908+00:00** olarak kaldı;08:02:51 kontrolünde yaş1.27h,
+  --status exit0/last_attempt_exit0/windows_copy=manual-not-verified-by-this-job.
+- 21/22/23 Ekim dump/manifest **altı SHA256** başlangıçla aynı. Bugünkü iki dosyanın
+  boyut, tam mtime, izin ve sahibi birebir aynı; last-success dosyasının byte
+  içeriği/asıl başarı zamanı aynı. Pointer dosyasının fiziksel mtime'ının aynı
+  kaldığı iddia edilmez. Script/service eski hash'leri ve yeni kalıcı timer hash'i
+  tekrar doğrulandı; geçici dosyanın yokluğu geçti. removed_sets0, retention silme
+  kabulü değildir. Eski manuel veya Windows kopyalarının hash/ACL'leri bu adımda
+  tekrar ölçülmedi; onlara işlem yapılmadı.
+- **08:10:13.596772UTC** kapanışında altı container'ın tam ID/image/port/mount/
+  restart bilgisi başlangıçla aynı ve hepsi healthy. Seçilmiş A image çifti,
+  kaynak PostgreSQL volume'u ve HTTPS yayınları korundu; recreate/build/pull yok.
+- Aynı hash'i doğrulanmış READ ONLY SQL psql exit0: Task0/IDs[]/satır SHA256
+  e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855,
+  tek InitialCreate/EF10.0.12 history ve sequence8/true başlangıçla aynı.
+  Task yazma/silme, migration veya sequence sıfırlama yapılmadı. Kapanış
+  containers.after.jsonl/source.after.json600 olarak korundu; secret gösterilmedi.
+
+**PASS:** kalıcı10:30 VM uygulaması, kontrollü5min timer tetiki, aynı gün
+already-complete davranışı, dönüşteki ayrı ek iş, son günlük model ve kaynak
+koruması. **NOT VERIFIED:** doğal günlük10:30 olayı, kesin reboot/uyku catch-up,
+gerçek çok günlük retention/hata/eşzamanlı gerçek iş ve yeni arşivlerin ikinci
+kopya/restore kabulü. Önceki02:00 zamanında çalışmama ve tanı sınırları tarihlidir;
+bu deney onları geriye dönük PASS yapmaz. Windows kopyası manuel/same-host;
+24h RPO, kesintisiz çalışma veya off-site garantisi yok. Diğer servis/development/
+env/credential/TLS/deployment digestlerinde değişiklik yok. Commit/push yapılmadı.
+
+### Sonraki doğal 10:30 kontrolü
+
+**24 Ekim 2026 10:32 İstanbul / 07:32 UTC sonrasında**, host ve VM hedef saatte
+çalışır durumdaysa, Ubuntu SSH terminalinde yalnız okuma:
+
+```bash
+date -u '+UTC: %Y-%m-%d %H:%M:%S'
+systemctl show fullstackops-pg-backup.timer -p UnitFileState -p ActiveState -p SubState -p LastTriggerUSec -p NextElapseUSecRealtime -p DropInPaths
+sudo journalctl -u fullstackops-pg-backup.service --since '2026-10-24 07:25:00 UTC' --utc --no-pager -o short-iso --grep='backup result='
+sudo python3 /usr/local/lib/fullstackops-deploy-lab/daily-backup.py --status
+```
+
+Bu gelecek kontrol yapılmadı. Timer açık bırakılır; SSH penceresinin açık olması
+gerekmez. Hata veya geç çalışma ayrıca kaydedilir; manuel service start takvim
+kanıtı sayılmaz. Gerektiğinde kapatma komutu Ubuntu SSH'de
+`sudo systemctl disable --now fullstackops-pg-backup.timer`; gelecek tetikleri
+durdurur, çalışan işi durdurmaz veya yedek silmez. Bu görevde çalıştırılmadı.
+
+Yerel kapanış: secret kontrolü, beş Markdown belgesinde195 yerel dosya/başlık
+bağlantısı ve git diff --check PASS. Kalıcı timer yalnız Description/OnCalendar
+satırlarında değişti; LF/BOM ve VM ile aynı SHA256 ayrıca doğrulandı. Toplam
+altı değişen dosya: timer ve beş belge; staged/untracked dosya yok. Script,
+service, Compose, release ve test dosyaları aynı; commit/push/CI başlatılmadı.

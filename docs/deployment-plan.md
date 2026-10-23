@@ -1,5 +1,11 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
+**23 Ekim saat güncellemesi:** [Kalıcı günlük10:30 ve kontrollü beş dakikalık timer PASS](../infrastructure/deployment/backup/README.md#günlük-saati-1030-yapma-ve-beş-dakikalık-test--23-ekim-2026);
+bölüm35. VM enabled/active/waiting, override yok, sonraki24 Ekim10:30 İstanbul.
+Test ve takvime dönüşteki ayrı iş already-complete/exit0; yeni dump veya yedek
+silme yok, veri/container/backup koruması geçti. Doğal10:30/kesin catch-up/çok
+günlük retention ve adım9 açık; aşağıdaki02:00 kayıtları geçmiş duruma aittir.
+
 **22 Ekim timer ek durumu:** [Etkinleştirme ve kontrollü kısa timer tetiki PASS](../infrastructure/deployment/backup/README.md#günlük-timer-etkinleştirme-ve-kontrollü-tetik--22-ekim-2026);
 bölüm34. Timer enabled/active, günlük02:00 Europe/Istanbul; geçici60s ayarı
 kaldırıldı.09:38:49UTC yeni22 Ekim seti completed/exit0/removed_sets0; kaynak
@@ -214,7 +220,7 @@ Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz
 | 5 — Yerel HTTPS | Mevcut frontend Nginx'e read-only config/leaf mount, lab CA ve localhost SSH | PASS; sertifika/trust/nginx -t, frontend-only recreate, uyarısız manuel browser/asset ve HTTPS contract; iptal durumu NOT VERIFIED, Schannel best-effort sınırı bölüm21'de |
 | 6 — Kalıcılık ve gözlem | PostgreSQL recreate, Prometheus ve Grafana kontrolleri | PASS; aynı image/volume'da yeni PostgreSQL ID, test ID4/altı alan tekil GET ile korundu, aynı API ready200/RestartCount0 ve cleanup; bölüm22. Monitoring kabulü ayrı15 Ekim kanıtıdır, burada yeniden ölçülmedi |
 | 7 — Güncelleme/rollback | PASS; A/B seçimi ve rehberli A→B→A; final A açık | Bölüm23–25: doğru image kimlikleri, API sonra frontend, B/A dönüşü HTTPS asset/CRUD ve aynı ID5; dört altyapı container'ı, veri/history korundu, owned cleanup PASS. Önceki nginx-t timeout nedeni ve sürekli kesinti ölçümü NOT VERIFIED |
-| 8 — Yedek/restore | Manuel dolu ve21 Ekim boş günlük arşiv kabulü PASS; timer enabled/active, kontrollü kısa tetik PASS | Bölüm26–34: yeni22 Ekim seti completed/exit0/removed_sets0,3477 byte/hash/--list. Eski yedekler/kaynak veri/altı container korundu; geçici timer ayarı kaldırıldı. Gerçek02:00/reboot-catch-up/çok günlük retention, yeni setin kopya/restore'u ve RPO açık |
+| 8 — Yedek/restore | Önceki arşiv kabulleri ve23 Ekim kalıcı10:30/kontrollü5min timer PASS; enabled/active/waiting | Bölüm26–35: geçici dosya kaldırıldı; test ve dönüşteki ayrı ek iş already-complete/exit0/removed_sets0. Yedek hash/mtime/asıl başarı ve kaynak veri/altı container korundu. Doğal10:30/kesin reboot-catch-up/çok günlük retention, yeni arşivlerin kopya/restore'u ve RPO açık |
 | 9 — Lab kapanışı | Komutlar, runtime kanıtları, limitler ve kaynak envanteri | Development .env/user-secrets/volume değişmemiş; yalnız lab stack'i down; asıl lab verisi korunmuş |
 
 [Mevcut registry kabul script'i](../tests/Module11.Compose.Smoke.py), [registry guard testleri](../tests/Module11.RegistryRuntime.Test.py), [CRUD smoke](../tests/Phase0B.Tasks.Smoke.ps1) ve [Module 8 testi](../tests/Module8.Readiness.Smoke.ps1) yeniden kullanılabilecek temeldir. CI Lab.prepare rastgele test env/volume oluşturur ve cleanup bunları siler: kalıcı deployment volume'unda **olduğu gibi çalıştırılmaz**. Sadece uygun assertion'lar veya ayrı, disposable ön kabul için kullanılır; hosted PASS gerçek VM deployment'ın yerine geçmez.
@@ -1094,3 +1100,43 @@ adım9 final kabulü doğrulanmadı. VM/Windows aynı fiziksel host; kopya manue
 Önceki exit124/RuntimeError nedenleri çözülmüş sayılmaz. Timer açık bırakıldı;
 gerekirse Ubuntu SSH'de sudo systemctl disable --now fullstackops-pg-backup.timer
 gelecek tetikleri durdurur, çalışan işi/yedekleri kaldırmaz. Commit/push yok.
+
+## 35. Günlük saat 10:30 ve beş dakikalık timer kabulü — 23 Ekim 2026
+
+Kullanıcı kalıcı günlük saati **10:30 Europe/Istanbul** olarak netleştirdi.
+[Ayrıntılı aktarım, timer ve koruma kanıtları](../infrastructure/deployment/backup/README.md#günlük-saati-1030-yapma-ve-beş-dakikalık-test--23-ekim-2026).
+Temiz main/3d243ebcbb45a1cbc784bd361e9ba9a98c63692a sonrasında yalnız kalıcı
+timer Description/OnCalendar değişti; script/service/Compose/release ve seçilmiş
+A digestleri aynı. Timer251 byte, SHA2561b69a37b19f501b585c45bd76e0a1b6b530af72aaa39f1933467eaeb37dca5ae;
+Windows/VM staging/kurulu root:root644 hash eşleşti. Unit verify ve gerçek
+07:47:33UTC takvim parser'ı sonraki24/25 Ekim07:30UTC=10:30 İstanbul gösterdi.
+
+Yalnız bu timer'a ait /run drop-in ile OnCalendar geçici boşaltıldı,
+OnActiveSec5min/Accuracy1s/Persistentfalse eklendi.07:50:33UTC yalnız timer
+restart edildi; hedef07:55:33UTC. Erken kontrol kapısı sonuç vermeden durdu.
+Gerçek07:55:34UTC LastTrigger ve journal already-complete/exit0/removed_sets0,
+service success/status0 doğrulandı. Bugünkü set vardı; yeni dump için silinmedi.
+
+Hash/kimlik kapıları sonrası yalnız geçici dosya kaldırıldı;07:58:24UTC reload/
+verify ve yalnız timer restart ile kalıcı10:30/Persistenttrue geri geldi.
+07:58:25UTC ayrı ek iş gözlendi;08:02:51UTC journal already-complete/exit0/
+removed_sets0 ve service success/status0 ile tamamlandığı görüldü. Geçmiş bugünkü
+10:30 takviminin telafisiyle uyumlu bir yorumdur; beş dakikalık test veya VM
+reboot deneyi olarak birleştirilmedi. Final enabled/active/waiting, DropInPaths
+boş/geçici dosya yok, Accuracy1min ve sonraki **24 Ekim10:30 İstanbul**.
+
+21/22/23 Ekim günlük altı dosya hash'i aynı; bugünkü dump/manifest size/mtime/
+izin/sahibi ve last-success byte içeriği/asıl06:46:29.955908UTC başarı zamanı
+aynı. Pointer fiziksel mtime garantisi yok; manuel/Windows kopyaları yeniden
+hash edilmedi ve onlara işlem yapılmadı.08:10:13.596772UTC altı container'ın tam
+ID/image/port/mount/restart kaydı aynı/healthy; READ ONLY psql exit0, Task0/boş
+satır hash/history/sequence8-true başlangıçla aynı. Private kanıt klasörü700,
+dosyalar600; secret veya gerçek yedek Git'e eklenmedi.
+
+Yerel14 fixture PASS; ilk sandbox Temp hatası izinli çalışmayla aşıldı, yalnız
+tam kimliği doğrulanmış14 test dizini temizlendi. Bu fixture'lar actual Linux
+unit/timer kanıtından ayrıdır. Doğal günlük10:30, kesin reboot/uyku catch-up,
+gerçek çok günlük retention, yeni arşivlerin kopya/restore'u,24h RPO ve final lab
+kabulü açık. Sonraki isteğe bağlı salt okunur kontrol24 Ekim10:32 İstanbul;
+host/VM hedef saatte çalışır olmalı, manuel service start kanıt değildir.
+Stack/HTTPS/tüneller/development korundu; commit/push yapılmadı.

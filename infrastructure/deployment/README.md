@@ -1,5 +1,14 @@
 # Deployment Lab — image-only VM kurulumu ve kabul kayıtları
 
+**23 Ekim 2026, günlük saat güncellemesi PASS:** [Kalıcı10:30 ve beş dakikalık timer kabulü](backup/README.md#günlük-saati-1030-yapma-ve-beş-dakikalık-test--23-ekim-2026).
+Her gün **10:30 Europe/Istanbul**; VM timer enabled/active/waiting, override yok,
+sonraki zaman24 Ekim10:30.07:55:34UTC kısa test ve07:58:25UTC takvime dönüşteki
+ayrı iş already-complete/exit0/removed_sets0; yeni dump yok. Altı günlük dosya
+hash'i, bugünkü mtime/asıl başarı zamanı, kaynak veri/history/sequence ve altı
+container korundu. Doğal10:30 olayı, reboot/uyku catch-up mekanizması, çok günlük
+retention ve yeni arşivlerin kopya/restore'u bekliyor;24h RPO garantisi yok.
+Aşağıdaki02:00 ve eski timer durumları tarihsel kayıtlardır.
+
 **22 Ekim 2026, sonraki adım:** [Günlük timer enabled/active ve kontrollü kısa tetik PASS](backup/README.md#günlük-timer-etkinleştirme-ve-kontrollü-tetik--22-ekim-2026).
 60 saniyelik geçici tetik09:38:49UTC service completed/exit0/removed_sets0 üretti.
 Yeni22 Ekim arşivi3477 byte/hash doğrulandı; geçici ayar kaldırıldı, günlük02:00

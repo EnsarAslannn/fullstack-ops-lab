@@ -1,5 +1,12 @@
 # Deployment — izole PostgreSQL yedek/restore hazırlığı
 
+**23 Ekim 2026, güncel takvim:** Kalıcı günlük saat **10:30 Europe/Istanbul**;
+[VM uygulaması, beş dakikalık tetik ve koruma PASS](backup/README.md#günlük-saati-1030-yapma-ve-beş-dakikalık-test--23-ekim-2026).
+Kısa test ve takvime dönüşteki ek iş ayrı already-complete/exit0 sonuçlarıdır;
+dump üretilmedi, yedek silinmedi. Override kaldırıldı, timer enabled/active/waiting.
+Sonraki günlük zaman24 Ekim10:30; doğal10:30/kesin reboot-catch-up/çok günlük
+retention ve yeni arşivlerin Windows kopyası/restore'u açık. Önceki02:00 kayıtları tarihlidir.
+
 **22 Ekim 2026, sonraki adım:** [Günlük timer etkinleştirme ve kısa tetik PASS](backup/README.md#günlük-timer-etkinleştirme-ve-kontrollü-tetik--22-ekim-2026).
 Timer enabled/active; geçici60s ayarıyla09:38:49UTC yeni22 Ekim seti completed/
 exit0/removed_sets0. Arşiv3477 byte/hash/--list geçti; geçici dosya kaldırıldı,
@@ -394,8 +401,10 @@ source volume korunur. Hata halinde de son güvenli durum ayrı raporlanır.
 ## 9. Günlük hedef, saklama ve başarısızlık kontrolü
 
 21 Ekim'de [ayrıntılı günlük işletim rehberi](backup/README.md), Python script ve
-systemd service/timer hazırlandı. Günlük02:00 **Europe/Istanbul**, Persistent=true
-ile timer kapalıyken kaçırılan takvim varsa açılışta telafi hedeflenir; geçmiş
+systemd service/timer hazırlandı; ilk takvim02:00 idi.23 Ekim'de kullanıcı seçimiyle
+güncel günlük saat **10:30 Europe/Istanbul** olarak repository ve VM'de değişti;
+[kısa test/dönüş/koruma kanıtı](backup/README.md#günlük-saati-1030-yapma-ve-beş-dakikalık-test--23-ekim-2026).
+Persistent=true ile timer kapalıyken kaçırılan takvim varsa açılışta telafi hedeflenir; geçmiş
 günlere tarihsel dump üretme yok. Gerçek reboot/catch-up senaryosu denenmedi.
 Kaynak doğrulama/custom dump/checksum/--list ve OS kilidi kullanılır; Task
 oluşturulmaz. Sonraki rehberli VM kurulumu ve timer kapalıyken ilk gerçek dump /
@@ -422,8 +431,9 @@ bağlıdır; Windows onayı beklemez. Bu fark bilinçli ve günlük RPO garantis
 Windows kopya UTC/hash/ACL makbuzu ayrıca tutulur. VM/PC kapalı veya ikinci kopya
 eskiyse24h RPO garanti edilmez. İki kopya aynı fiziksel host'tadır; off-site/PITR/
 production SLA kabulü yok. Linux iki süreç kilit fixture'ı,700/600 izinler ve
-systemd verify/calendar ve kontrollü kısa timer tetiki gerçek VM'de geçti.
-Gerçek02:00 olayı/reboot-catch-up, çok günlük retention ve final lab kabulü
+systemd verify/calendar ve kontrollü kısa timer tetikleri gerçek VM'de geçti;
+23 Ekim beş dakikalık test ve takvime dönüşteki ayrı iş already-complete/exit0.
+Güncel doğal10:30 olayı/kesin reboot-catch-up, çok günlük retention ve final lab kabulü
 **NOT VERIFIED**;14 Windows fixture testi runtime yerine geçmez.
 
 ## 10. Kabul tablosu ve yerel kontroller
@@ -439,7 +449,7 @@ Gerçek02:00 olayı/reboot-catch-up, çok günlük retention ve final lab kabul�
 | Kaynak koruması | PASS — 19–20 Ekim, bölüm13–14 | Altı kaynak ID/image aynı, healthy/RestartCount0; kaynak volume/mount korundu. Sahipli ID8 silindikten sonra Task verisi/history sentinel-öncesi baseline ile aynı; source sequence8 sıfırlanmadı |
 | Cleanup | PASS — 20 Ekim, bölüm14 | Sahipli ID8 DELETE204/GET404; yalnız doğrulanmış restore container/network/volume kaldırıldı, yokluk geçti. Yedek/env/TLS/kanıtlar korundu |
 | Günlük arşiv kopya/restore/cleanup | PASS — 22 Ekim; boş tasks sınırı açık | [Gerçek sonuçlar](backup/README.md#günlük-arşivin-windows-kopyası-izole-restore-ve-temizlik--22-ekim-2026): Windows boyut/hash/ACL, izole pg_restore exit0, dump dönemi Task0/hash/history/sequence8; şema/ownership ve hedef-only ID9/rollback. Yalnız yeni restore kaynakları silindi; kaynak sequence8, altı container ve günlük/manuel VM/Windows yedekler korundu |
-| Günlük job/retention/RPO | Kurulum/iki manuel service PASS21 Ekim; kontrollü timer tetiki PASS22 Ekim, timer enabled/active | [Gerçek timer sonucu](backup/README.md#günlük-timer-etkinleştirme-ve-kontrollü-tetik--22-ekim-2026): yeni22 Ekim arşivi3477 byte/hash/--list, completed/exit0/removed_sets0; geçici ayar kaldırıldı. Gerçek02:00/reboot-catch-up/çok günlük retention, otomatik Windows kopyası ve RPO NOT VERIFIED;22 Ekim setinin Windows kopyası/restore'u bekliyor |
+| Günlük job/retention/RPO | Kalıcı10:30 VM uygulaması ve kontrollü5min timer PASS23 Ekim; timer enabled/active/waiting | [10:30 kabulü](backup/README.md#günlük-saati-1030-yapma-ve-beş-dakikalık-test--23-ekim-2026): test ve dönüşteki ayrı ek iş already-complete/exit0/removed_sets0; hash/mtime/asıl başarı/veri/container koruması. Sonraki24 Ekim10:30. Doğal10:30/kesin reboot-catch-up/çok günlük retention, yeni arşivlerin kopya/restore'u, otomatik Windows kopyası ve RPO NOT VERIFIED |
 
 Statik komut **Windows PowerShell, repository kökü**; Engine/VM işlemi yapmaz:
 
