@@ -1,5 +1,12 @@
 # Deployment Lab planı — GHCR, yerel Linux VM, HTTPS ve rollback
 
+**24 Ekim 2026 final değerlendirmesi:** Kabul edilen 0 TL ayrı Linux VM
+laboratuvarının [tek final teknik kabul tablosu](deployment-final-acceptance.md)
+**PASS**. Doğal günlük 10:30, gerçek çok günlük retention ve kesin catch-up
+mekanizması NOT VERIFIED; RPO garantisi yok. Aşağıdaki tarihli hazırlık/kabul
+kayıtları korunur; güncel final karar için bağlı belge esas alınır. Stack veya
+tüneller kapatılmadı, issue değiştirilmedi.
+
 **23 Ekim saat güncellemesi:** [Kalıcı günlük10:30 ve kontrollü beş dakikalık timer PASS](../infrastructure/deployment/backup/README.md#günlük-saati-1030-yapma-ve-beş-dakikalık-test--23-ekim-2026);
 bölüm35. VM enabled/active/waiting, override yok, sonraki24 Ekim10:30 İstanbul.
 Test ve takvime dönüşteki ayrı iş already-complete/exit0; yeni dump veya yedek
@@ -221,7 +228,7 @@ Her satır ayrı küçük görev; önceki sonuç incelenmeden topluca uygulanmaz
 | 6 — Kalıcılık ve gözlem | PostgreSQL recreate, Prometheus ve Grafana kontrolleri | PASS; aynı image/volume'da yeni PostgreSQL ID, test ID4/altı alan tekil GET ile korundu, aynı API ready200/RestartCount0 ve cleanup; bölüm22. Monitoring kabulü ayrı15 Ekim kanıtıdır, burada yeniden ölçülmedi |
 | 7 — Güncelleme/rollback | PASS; A/B seçimi ve rehberli A→B→A; final A açık | Bölüm23–25: doğru image kimlikleri, API sonra frontend, B/A dönüşü HTTPS asset/CRUD ve aynı ID5; dört altyapı container'ı, veri/history korundu, owned cleanup PASS. Önceki nginx-t timeout nedeni ve sürekli kesinti ölçümü NOT VERIFIED |
 | 8 — Yedek/restore | Önceki arşiv kabulleri ve23 Ekim kalıcı10:30/kontrollü5min timer PASS; enabled/active/waiting | Bölüm26–35: geçici dosya kaldırıldı; test ve dönüşteki ayrı ek iş already-complete/exit0/removed_sets0. Yedek hash/mtime/asıl başarı ve kaynak veri/altı container korundu. Doğal10:30/kesin reboot-catch-up/çok günlük retention, yeni arşivlerin kopya/restore'u ve RPO açık |
-| 9 — Lab kapanışı | Komutlar, runtime kanıtları, limitler ve kaynak envanteri | Development .env/user-secrets/volume değişmemiş; yalnız lab stack'i down; asıl lab verisi korunmuş |
+| 9 — Final teknik değerlendirme | Mevcut kanıtları ve sınırları tek kabul tablosunda toplama | 24 Ekim [yerel VM teknik kabulü PASS](deployment-final-acceptance.md); doğal takvim/çok günlük retention/catch-up NOT VERIFIED. Stack'i kapatma veya kaynak silme bu değerlendirmede istenmedi ve yapılmadı; yedekler/veriler korunur |
 
 [Mevcut registry kabul script'i](../tests/Module11.Compose.Smoke.py), [registry guard testleri](../tests/Module11.RegistryRuntime.Test.py), [CRUD smoke](../tests/Phase0B.Tasks.Smoke.ps1) ve [Module 8 testi](../tests/Module8.Readiness.Smoke.ps1) yeniden kullanılabilecek temeldir. CI Lab.prepare rastgele test env/volume oluşturur ve cleanup bunları siler: kalıcı deployment volume'unda **olduğu gibi çalıştırılmaz**. Sadece uygun assertion'lar veya ayrı, disposable ön kabul için kullanılır; hosted PASS gerçek VM deployment'ın yerine geçmez.
 

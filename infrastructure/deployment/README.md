@@ -1,5 +1,12 @@
 # Deployment Lab — image-only VM kurulumu ve kabul kayıtları
 
+**24 Ekim 2026 final teknik kabul:** Kabul edilen 0 TL ayrı Linux VM kapsamı
+[tek final kabul tablosunda PASS](../../docs/deployment-final-acceptance.md)
+olarak değerlendirildi. Doğal 10:30 tetiklenmesi, gerçek çok günlük retention,
+kesin reboot/catch-up ve RPO garantisi doğrulanmadı. Bu sonuç public deployment,
+manuel öğrenme veya issue kapanışı değildir. Aşağıdaki kayıtlar kendi tarihlerini
+korur; VM runtime deneyleri bu değerlendirmede tekrarlanmadı.
+
 **23 Ekim 2026, günlük saat güncellemesi PASS:** [Kalıcı10:30 ve beş dakikalık timer kabulü](backup/README.md#günlük-saati-1030-yapma-ve-beş-dakikalık-test--23-ekim-2026).
 Her gün **10:30 Europe/Istanbul**; VM timer enabled/active/waiting, override yok,
 sonraki zaman24 Ekim10:30.07:55:34UTC kısa test ve07:58:25UTC takvime dönüşteki
